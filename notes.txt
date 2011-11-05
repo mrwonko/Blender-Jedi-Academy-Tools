@@ -1,0 +1,1 @@
+bpy.props.StringProperty(maxlen=0, update=None) #update is function of type (self, context) -> None, self is the object
