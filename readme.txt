@@ -24,3 +24,5 @@ The Ghoul 2 model format has a couple of limitations, keep them in mind:
 
 Jedi Academy imposes some further restrictions, for example:
   * No more than 1000 vertices per surface
+
+File paths in glm files are basically relative to GameData/Base/ or GameData/YourMod/. Using the "Base Path" option you can define relative to which folder they should be interpreted. Can be left empty if the file's path includes /GameData/.

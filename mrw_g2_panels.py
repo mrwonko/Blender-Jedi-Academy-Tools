@@ -13,8 +13,8 @@ def initG2Properties():
 class G2PropertiesPanel(bpy.types.Panel):
     bl_label = "Ghoul 2 Properties"
     bl_idname = "OBJECT_PT_g2_props"
-    bl_space_type = "PROPERTIES" # goes in the properties editor
-    bl_region_type = "WINDOW"
+    bl_space_type = 'PROPERTIES' # goes in the properties editor
+    bl_region_type = 'WINDOW'
     bl_context = "object" # in the objects tab
 
     def draw(self, context):

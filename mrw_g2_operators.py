@@ -23,19 +23,23 @@ class GLMImport(bpy.types.Operator):
         bl_idname = "import_scene.glm"
         bl_label = "Import Ghoul 2 Model (.glm)"
         bl_description = "Imports a Ghoul 2 model (.glm), looking up the skeleton (and optionally the animation) from the referenced (or optionally a different) .gla file."
-        bl_options = {'REGISTER', 'UNDO'}
+        bl_options = {'REGISTER', 'UNDO'} #register is a must-have when using WindowManager.invoke_props_popup
 
-        filepath = bpy.props.StringProperty(name="File Path", description="The .glm file to import", maxlen=1024, default="")
+        # properties
+        filepath = bpy.props.StringProperty(name="File Path", description="The .glm file to import", default="", subtype='FILE_PATH')
+        basepath = bpy.props.StringProperty(name="Base Path", description="The base folder relative to which paths should be interpreted. Leave empty to let the importer guess (needs /GameData/ in filepath).", default="")
+        glaOverride = bpy.props.StringProperty(name=".gla override", description="Gla file to use, relative to base. Leave empty to use the one referenced in the file.", maxlen=64, default="")
+        scale = bpy.props.FloatProperty(name="Scale", description="Scale to apply to the imported model.", default=100, min=0, max=1000, subtype='PERCENTAGE')
+        loadAnimations = bpy.props.BoolProperty(name="Load Animations", description="Whether animations should be loaded from the .gla", default=False)
 
         def execute(self, context):
-            #from . import 
-            print("Import:", self.filepath)
             #todo
             #    self.report({'ERROR'}, message)
             return {'FINISHED'}
-
+        
         def invoke(self, context, event):
-            wm= context.window_manager
+            # show file selection window
+            wm = context.window_manager
             wm.fileselect_add(self)
             return {'RUNNING_MODAL'}
 
@@ -46,7 +50,13 @@ class GLAImport(bpy.types.Operator):
         bl_description = "Imports a Ghoul 2 skeleton (.gla) and optionally the animation."
         bl_options = {'REGISTER', 'UNDO'}
 
-        filepath = bpy.props.StringProperty(name="File Path", description="The .gla file to import", maxlen=1024, default="")
+        filename_ext = "*.gla" # I believe this limits the shown files.
+        
+        # properties
+        filepath = bpy.props.StringProperty(name="File Path", description="The .gla file to import", maxlen=1024, default="", subtype='FILE_PATH')
+        scale = bpy.props.FloatProperty(name="Scale", description="Scale to apply to the imported model.", default=100, min=0, max=1000, subtype='PERCENTAGE')
+        loadAnimations = bpy.props.BoolProperty(name="Load Animations", description="Whether animations should be loaded from the .gla", default=False)
+        
 
         def execute(self, context):
             #todo
@@ -64,8 +74,13 @@ class GLMExport(bpy.types.Operator):
         bl_label = "Export Ghoul 2 Model (.glm)"
         bl_description = "Exports a Ghoul 2 model (.glm)"
         bl_options = {'REGISTER', 'UNDO'}
+        
+        filename_ext = "*.glm"
 
-        filepath = bpy.props.StringProperty(name="File Path", description="The filename to export to", maxlen=1024, default="")
+        # properties
+        filepath = bpy.props.StringProperty(name="File Path", description="The filename to export to", maxlen=1024, default="", subtype='FILE_PATH')
+        basepath = bpy.props.StringProperty(name="Base Path", description="The base folder relative to which paths should be interpreted. Leave empty to let the exporter guess (needs /GameData/ in filepath).", default="")
+        gla = bpy.props.StringProperty(name=".gla name", description="Name of the skeleton this model uses (must exist!)", default="models/players/_humanoid/_humanoid")
 
         def execute(self, context):
             #todo
@@ -84,7 +99,11 @@ class GLAExport(bpy.types.Operator):
         bl_description = "Exports a Ghoul 2 Skeleton and its animations (.gla)"
         bl_options = {'REGISTER', 'UNDO'}
 
-        filepath = bpy.props.StringProperty(name="File Path", description="The filename to export to", maxlen=1024, default="")
+        filename_ext = "*.gla"
+        
+        # properties
+        filepath = bpy.props.StringProperty(name="File Path", description="The filename to export to", maxlen=1024, default="", subtype='FILE_PATH')
+        basepath = bpy.props.StringProperty(name="gla name", description="The relative path of this gla. Leave empty to let the exporter guess (needs /GameData/ in filepath).", maxlen=64, default="")
 
         def execute(self, context):
             #todo
@@ -126,16 +145,16 @@ class ObjectRemoveG2Properties(bpy.types.Operator):
 
 # menu button callback functions
 def menu_func_export_glm(self, context):
-    self.layout.operator(mrw_g2_operators.GLMExport.bl_idname, text="Ghoul 2 model (.glm)")
+    self.layout.operator(GLMExport.bl_idname, text="Ghoul 2 model (.glm)")
 
 def menu_func_export_gla(self, context):
-    self.layout.operator(mrw_g2_operators.GLAExport.bl_idname, text="Ghoul 2 skeleton/animation (.gla)")
+    self.layout.operator(GLAExport.bl_idname, text="Ghoul 2 skeleton/animation (.gla)")
     
 def menu_func_import_glm(self, context):
-    self.layout.operator(mrw_g2_operators.GLMImport.bl_idname, text="Ghoul 2 model (.glm)")
+    self.layout.operator(GLMImport.bl_idname, text="Ghoul 2 model (.glm)")
 
 def menu_func_import_gla(self, context):
-    self.layout.operator(mrw_g2_operators.GLAImport.bl_idname, text="Ghoul 2 skeleton/animation (.gla)")
+    self.layout.operator(GLAImport.bl_idname, text="Ghoul 2 skeleton/animation (.gla)")
 
 # menu button init/destroy
 def register():
