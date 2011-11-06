@@ -30,70 +30,22 @@ bl_info = {
     "category": "Import-Export"
 }
 
-#Blender Python
+# reload won't work properly no matter what I do so I might as well ignore it.
+from . import mrw_g2_operators
+from . import mrw_g2_panels
 import bpy
-
-# To support reload properly, try to access a package var, if it's there, reload everything
-if "bpy" in locals():
-    import imp
-
-    # Reload Operators
-    if "mrw_g2_operators" in locals(): #already loaded?
-        imp.reload(mrw_g2_operators) #then: reload
-    else:
-        from . import mrw_g2_operators
-
-    # Reload Menu Panel
-    if "mrw_g2_panels" in locals(): #already loaded?
-        imp.reload(mrw_g2_panels) #then: reload
-    else:
-        from . import mrw_g2_panels
-else:
-    from . import mrw_g2_operators
-    from . import mrw_g2_panels
-
-
-
-
-def menu_func_export_glm(self, context):
-    self.layout.operator(mrw_g2_operators.GLMExport.bl_idname, text="Ghoul 2 model (.glm)")
-
-def menu_func_export_gla(self, context):
-    self.layout.operator(mrw_g2_operators.GLAExport.bl_idname, text="Ghoul 2 skeleton/animation (.gla)")
-    
-def menu_func_import_glm(self, context):
-    self.layout.operator(mrw_g2_operators.GLMImport.bl_idname, text="Ghoul 2 model (.glm)")
-
-def menu_func_import_gla(self, context):
-    self.layout.operator(mrw_g2_operators.GLAImport.bl_idname, text="Ghoul 2 skeleton/animation (.gla)")
-
-
-def register():
-    bpy.utils.register_module(__name__)
-
 
 #called when the plugin is activated
 def register():
+    mrw_g2_panels.initG2Properties()
+    mrw_g2_operators.register()
     bpy.utils.register_module(__name__)
-    #add menu buttons
-    bpy.types.INFO_MT_file_export.append(menu_func_export_glm)
-    bpy.types.INFO_MT_file_export.append(menu_func_export_gla)
-    bpy.types.INFO_MT_file_import.append(menu_func_import_glm)
-    bpy.types.INFO_MT_file_import.append(menu_func_import_gla)
-    #add panels
-    #apparently happens automatically, I get an error if I try to do it myself.
-    #bpy.utils.register_class(mrw_g2_panels.G2PropertiesPanel)
 
 #called when the plugin is deactivated
 def unregister():
+    #not removing the custom properties here - the user may not want to lose them just because he disabled the addon.
+    mrw_g2_operators.unregister()
     bpy.utils.unregister_module(__name__)
-    #remove menu buttons
-    bpy.types.INFO_MT_file_export.remove(menu_func_export_glm)
-    bpy.types.INFO_MT_file_export.remove(menu_func_export_gla)
-    bpy.types.INFO_MT_file_import.remove(menu_func_import_glm)
-    bpy.types.INFO_MT_file_import.remove(menu_func_import_gla)
-    #remove panels
-    #bpy.utils.unregister_class(mrw_g2_panels.G2PropertiesPanel)
 
 # register it if script is called directly    
 if __name__ == "__main__":
