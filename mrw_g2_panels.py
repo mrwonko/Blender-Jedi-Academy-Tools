@@ -1,5 +1,14 @@
 import bpy
 
+def hasG2Properties(obj):
+    """ Whether a given object has the ghoul 2 properties """
+    return ("g2_prop_off" in obj) and ("g2_prop_tag" in obj) and ("g2_prop_name" in obj)
+
+def initG2Properties():
+    """ globally initializes the ghoul 2 custom properties """
+    bpy.types.Object.g2_prop_name = bpy.props.StringProperty(name="name", maxlen=64, default="", description="Name (in case it doesn't fit in Blender's Object Name, which is used if this is empty.)")
+    bpy.types.Object.g2_prop_tag = bpy.props.BoolProperty(name="Tag", default=False, description="Whether this object represents a tag.")
+    bpy.types.Object.g2_prop_off = bpy.props.BoolProperty(name="Off", default=False, description="Whether this object should be initially off (can be overridden in skin).")
 
 class G2PropertiesPanel(bpy.types.Panel):
     bl_label = "Ghoul 2 Properties"
@@ -12,16 +21,17 @@ class G2PropertiesPanel(bpy.types.Panel):
         layout = self.layout
 
         obj = context.object
-
-        row = layout.row()
-        row.label(text="Hello world!", icon='WORLD_DATA')
-
-        #todo
-        row = layout.row()
-        row.label(text="Active object is: " + obj.name)
-        row = layout.row()
-        if "longName" in obj:
-            row.label(text="Name")
-            row.prop(obj, "longName")
+        
+        if hasG2Properties(obj):
+            row = layout.row()
+            row.operator("object.remove_g2_properties")
+            
+            row = layout.row()
+            row.prop(obj, "g2_prop_name")
+            
+            row = layout.row()
+            row.prop(obj, "g2_prop_tag")
+            row.prop(obj, "g2_prop_off")
         else:
-            row.label(text='longName goes here')
+            row = layout.row()
+            row.operator("object.add_g2_properties")

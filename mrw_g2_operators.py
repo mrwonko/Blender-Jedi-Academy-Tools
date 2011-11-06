@@ -95,3 +95,57 @@ class GLAExport(bpy.types.Operator):
             wm= context.window_manager
             wm.fileselect_add(self)
             return {'RUNNING_MODAL'}
+
+class ObjectAddG2Properties(bpy.types.Operator):
+    bl_idname = "object.add_g2_properties"
+    bl_label = "Add G2 properties"
+    bl_description = "Adds Ghoul 2 properties"
+
+    def execute(self, context):
+        obj = context.object
+        # don't overwrite those that already exist
+        if not "g2_prop_off" in obj:
+            obj.g2_prop_off = False
+        if not "g2_prop_tag" in obj:
+            obj.g2_prop_tag = False
+        if not "g2_prop_name" in obj:
+            obj.g2_prop_name = ""
+        return{'FINISHED'}
+
+class ObjectRemoveG2Properties(bpy.types.Operator):
+    bl_idname = "object.remove_g2_properties"
+    bl_label = "Remove G2 properties"
+    bl_description = "Removes Ghoul 2 properties"
+
+    def execute(self, context):
+        obj = context.object
+        bpy.types.Object.__delitem__(obj, "g2_prop_off")
+        bpy.types.Object.__delitem__(obj, "g2_prop_tag")
+        bpy.types.Object.__delitem__(obj, "g2_prop_name")
+        return{'FINISHED'}
+
+# menu button callback functions
+def menu_func_export_glm(self, context):
+    self.layout.operator(mrw_g2_operators.GLMExport.bl_idname, text="Ghoul 2 model (.glm)")
+
+def menu_func_export_gla(self, context):
+    self.layout.operator(mrw_g2_operators.GLAExport.bl_idname, text="Ghoul 2 skeleton/animation (.gla)")
+    
+def menu_func_import_glm(self, context):
+    self.layout.operator(mrw_g2_operators.GLMImport.bl_idname, text="Ghoul 2 model (.glm)")
+
+def menu_func_import_gla(self, context):
+    self.layout.operator(mrw_g2_operators.GLAImport.bl_idname, text="Ghoul 2 skeleton/animation (.gla)")
+
+# menu button init/destroy
+def register():
+    bpy.types.INFO_MT_file_export.append(menu_func_export_glm)
+    bpy.types.INFO_MT_file_export.append(menu_func_export_gla)
+    bpy.types.INFO_MT_file_import.append(menu_func_import_glm)
+    bpy.types.INFO_MT_file_import.append(menu_func_import_gla)
+
+def unregister():
+    bpy.types.INFO_MT_file_export.remove(menu_func_export_glm)
+    bpy.types.INFO_MT_file_export.remove(menu_func_export_gla)
+    bpy.types.INFO_MT_file_import.remove(menu_func_import_glm)
+    bpy.types.INFO_MT_file_import.remove(menu_func_import_gla)
