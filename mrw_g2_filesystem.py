@@ -63,7 +63,7 @@ def AbsPath(relpath, prefix):
     return os.path.normpath(os.path.normpath(prefix) + os.path.sep + relpath)
 
 # finds a file given its game name and the possible extensions (usually image extensions). Returns success, filename pair.
-def FindFile(relpath, prefix, extensions = ["jpg", "png", "tga"]):
+def FindFile(relpath, prefix, extensions):
     absPath = AbsPath(relpath, prefix)
     if os.path.isfile(absPath):
         return True, absPath

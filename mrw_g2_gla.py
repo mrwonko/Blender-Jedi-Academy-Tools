@@ -17,7 +17,7 @@
 # ##### END GPL LICENSE BLOCK #####
 
 from . import mrw_g2_iohelpers, mrw_g2_constants, mrw_g2_math
-import struct
+import struct, bpy
 
 class MdxaHeader:
     
@@ -120,7 +120,7 @@ class GLA:
         #todo
         return True, ""
     
-    def loadFromBlender(self, gla_filepath_rel, scene_root):
+    def loadFromBlender(self, gla_filepath_rel):
         #todo
         return True, ""
     
@@ -130,4 +130,22 @@ class GLA:
     
     def saveToBlender(self, scene_root):
         #todo
+        # if there's already a skeleton, this won't work.
+        if "skeleton_root" in bpy.data.objects:
+            return False, "There is already a skeleton_root object!"
+        if "skeleton_root" in bpy.data.armatures:
+            return False, "There is already a skeleton_root armature!"
+        
+        #create armature
+        skeleton_armature = bpy.data.armatures.new("skeleton_root")
+        
+        #todo: create skeleton
+        
+        #todo: animate
+        
+        #create object
+        skeleton_object = bpy.data.objects.new("skeleton_root", skeleton_armature)
+        skeleton_object.parent = scene_root
+        #link object to scene
+        bpy.context.scene.objects.link(skeleton_object)
         return True, ""

@@ -21,6 +21,13 @@ import struct
 # reads a string stored as 64 bit NULL-terminated, returns as normal string
 def toQ3String(binaryData):
     bs, = struct.unpack("64s", binaryData)
+    # \0 prefix is probably to force usage of .skin files
+    # but ModView can deal with it so I do so, too.
+    #TODO: add proper support for skin files instead.
+    if bs[:7] == b"\0odels/":
+        bs = b"m" + bs[1:]
+    if bs[:12] == b"\0omaterial]":
+        bs = b"[" + bs[1:]
     end = bs.find(b"\0") # removing \0's from the right doesn't cut it - sometimes there's something after the first NULL.
     if end == -1:
         return bs.decode()

@@ -16,8 +16,8 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-from . import mrw_g2_iohelpers, mrw_g2_filesystem, mrw_g2_constants, mrw_g2_gla
-import struct
+from . import mrw_g2_iohelpers, mrw_g2_filesystem, mrw_g2_constants, mrw_g2_gla, mrw_g2_materialmanager
+import struct, bpy
 
 def buildBoneIndexLookupMap(gla_filepath_abs):
     print("Loading gla file for bone name -> bone index lookup")
@@ -117,6 +117,7 @@ class MdxmSurfaceData:
         self.name = mrw_g2_iohelpers.toQ3String(file.read(mrw_g2_constants.MAX_QPATH))
         self.flags, = struct.unpack("I", file.read(4))
         self.shader = mrw_g2_iohelpers.toQ3String(file.read(mrw_g2_constants.MAX_QPATH))
+        print(self.name, self.shader)
         # ignoring shaderIndex which is only used ingame
         self.parentIndex, self.numChildren = struct.unpack("4x2i", file.read(3*4))
         for i in range(self.numChildren):
@@ -211,7 +212,7 @@ class MdxmVertex:
         file.write(struct.pack("6fI4B", self.normal[0], self.normal[1], self.normal[2], self.co[0], self.co[1], self.co[2], packedStuff, weights[0], weights[1], weights[2], weights[3]))
     
     #vertex :: Blender MeshVertex
-    #uv :: [int, int]
+    #uv :: [int, int] (blender style, will be y-flipped)
     #groupLookup :: { int -> int } (object group index -> surface bone index pool index)
     def loadFromBlender(self, vertex, uv, groupLookup):
         for i in range(3):
@@ -219,7 +220,8 @@ class MdxmVertex:
             self.normal.append(vertex.normal[i])
             return True, ""
         
-        self.uv = uv
+        self.uv[0] = uv[0]
+        self.uv[1] = 1-uv[1] #flip Y
         
         #weight/bone indices
         global g_defaultSkeleton
@@ -264,13 +266,16 @@ class MdxmVertex:
 
 class MdxmTriangle:
     def __init__(self):
-        self.indices = []
+        self.indices = [] #order gets reversed during load/save
     
     def loadFromFile(self, file):
         self.indices.extend(struct.unpack("3i", file.read(3*4)))
+        temp = self.indices[0]
+        self.indices[0] = self.indices[2]
+        self.indices[2] = temp
     
     def saveToFile(self, file):
-        file.write(struct.pack("3i", self.indices[0], self.indices[1], self.indices[2]))
+        file.write(struct.pack("3i", self.indices[2], self.indices[1], self.indices[0]))
 
 class MdxmSurface:
     def __init__(self):
@@ -350,6 +355,73 @@ class MdxmSurface:
         
         assert(file.tell() == startPos + self.ofsEnd)
     
+    # returns the created object
+    def saveToBlender(self, data, lodLevel):
+        #  retrieve metadata (same across LODs)
+        surfaceData = data.surfaceDataCollection.surfaces[self.index]
+        # blender won't let us create multiple things with the same name, so we add a LOD-suffix
+        blenderName = surfaceData.name + "_" + str(lodLevel)
+        
+        #  create mesh
+        mesh = bpy.data.meshes.new(blenderName)
+        
+        #create vertices
+        mesh.vertices.add(self.numVerts)
+        for i, bvert in enumerate(mesh.vertices):
+            vert = self.vertices[i]
+            bvert.co = vert.co
+            bvert.normal = vert.normal
+        
+        #create faces
+        mesh.faces.add(self.numTriangles)
+        for i, face in enumerate(mesh.faces):
+            tri = self.triangles[i]
+            face.vertices = tri.indices
+        
+        #create uv coordinates
+        mesh.uv_textures.new()
+        uv_faces = mesh.uv_textures.active.data[:]
+        for i, uv_face in enumerate(uv_faces):
+            tri = self.triangles[i]
+            uv_face.uv1 = self.vertices[tri.indices[0]].uv
+            uv_face.uv1[1] = 1 - uv_face.uv1[1] #flip y
+            uv_face.uv2 = self.vertices[tri.indices[1]].uv
+            uv_face.uv2[1] = 1 - uv_face.uv2[1]
+            uv_face.uv3 = self.vertices[tri.indices[2]].uv
+            uv_face.uv3[1] = 1 - uv_face.uv3[1]
+        
+        mesh.validate()
+        mesh.update()
+        
+        #  create object
+        obj = bpy.data.objects.new(blenderName, mesh)
+        
+        #  create vertex groups (indices will match)
+        for index in self.boneReferences:
+            obj.vertex_groups.new(data.boneNames[index])
+        
+        #set weights
+        for vertIndex, vert in enumerate(self.vertices):
+            for weightIndex in range(vert.numWeights):
+                obj.vertex_groups[vert.boneIndices[weightIndex]].add([vertIndex], vert.weights[weightIndex], 'ADD')
+        
+        #link object to scene
+        bpy.context.scene.objects.link(obj)
+        
+        #set material
+        if surfaceData.shader != "[nomaterial]":
+            bpy.context.scene.objects.active = obj
+            bpy.ops.object.material_slot_add()
+            obj.material_slots[0].material = data.materialManager.getMaterial(surfaceData.shader)
+            
+        #set ghoul2 specific properties
+        obj.g2_prop_name = surfaceData.name
+        obj.g2_prop_tag = surfaceData.flags & mrw_g2_constants.SURFACEFLAG_TAG
+        obj.g2_prop_off = surfaceData.flags & mrw_g2_constants.SURFACEFLAG_OFF
+        
+        # return object so hierarchy etc. can be set
+        return obj
+    
     # fill offset and number variables
     def _calculateOffsets(self):
         baseOffset = 10*4 # header: 4 ints
@@ -391,8 +463,6 @@ class MdxmLOD:
             self.surfaces.append(surface)
         assert(file.tell() == startPos + self.ofsEnd)
     
-    #todo: loadFromBlender (_calculateOffsets() at the end
-    
     def saveToFile(self, file):
         startPos = file.tell()
         # write ofsEnd
@@ -409,6 +479,20 @@ class MdxmLOD:
     def loadFromBlender(self): #todo: parameters?
         #todo
         self._calculateOffsets()
+    
+    def saveToBlender(self, data, root):
+        # 1st pass: create objects
+        objects = []
+        for surface in self.surfaces:
+            obj = surface.saveToBlender(data, self.level)
+            objects.append(obj)
+        # 2nd pass: set parent relations
+        for i, obj in enumerate(objects):
+            parentIndex = data.surfaceDataCollection.surfaces[i].parentIndex
+            parent = root
+            if parentIndex != -1:
+                parent = objects[parentIndex]
+            obj.parent = parent
     
     #fills self.surfaceOffsets and self.ofsEnd based on self.surfaces (must be initialized)
     def _calculateOffsets(self):
@@ -443,6 +527,13 @@ class MdxmLODCollection:
     def saveToFile(self, file):
         for LOD in self.LODs:
             LOD.saveToFile(file)
+    
+    def saveToBlender(self, data):
+        for i, LOD in enumerate(self.LODs):
+            root = bpy.data.objects.new("model_root_" + str(i), None)
+            root.parent = data.scene_root
+            bpy.context.scene.objects.link(root)
+            LOD.saveToBlender(data, root)
     
     def getSize(self):
         size = 0
@@ -483,10 +574,9 @@ class GLM:
             print("Warning: File not completely read or LODs not last structure in file. The former would be a problem, the latter wouldn't.")
         return True, ""
     
-    def loadFromBlender(self, glm_filepath_rel, gla_filepath_rel, basepath, scene_root):
+    def loadFromBlender(self, glm_filepath_rel, gla_filepath_rel, basepath):
         self.header.name = glm_filepath_rel
         self.header.animName = gla_filepath_rel
-        #todo
         # create BoneName->BoneIndex lookup table based on GLA file (keeping in mind it might be "*default"/"")
         defaultSkeleton = (gla_filepath_rel == "" or gla_filepath_rel == "*default")
         if defaultSkeleton:
@@ -497,9 +587,10 @@ class GLM:
                 return False, message
             self.header.numBones = len(boneIndexMap)
             # check if skeleton matches the specified one
+            #TODO
             
         # load from Blender
-        # num bones needs to be saved somewhere here.
+        #TODO
         # calculate offsets etc.
         self._calculateHeaderOffsets()
         return True, ""
@@ -543,7 +634,18 @@ class GLM:
     # gla: mrw_g2_gla.GLA object - the Skeleton (for weighting purposes)
     # scene_root: "scene_root" object in Blender
     def saveToBlender(self, basepath, gla, scene_root):
-        #todo
+        class GeneralData:
+            pass
+        data = GeneralData()
+        data.gla = gla
+        data.scene_root = scene_root
+        data.surfaceDataCollection = self.surfaceDataCollection
+        data.materialManager = mrw_g2_materialmanager.MaterialManager(basepath)
+        data.boneNames = {}
+        for bone in gla.skeleton.bones:
+            data.boneNames[bone.index] = bone.name
+        
+        self.LODCollection.saveToBlender(data)
         return True, ""
     
     def getRequestedGLA(self):

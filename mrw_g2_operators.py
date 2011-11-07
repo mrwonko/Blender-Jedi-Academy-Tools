@@ -38,7 +38,7 @@ class GLMImport(bpy.types.Operator):
         filepath = bpy.props.StringProperty(name="File Path", description="The .glm file to import", default="", subtype='FILE_PATH')
         basepath = bpy.props.StringProperty(name="Base Path", description="The base folder relative to which paths should be interpreted. Leave empty to let the importer guess (needs /GameData/ in filepath).", default="")
         glaOverride = bpy.props.StringProperty(name=".gla override", description="Gla file to use, relative to base. Leave empty to use the one referenced in the file.", maxlen=64, default="")
-        scale = bpy.props.FloatProperty(name="Scale", description="Scale to apply to the imported model.", default=100, min=0, max=1000, subtype='PERCENTAGE')
+        scale = bpy.props.FloatProperty(name="Scale", description="Scale to apply to the imported model.", default=10, min=0, max=1000, subtype='PERCENTAGE')
         loadAnimations = bpy.props.BoolProperty(name="Load Animations", description="Whether animations should be loaded from the .gla", default=False)
 
         def execute(self, context):
@@ -89,7 +89,7 @@ class GLAImport(bpy.types.Operator):
         # properties
         filepath = bpy.props.StringProperty(name="File Path", description="The .gla file to import", maxlen=1024, default="", subtype='FILE_PATH')
         basepath = bpy.props.StringProperty(name="Base Path", description="The base folder relative to which paths should be interpreted. Leave empty to let the importer guess (needs /GameData/ in filepath).", default="")
-        scale = bpy.props.FloatProperty(name="Scale", description="Scale to apply to the imported model.", default=100, min=0, max=1000, subtype='PERCENTAGE')
+        scale = bpy.props.FloatProperty(name="Scale", description="Scale to apply to the imported model.", default=10, min=0, max=1000, subtype='PERCENTAGE')
         loadAnimations = bpy.props.BoolProperty(name="Load Animations", description="Whether animations should be loaded from the .gla", default=False)
         
 
