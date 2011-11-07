@@ -77,6 +77,11 @@ class MdxmHeader:
         # 0 is animIndex, only used ingame
         file.write(struct.pack("4si64s64s7i", mrw_g2_constants.GLM_IDENT, mrw_g2_constants.GLM_VERSION, self.name.encode(), self.animName.encode(), 0, self.numBones, self.numLODs, self.ofsLODs, self.numSurfaces, self.ofsSurfHierarchy, self.ofsEnd))
         return True, ""
+    
+    @classmethod
+    def getSize():
+        # 2 ints, 2 string, 7 ints
+        return 2*4 + 2*64 + 7*4
 
 # offsets of the surface data
 class MdxmSurfaceDataOffsets:
@@ -122,6 +127,11 @@ class MdxmSurfaceData:
         file.write(struct.pack("64sI64s3i", self.name.encode(), self.flags, self.shader.encode(), 0, self.parentIndex, self.numChildren))
         for i in range(self.numChildren):
             file.write(struct.pack("i", self.children[i]))
+    
+    @classmethod
+    def getSize():
+        # string, int, string, 4 ints
+        return 64 + 4 + 64 + 4*4
 
 # all the surface hierarchy/shader/name/flag/... information entries (MdxmSurfaceInfo)
 class MdxmSurfaceDataCollection:
@@ -139,6 +149,9 @@ class MdxmSurfaceDataCollection:
     def saveToFile(self, file):
         for surfaceInfo in self.surfaces:
             surfaceInfo.saveToFile(file)
+    
+    def getSize(self):
+        return len(self.surfaces) * MdxmSurfaceData.getSize()
 
 class MdxmVertex:
     def __init__(self):
@@ -406,6 +419,11 @@ class MdxmLOD:
             baseOffset += surface.ofsEnd # = size
         # 1 int header, 1 int offset for each surface
         self.ofsEnd = baseOffset + 4 + 4 * len(self.surfaces)
+    
+    def getSize(self):
+        size = 0
+        for surface in self.surfaces:
+            size += surface.ofsEnd
 
 class MdxmLODCollection:
     def __init__(self):
@@ -425,6 +443,12 @@ class MdxmLODCollection:
     def saveToFile(self, file):
         for LOD in self.LODs:
             LOD.saveToFile(file)
+    
+    def getSize(self):
+        size = 0
+        for LOD in self.LODs:
+            size += LOD.ofsEnd
+        return size
 
 class GLM:
     def __init__(self):
@@ -464,15 +488,20 @@ class GLM:
         self.header.animName = gla_filepath_rel
         #todo
         # create BoneName->BoneIndex lookup table based on GLA file (keeping in mind it might be "*default"/"")
-        defaultSkeleton = gla_filepath_rel == "" or gla_filepath_rel == "*default"
-        if not defaultSkeleton:
+        defaultSkeleton = (gla_filepath_rel == "" or gla_filepath_rel == "*default")
+        if defaultSkeleton:
+            self.header.numBones = 1
+        else:
             boneIndexMap, message = buildBoneIndexLookupMap(mrw_g2_filesystem.RemoveExtension(mrw_g2_filesystem.AbsPath(gla_filepath_rel, basepath)) + ".gla")
             if boneIndexMap == False:
                 return False, message
-        print("== bone lookup map ==")
-        print(boneIndexMap)
+            self.header.numBones = len(boneIndexMap)
+            # check if skeleton matches the specified one
+            
         # load from Blender
+        # num bones needs to be saved somewhere here.
         # calculate offsets etc.
+        self._calculateHeaderOffsets()
         return True, ""
     
     def saveToFile(self, filepath_abs):
@@ -493,6 +522,22 @@ class GLM:
         #save LODs to file
         self.LODCollection.saveToFile(file)
         return True, ""
+    
+    #calculates the offsets & counts saved in the header based on the rest
+    def _calculateHeaderOffsets(self):
+        # offset of "after header"
+        baseOffset = MdxmHeader.getSize()
+        # offset of "after hierarchy offset list"
+        self.header.numSurfaces = len(self.surfaceDataOffsets.offset)
+        baseOffset += 4 * self.header.numSurfaces
+        # first "hierarchy" entry comes here
+        self.header.ofsSurfHierarchy = baseOffset
+        baseOffset += self.surfaceDataCollection.getSize()
+        # first LOD comes here
+        self.header.ofsLODs = baseOffset
+        baseOffset += self.LODCollection.getSize()
+        # that's everything, we've reached the end.
+        self.header.ofsEnd = baseOffset
     
     # basepath: ../GameData/.../
     # gla: mrw_g2_gla.GLA object - the Skeleton (for weighting purposes)

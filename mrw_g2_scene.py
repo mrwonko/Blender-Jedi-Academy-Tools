@@ -68,22 +68,16 @@ class Scene:
     
     # "Loads" model from Blender data
     def loadModelFromBlender(self, glm_filepath_rel, gla_filepath_rel):
-        scene_root = findSceneRootObject()
-        if not scene_root:
-            return False, "No scene_root object found!"
         self.glm = mrw_g2_glm.GLM()
-        success, message = self.glm.loadFromBlender(glm_filepath_rel, gla_filepath_rel, self.basepath, scene_root)
+        success, message = self.glm.loadFromBlender(glm_filepath_rel, gla_filepath_rel, self.basepath)
         if not success:
             return False, message
         return True, ""
     
     # "Loads" skeleton & animation from Blender data
     def loadSkeletonFromBlender(self, gla_filepath_rel):
-        scene_root = findSceneRootObject()
-        if not scene_root:
-            return False, "No scene_root object found!"
         self.gla = mrw_g2_gla.GLA()
-        success, message = self.gla.loadFromBlender(gla_filepath_rel, scene_root)
+        success, message = self.gla.loadFromBlender(gla_filepath_rel)
         if not success:
             return False, message
         return True, ""

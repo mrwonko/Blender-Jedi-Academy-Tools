@@ -28,4 +28,6 @@ bpy.context.scene.objects.link(meshObj) #link object to scene
 
 integer division: a // b
 
-global g_defaultSkeleton - true if default skeleton, duh
+global g_defaultSkeleton - true if default skeleton, used in mrw_g2_glm for export.
+
+scene_root is necessary due to scale! (and for no other reason)
