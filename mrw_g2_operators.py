@@ -17,6 +17,15 @@
 # ##### END GPL LICENSE BLOCK #####
 
 import bpy
+from . import mrw_g2_main, mrw_g2_filesystem
+
+def GetPaths(basepath, filepath):
+    if basepath == "":
+        basepath, filepath = mrw_g2_filesystem.SplitPrefix(filepath)
+        filepath = mrw_g2_filesystem.RemoveExtension(filepath)
+    else:
+        filepath = mrw_g2_filesystem.RelPathNoExt(filepath, basepath)
+    return basepath, filepath
 
 class GLMImport(bpy.types.Operator):
         '''Import GLM Operator.'''
@@ -33,8 +42,30 @@ class GLMImport(bpy.types.Operator):
         loadAnimations = bpy.props.BoolProperty(name="Load Animations", description="Whether animations should be loaded from the .gla", default=False)
 
         def execute(self, context):
-            #todo
-            #    self.report({'ERROR'}, message)
+            # initialize paths
+            basepath, filepath = GetPaths(self.basepath, self.filepath);
+            if self.basepath != "" and mrw_g2_filesystem.RemoveExtension(self.filepath) == filepath:
+                self.report({'ERROR'}, "Invalid Base Path")
+                return {'FINISHED'}
+            # de-percentagionise scale
+            scale = self.scale / 100
+            # turn file path into relative path without extension
+            #load GLM
+            scene = mrw_g2_main.Scene()
+            success, message = scene.loadFromGLM(filepath, basepath, scale)
+            if not success:
+                self.report({'ERROR'}, message)
+                return {'FINISHED'}
+            #load GLA - has to be done in any case since that's where the skeleton is stored
+            if self.glaOverride == "":
+                glafile = scene.getRequestedGLA()
+            else:
+                glafile = self.glaOverride
+            success, message = scene.loadFromGLA(glafile, basepath, scale, self.loadAnimations)
+            #output to blender
+            success, message = scene.saveToBlender()
+            if not success:
+                self.report({'ERROR'}, message)
             return {'FINISHED'}
         
         def invoke(self, context, event):
@@ -54,13 +85,29 @@ class GLAImport(bpy.types.Operator):
         
         # properties
         filepath = bpy.props.StringProperty(name="File Path", description="The .gla file to import", maxlen=1024, default="", subtype='FILE_PATH')
+        basepath = bpy.props.StringProperty(name="Base Path", description="The base folder relative to which paths should be interpreted. Leave empty to let the importer guess (needs /GameData/ in filepath).", default="")
         scale = bpy.props.FloatProperty(name="Scale", description="Scale to apply to the imported model.", default=100, min=0, max=1000, subtype='PERCENTAGE')
         loadAnimations = bpy.props.BoolProperty(name="Load Animations", description="Whether animations should be loaded from the .gla", default=False)
         
 
         def execute(self, context):
-            #todo
-            #    self.report({'ERROR'}, message)
+            # de-percentagionise scale
+            scale = self.scale / 100
+            # initialize paths
+            basepath, filepath = GetPaths(self.basepath, self.filepath);
+            if self.basepath != "" and mrw_g2_filesystem.RemoveExtension(self.filepath) == filepath:
+                self.report({'ERROR'}, "Invalid Base Path")
+                return {'FINISHED'}
+            #load GLA
+            scene = mrw_g2_main.Scene()
+            success, message = scene.loadFromGLA(filepath, basepath, scale, self.loadAnimations)
+            if not success:
+                self.report({'ERROR'}, message)
+                return {'FINISHED'}
+            #output to blender
+            success, message = scene.saveToBlender()
+            if not success:
+                self.report({'ERROR'}, message)
             return {'FINISHED'}
 
         def invoke(self, context, event):
@@ -83,8 +130,21 @@ class GLMExport(bpy.types.Operator):
         gla = bpy.props.StringProperty(name=".gla name", description="Name of the skeleton this model uses (must exist!)", default="models/players/_humanoid/_humanoid")
 
         def execute(self, context):
-            #todo
-            #    self.report({'ERROR'}, message)
+            scene = mrw_g2_main.Scene()
+            #try to load from Blender's data to my intermediate format
+            success, message = scene.loadModelFromBlender()
+            if not success:
+                self.report({'ERROR'}, message)
+                return {'FINISHED'}
+            # initialize paths
+            basepath, filepath = GetPaths(self.basepath, self.filepath);
+            if self.basepath != "" and mrw_g2_filesystem.RemoveExtension(self.filepath) == filepath:
+                self.report({'ERROR'}, "Invalid Base Path")
+                return {'FINISHED'}
+            #try to save
+            success, message = scene.saveToGLM(filepath, basepath, self.gla)
+            if not success:
+                self.report({'ERROR'}, message)
             return {'FINISHED'}
 
         def invoke(self, context, event):
@@ -103,11 +163,25 @@ class GLAExport(bpy.types.Operator):
         
         # properties
         filepath = bpy.props.StringProperty(name="File Path", description="The filename to export to", maxlen=1024, default="", subtype='FILE_PATH')
+        basepath = bpy.props.StringProperty(name="Base Path", description="The base folder relative to which paths should be interpreted. Leave empty to let the exporter guess (needs /GameData/ in filepath).", default="")
         basepath = bpy.props.StringProperty(name="gla name", description="The relative path of this gla. Leave empty to let the exporter guess (needs /GameData/ in filepath).", maxlen=64, default="")
 
         def execute(self, context):
-            #todo
-            #    self.report({'ERROR'}, message)
+            #try to load from Blender's data to my intermediate format
+            scene = mrw_g2_main.Scene()
+            success, message = scene.loadSkeletonFromBlender()
+            if not success:
+                self.report({'ERROR'}, message)
+                return {'FINISHED'}
+            # initialize paths
+            basepath, filepath = GetPaths(self.basepath, self.filepath);
+            if self.basepath != "" and mrw_g2_filesystem.RemoveExtension(self.filepath) == filepath:
+                self.report({'ERROR'}, "Invalid Base Path")
+                return {'FINISHED'}
+            #try to save
+            success, message = scene.saveToGLA(filepath, basepath)
+            if not success:
+                self.report({'ERROR'}, message)
             return {'FINISHED'}
 
         def invoke(self, context, event):
