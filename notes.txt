@@ -1,1 +1,31 @@
 bpy.props.StringProperty(maxlen=0, update=None) #update is function of type (self, context) -> None, self is the object
+
+#make mesh
+mesh = bpy.data.meshes.new('name') #create mesh
+
+#set vertices
+mesh.vertices.add(numVertices)
+# co = coordinate
+mesh.vertices.foreach_set("co", [a1, a2, a3, b1, b2, b3, c1, ...])
+
+#set faces
+mesh.faces.add(numFaces)
+# raw vertices - always 4 per face.
+mesh.faces.foreach_set("vertices_raw", [a1, a2, a3, 0, b1, b2, b3, 0, c1, ...])
+
+#set uv coordinates
+mesh.uv_textures.new()
+uv_faces = mesh.uv_textures.active.data[:]
+uv_faces[n].uv1 = (a_u, a_v)
+uv_faces[n].uv2 = (b_u, b_c)
+uv_faces[n].uv3 = (c_u, c_v)
+
+mesh.validate()
+mesh.update()
+
+meshObj = bpy.data.objects.new('name', mesh) #create object for mesh
+bpy.context.scene.objects.link(meshObj) #link object to scene
+
+integer division: a // b
+
+global g_defaultSkeleton - true if default skeleton, duh

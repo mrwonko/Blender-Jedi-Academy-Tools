@@ -56,6 +56,13 @@ class GLMImport(bpy.types.Operator):
             if not success:
                 self.report({'ERROR'}, message)
                 return {'FINISHED'}
+            # ======================== START DELETEME =========================
+            # just save it again - see if that gives the same file.
+            success, message = scene.saveToGLM(filepath + "_re-exported")
+            if not success:
+                self.report({'ERROR'}, message)
+                return {'FINISHED'}
+            # ========================= END DELETEME ===========================
             #load GLA - has to be done in any case since that's where the skeleton is stored
             if self.glaOverride == "":
                 glafile = scene.getRequestedGLA()

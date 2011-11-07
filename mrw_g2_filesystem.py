@@ -40,6 +40,9 @@ def SplitPrefix(fullPath):
 def RemoveExtension(path):
     return os.path.splitext(path)[0]
 
+def GetFilename(path):
+    return os.path.split(path)[1]
+
 # returns the relative path as used in the game, given the full path and the prefix (as returned by GetPrefix())
 def RelPath(fullpath, prefix):
     normPrefix = os.path.normcase(os.path.normcase(prefix))
@@ -69,3 +72,6 @@ def FindFile(relpath, prefix, extensions = ["jpg", "png", "tga"]):
         if os.path.isfile(absPath + "." + extension):
             return True, absPath + "." + extension
     return False, ""
+
+def FileExists(path):
+    return os.path.isfile(path)
