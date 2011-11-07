@@ -115,6 +115,7 @@ class Scene:
         else:
             # create it otherwise
             scene_root = bpy.data.objects.new("scene_root", None)
+            scene_root.scale = (scale, scale, scale)
             bpy.context.scene.objects.link(scene_root)
         # there's always a skeleton (even if it's *default)
         success, message = self.gla.saveToBlender(scene_root)
