@@ -43,3 +43,5 @@ integer division: a // b
 global g_defaultSkeleton - true if default skeleton, used in mrw_g2_glm for export.
 
 scene_root is necessary due to scale! (and for no other reason)
+
+Now I got git working at Uni, too. Can work there in spare time.
