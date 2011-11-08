@@ -36,6 +36,8 @@ class GLMImport(bpy.types.Operator):
 
         # properties
         filepath = bpy.props.StringProperty(name="File Path", description="The .glm file to import", default="", subtype='FILE_PATH')
+        skin = bpy.props.StringProperty(name="Skin", description="The skin to load (modelname_<skin>.skin), leave empty to load none (use file internal paths)", default="default")
+        guessTextures = bpy.props.BoolProperty(name="Guess Textures", description="Many models try to force you to use the skin. Enable this to try to circumvent that. (Usually works well, but skins should be preferred.)", default=False)
         basepath = bpy.props.StringProperty(name="Base Path", description="The base folder relative to which paths should be interpreted. Leave empty to let the importer guess (needs /GameData/ in filepath).", default="")
         glaOverride = bpy.props.StringProperty(name=".gla override", description="Gla file to use, relative to base. Leave empty to use the one referenced in the file.", maxlen=64, default="")
         scale = bpy.props.FloatProperty(name="Scale", description="Scale to apply to the imported model.", default=10, min=0, max=1000, subtype='PERCENTAGE')
@@ -49,7 +51,6 @@ class GLMImport(bpy.types.Operator):
                 return {'FINISHED'}
             # de-percentagionise scale
             scale = self.scale / 100
-            # turn file path into relative path without extension
             #load GLM
             scene = mrw_g2_scene.Scene(basepath)
             success, message = scene.loadFromGLM(filepath)
@@ -66,7 +67,10 @@ class GLMImport(bpy.types.Operator):
                 self.report({'ERROR'}, message)
                 return {'FINISHED'}
             #output to blender
-            success, message = scene.saveToBlender(scale)
+            skin = ""
+            if self.skin != "":
+                skin = filepath+"_"+self.skin
+            success, message = scene.saveToBlender(scale, skin, self.guessTextures)
             if not success:
                 self.report({'ERROR'}, message)
             return {'FINISHED'}

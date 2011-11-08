@@ -1,15 +1,3 @@
-== TODO ==
-* I should use .skin files!
-* I need to set the display texture (alt-z)
-* model fromBlender
-* skeleton toBlender
-* skeleton save (?)
-* skeleton fromBlender
-* animation load
-* animation save
-* animation toBlender
-* animation fromBlender
-
 bpy.props.StringProperty(maxlen=0, update=None) #update is function of type (self, context) -> None, self is the object
 
 #make mesh

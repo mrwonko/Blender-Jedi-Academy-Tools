@@ -16,8 +16,11 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-from . import mrw_g2_iohelpers, mrw_g2_constants, mrw_g2_math
+from . import mrw_g2_stringhelpers, mrw_g2_constants, mrw_g2_math
 import struct, bpy
+
+def readString(file):
+    return mrw_g2_stringhelpers.decode(struct.unpack("64s", file.read(mrw_g2_constants.MAX_QPATH))[0])
 
 class MdxaHeader:
     
@@ -40,7 +43,7 @@ class MdxaHeader:
         version, = struct.unpack("i", file.read(4))
         if version != mrw_g2_constants.GLA_VERSION:
             return False, "Wrong gla file version! ("+str(version)+" should be "+str(mrw_g2_constants.GLA_VERSION)+")"
-        name = mrw_g2_iohelpers.toQ3String(file.read(mrw_g2_constants.MAX_QPATH))
+        name = readString(file)
         self.scale, self.numFrames, self.numBones, self.numBones, self.ofsCompBonePool, self.ofsSkel, self.ofsEnd = struct.unpack("f6i", file.read(7*4))
         return True, ""
 
@@ -69,7 +72,7 @@ class MdxaBone:
         self.index = -1 # not saved, filled by loadBonesFromFile()
     
     def loadFromFile(self, file):
-        self.name = mrw_g2_iohelpers.toQ3String(file.read(mrw_g2_constants.MAX_QPATH))
+        self.name = readString(file)
         self.flags, self.parent = struct.unpack("Ii", file.read(2*4))
         self.basePoseMat.loadFromFile(file)
         self.basePoseMatInv.loadFromFile(file)

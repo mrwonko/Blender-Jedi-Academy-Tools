@@ -99,7 +99,7 @@ class Scene:
         return True, ""
     
     # "saves" the scene to blender
-    def saveToBlender(self, scale):
+    def saveToBlender(self, scale, skin_rel="", guessTextures=False):
         #is there already a scene root in blender?
         scene_root = findSceneRootObject()
         if scene_root:
@@ -116,7 +116,7 @@ class Scene:
         if not success:
             return False, message
         if self.glm:
-            success, message = self.glm.saveToBlender(self.basepath, self.gla, scene_root)
+            success, message = self.glm.saveToBlender(self.basepath, self.gla, scene_root, skin_rel, guessTextures)
             if not success:
                 return False, message
         return True, ""

@@ -16,7 +16,7 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-from . import mrw_g2_iohelpers, mrw_g2_filesystem, mrw_g2_constants, mrw_g2_gla, mrw_g2_materialmanager
+from . import mrw_g2_stringhelpers, mrw_g2_filesystem, mrw_g2_constants, mrw_g2_gla, mrw_g2_materialmanager
 import struct, bpy
 
 def buildBoneIndexLookupMap(gla_filepath_abs):
@@ -67,15 +67,14 @@ class MdxmHeader:
         if version != mrw_g2_constants.GLM_VERSION:
             return False, "Wrong glm file version! ("+str(version)+" should be "+str(mrw_g2_constants.GLM_VERSION)+")"
         # read data
-        self.name = mrw_g2_iohelpers.toQ3String(file.read(mrw_g2_constants.MAX_QPATH))
-        self.animName = mrw_g2_iohelpers.toQ3String(file.read(mrw_g2_constants.MAX_QPATH))
+        self.name, self.animName = struct.unpack("64s64s", file.read(mrw_g2_constants.MAX_QPATH*2))
         #4x is 4 ignored bytes - the animIndex which is only used ingame
         self.numBones, self.numLODs, self.ofsLODs, self.numSurfaces, self.ofsSurfHierarchy, self.ofsEnd = struct.unpack("4x6i", file.read(4*7))
         return True, ""
     
     def saveToFile(self, file):
         # 0 is animIndex, only used ingame
-        file.write(struct.pack("4si64s64s7i", mrw_g2_constants.GLM_IDENT, mrw_g2_constants.GLM_VERSION, self.name.encode(), self.animName.encode(), 0, self.numBones, self.numLODs, self.ofsLODs, self.numSurfaces, self.ofsSurfHierarchy, self.ofsEnd))
+        file.write(struct.pack("4si64s64s7i", mrw_g2_constants.GLM_IDENT, mrw_g2_constants.GLM_VERSION, self.name, self.animName, 0, self.numBones, self.numLODs, self.ofsLODs, self.numSurfaces, self.ofsSurfHierarchy, self.ofsEnd))
         return True, ""
     
     @classmethod
@@ -114,10 +113,7 @@ class MdxmSurfaceData:
         self.index = -1 #filled by MdxmSurfaceHierarchy.loadFromFile, not saved
     
     def loadFromFile(self, file):
-        self.name = mrw_g2_iohelpers.toQ3String(file.read(mrw_g2_constants.MAX_QPATH))
-        self.flags, = struct.unpack("I", file.read(4))
-        self.shader = mrw_g2_iohelpers.toQ3String(file.read(mrw_g2_constants.MAX_QPATH))
-        print(self.name, self.shader)
+        self.name, self.flags, self.shader = struct.unpack("64sI64s", file.read(64+4+64))
         # ignoring shaderIndex which is only used ingame
         self.parentIndex, self.numChildren = struct.unpack("4x2i", file.read(3*4))
         for i in range(self.numChildren):
@@ -125,7 +121,7 @@ class MdxmSurfaceData:
     
     def saveToFile(self, file):
         # 0 is the shader index, only used ingame
-        file.write(struct.pack("64sI64s3i", self.name.encode(), self.flags, self.shader.encode(), 0, self.parentIndex, self.numChildren))
+        file.write(struct.pack("64sI64s3i", self.name, self.flags, self.shader, 0, self.parentIndex, self.numChildren))
         for i in range(self.numChildren):
             file.write(struct.pack("i", self.children[i]))
     
@@ -360,7 +356,8 @@ class MdxmSurface:
         #  retrieve metadata (same across LODs)
         surfaceData = data.surfaceDataCollection.surfaces[self.index]
         # blender won't let us create multiple things with the same name, so we add a LOD-suffix
-        blenderName = surfaceData.name + "_" + str(lodLevel)
+        name =  mrw_g2_stringhelpers.decode(surfaceData.name)
+        blenderName = name + "_" + str(lodLevel)
         
         #  create mesh
         mesh = bpy.data.meshes.new(blenderName)
@@ -408,14 +405,19 @@ class MdxmSurface:
         #link object to scene
         bpy.context.scene.objects.link(obj)
         
+        #make object active - needed for this smoothing operator and possibly for material adding later
+        bpy.context.scene.objects.active = obj
+        #smooth
+        #todo smooth does not work
+        bpy.ops.object.shade_smooth()
         #set material
-        if surfaceData.shader != "[nomaterial]":
-            bpy.context.scene.objects.active = obj
+        material = data.materialManager.getMaterial(name, surfaceData.shader)
+        if material:
             bpy.ops.object.material_slot_add()
-            obj.material_slots[0].material = data.materialManager.getMaterial(surfaceData.shader)
+            obj.material_slots[0].material = material
             
         #set ghoul2 specific properties
-        obj.g2_prop_name = surfaceData.name
+        obj.g2_prop_name = name
         obj.g2_prop_tag = surfaceData.flags & mrw_g2_constants.SURFACEFLAG_TAG
         obj.g2_prop_off = surfaceData.flags & mrw_g2_constants.SURFACEFLAG_OFF
         
@@ -575,8 +577,8 @@ class GLM:
         return True, ""
     
     def loadFromBlender(self, glm_filepath_rel, gla_filepath_rel, basepath):
-        self.header.name = glm_filepath_rel
-        self.header.animName = gla_filepath_rel
+        self.header.name = glm_filepath_rel.encode()
+        self.header.animName = gla_filepath_rel.encode()
         # create BoneName->BoneIndex lookup table based on GLA file (keeping in mind it might be "*default"/"")
         defaultSkeleton = (gla_filepath_rel == "" or gla_filepath_rel == "*default")
         if defaultSkeleton:
@@ -633,21 +635,24 @@ class GLM:
     # basepath: ../GameData/.../
     # gla: mrw_g2_gla.GLA object - the Skeleton (for weighting purposes)
     # scene_root: "scene_root" object in Blender
-    def saveToBlender(self, basepath, gla, scene_root):
+    def saveToBlender(self, basepath, gla, scene_root, skin_rel, guessTextures):
         class GeneralData:
             pass
         data = GeneralData()
         data.gla = gla
         data.scene_root = scene_root
         data.surfaceDataCollection = self.surfaceDataCollection
-        data.materialManager = mrw_g2_materialmanager.MaterialManager(basepath)
+        data.materialManager = mrw_g2_materialmanager.MaterialManager()
         data.boneNames = {}
         for bone in gla.skeleton.bones:
             data.boneNames[bone.index] = bone.name
+        success, message = data.materialManager.init(basepath, skin_rel, guessTextures)
+        if not success:
+            return False, message
         
         self.LODCollection.saveToBlender(data)
         return True, ""
     
     def getRequestedGLA(self):
         #todo
-        return self.header.animName
+        return mrw_g2_stringhelpers.decode(self.header.animName)

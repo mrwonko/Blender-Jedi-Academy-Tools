@@ -1,0 +1,14 @@
+* I need to set the display texture (alt-z)
+* model fromBlender
+* model export option: strip texture paths (force .skin)
+* try to use existing skeleton (if there is one)
+* skeleton toBlender
+* skeleton save (?)
+* skeleton fromBlender
+* skeleton optional hand fix
+* animation load
+* animation save
+* animation toBlender
+* animation fromBlender
+* animation save gla reference (index & hierarchy)
+* fix smoothing

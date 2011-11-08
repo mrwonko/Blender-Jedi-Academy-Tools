@@ -16,16 +16,11 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-# length of file path strings
-MAX_QPATH = 64 # even though I cannot change this: Should I change this I need to replace a lot of hardcoded 64s
+import struct
 
-# gla format
-GLA_IDENT = b"2LGA"
-GLA_VERSION = 6
-
-# glm format
-GLM_IDENT = b'2LGM'
-GLM_VERSION = 6
-
-SURFACEFLAG_TAG = 0b1
-SURFACEFLAG_OFF = 0b10
+# converts a NULL-terminated binary string to an ordinary string.
+def decode(bs):
+    end = bs.find(b"\0") #find null termination
+    if end == -1: #if none exists, there is no end.
+        return bs.decode()
+    return bs[:end].decode() # otherwise cut it off at end
