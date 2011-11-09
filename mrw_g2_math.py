@@ -17,7 +17,9 @@
 # ##### END GPL LICENSE BLOCK #####
 
 import struct
+import mathutils
 
+# 3 * 4 : shear not used.
 class Matrix:
     def __init__(self):
         self.rows = []
@@ -38,3 +40,25 @@ class Matrix:
                 file.write(struct.pack("f", self.rows[y][x]))
     
     #todo: toBlender()/fromBlender(blenderMat)
+    def toBlender(self):
+        mat = mathutils.Matrix([self.rows[0], self.rows[1], self.rows[2], [0, 0, 0, 1]])
+        mat.transpose() # row major <-> col major
+        return mat
+    
+    def fromBlender(self, mat):
+        mat = mathutils.Matrix(mat)
+        mat.transpose() # row major <-> col major
+        if mat.row_size != 4 or mat.col_size != 4:
+            mat.to_4x4()
+        self.rows = []
+        for row in mat:
+            l = []
+            l.extend(row)
+            self.rows.append(l)
+        del self.rows[3]
+
+# compressed bones as used in GLA files
+#todo
+class CompBone:
+    def __init__(self):
+        pass

@@ -50,7 +50,7 @@ class Scene:
         return True, ""
     
     # Loads scene from on GLA file
-    def loadFromGLA(self, gla_filepath_rel, loadAnimations=False):
+    def loadFromGLA(self, gla_filepath_rel, loadAnimations=False, skeletonFixes='NONE'):
         # create default skeleton if necessary (doing it here is a bit of a hack)
         if gla_filepath_rel == "*default":
             self.gla = mrw_g2_gla.GLA()
@@ -61,7 +61,7 @@ class Scene:
             print("File not found: ", self.basepath + gla_filepath_rel + ".gla", sep="")
             return False, "File not found! (no .gla?)"
         self.gla = mrw_g2_gla.GLA()
-        success, message = self.gla.loadFromFile(gla_filepath_abs)
+        success, message = self.gla.loadFromFile(gla_filepath_abs, skeletonFixes)
         if not success:
             return False, message
         return True, ""
@@ -99,6 +99,7 @@ class Scene:
         return True, ""
     
     # "saves" the scene to blender
+    # skeletonFixes is an enum with possible skeleton fixes - e.g. 'JKA' for connection- and 
     def saveToBlender(self, scale, skin_rel="", guessTextures=False):
         #is there already a scene root in blender?
         scene_root = findSceneRootObject()

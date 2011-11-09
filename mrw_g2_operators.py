@@ -42,6 +42,10 @@ class GLMImport(bpy.types.Operator):
         glaOverride = bpy.props.StringProperty(name=".gla override", description="Gla file to use, relative to base. Leave empty to use the one referenced in the file.", maxlen=64, default="")
         scale = bpy.props.FloatProperty(name="Scale", description="Scale to apply to the imported model.", default=10, min=0, max=1000, subtype='PERCENTAGE')
         loadAnimations = bpy.props.BoolProperty(name="Load Animations", description="Whether animations should be loaded from the .gla", default=False)
+        skeletonFixes = bpy.props.EnumProperty(name="skeleton changes", description="You can select a preset for automatic skeleton changes which result in a nicer imported skeleton.", default='NONE', items=[
+            ('NONE', "None", "Don't change the skeleton in any way.", 0),
+            ('JKA_HUMANOID', "Jedi Academy _humanoid", "Fixes for the default humanoid Jedi Academy skeleton", 1)
+        ])
 
         def execute(self, context):
             # initialize paths
@@ -62,7 +66,7 @@ class GLMImport(bpy.types.Operator):
                 glafile = scene.getRequestedGLA()
             else:
                 glafile = self.glaOverride
-            success, message = scene.loadFromGLA(glafile, self.loadAnimations)
+            success, message = scene.loadFromGLA(glafile, self.loadAnimations, self.skeletonFixes)
             if not success:
                 self.report({'ERROR'}, message)
                 return {'FINISHED'}
@@ -95,6 +99,10 @@ class GLAImport(bpy.types.Operator):
         basepath = bpy.props.StringProperty(name="Base Path", description="The base folder relative to which paths should be interpreted. Leave empty to let the importer guess (needs /GameData/ in filepath).", default="")
         scale = bpy.props.FloatProperty(name="Scale", description="Scale to apply to the imported model.", default=10, min=0, max=1000, subtype='PERCENTAGE')
         loadAnimations = bpy.props.BoolProperty(name="Load Animations", description="Whether animations should be loaded from the .gla", default=False)
+        skeletonFixes = bpy.props.EnumProperty(name="skeleton changes", description="You can select a preset for automatic skeleton changes which result in a nicer imported skeleton.", default='NONE', items=[
+            ('NONE', "None", "Don't change the skeleton in any way.", 0),
+            ('JKA_HUMANOID', "Jedi Academy _humanoid", "Fixes for the default humanoid Jedi Academy skeleton", 1)
+        ])
         
 
         def execute(self, context):
@@ -107,7 +115,7 @@ class GLAImport(bpy.types.Operator):
                 return {'FINISHED'}
             #load GLA
             scene = mrw_g2_scene.Scene(basepath)
-            success, message = scene.loadFromGLA(filepath, self.loadAnimations)
+            success, message = scene.loadFromGLA(filepath, self.loadAnimations, self.skeletonFixes)
             if not success:
                 self.report({'ERROR'}, message)
                 return {'FINISHED'}

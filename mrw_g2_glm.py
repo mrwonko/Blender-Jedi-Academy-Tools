@@ -271,6 +271,7 @@ class MdxmTriangle:
         self.indices[2] = temp
     
     def saveToFile(self, file):
+        # triangles are flipped because otherwise they'd face the wrong way.
         file.write(struct.pack("3i", self.indices[2], self.indices[1], self.indices[0]))
 
 class MdxmSurface:
@@ -300,6 +301,7 @@ class MdxmSurface:
             vert = MdxmVertex()
             vert.loadFromFile(file)
             self.vertices.append(vert)
+        
         #uv textures come later
         for vert in self.vertices:
             vert.uv.extend(struct.unpack("2f", file.read(2*4)))

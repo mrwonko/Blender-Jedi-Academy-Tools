@@ -1,5 +1,4 @@
-* temporarily change surface.saveToFile() to change triangle order, save after load, compare tags.
-
+* Fix bone roll
 * Verify that it does not work to use a wrong skeleton as base
 * I need to set the display texture (alt-z)
 * model fromBlender
@@ -8,7 +7,6 @@
 * bone toBlender connection?
 * skeleton save
 * skeleton fromBlender
-* skeleton optional hand fix
 * animation load
 * animation save
 * animation toBlender

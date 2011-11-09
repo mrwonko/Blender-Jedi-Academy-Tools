@@ -17,7 +17,7 @@
 # ##### END GPL LICENSE BLOCK #####
 
 from . import mrw_g2_stringhelpers, mrw_g2_constants, mrw_g2_math
-import struct, bpy
+import struct, bpy, mathutils
 
 def readString(file):
     return mrw_g2_stringhelpers.decode(struct.unpack("64s", file.read(mrw_g2_constants.MAX_QPATH))[0])
@@ -80,28 +80,65 @@ class MdxaBone:
         for i in range(self.numChildren):
             self.children.append(struct.unpack("i", file.read(4))[0])
     
+    # changes the hierarchy as defined for this fix
+    def applySkeletonFixes(self, skeletonFixes, bones):
+        parentChanges = mrw_g2_constants.PARENT_CHANGES[skeletonFixes]
+        # if this bone's parent changes:
+        if self.index in parentChanges:
+            assert(self.parent != -1) #I don't think I ever need to change from no parent to some parent, so I keep the code simple through this assertion.
+            
+            # remove it from the old parent
+            oldParent = bones[self.parent]
+            oldParent.children.remove(self.index)
+            oldParent.numChildren -= 1
+            
+            # change its parent
+            self.parent = parentChanges[self.index]
+            
+            # and add it to the new one
+            newParent = bones[self.parent]
+            newParent.numChildren += 1
+            newParent.children.append(self.index)
+    
     #blenderBonesSoFar is a dictionary of boneIndex -> BlenderBone
     #allBones is the list of all MdxaBones
     #use it to set up hierarchy and add yourself once done.
-    def toBlender(self, armature, blenderBonesSoFar, allBones):
+    def toBlender(self, armature, blenderBonesSoFar, allBones, skeletonFixes):
         # create bone 
         bone = armature.edit_bones.new(self.name)
         
         # set position
-        #todo
-        bone.head = (0, 0, 1)
-        bone.tail = (0, 0, 0)
+        mat = self.basePoseMat.toBlender()
+        pos, rot, scale = mat.decompose()
+        #TODO: FIX ROLL!
+        #rot_euler = mat.to_euler('YZX') #might be right
+        # bone gets rotated around head -> head at "actual" position
+        bone.head = pos
+        # head is offset a bit.
+        tailPos = mathutils.Vector([mrw_g2_constants.BONELENGTH, 0, 0]) # X points towards next bone.
+        tailPos = rot * tailPos
+        bone.tail = pos + tailPos
+        #bone.roll = -rot_euler.z #works reasonably well with YZX, except for hands & ATST
+        #bone.roll = rot_euler.z
         
-        # set parent, if not -1
+        # set parent, if any
         if self.parent != -1:
             mdxaParent = allBones[self.parent]
             blenderParent = blenderBonesSoFar[self.parent]
             bone.parent = blenderParent
-            # bone.use_connect = True #?
-            # if this is the only child of its parent: Connect the parent to this.
-            if mdxaParent.numChildren == 1:
-                #todo
-                pass
+            # if this is the only child of its parent or has priority: Connect the parent to this.
+            if mdxaParent.numChildren == 1 or self.name in mrw_g2_constants.PRIORITY_BONES[skeletonFixes]:
+                # but only if that doesn't rotate the bone (much)
+                # so calculate the directions...
+                oldDir = blenderParent.tail - blenderParent.head
+                newDir = pos - blenderParent.head
+                oldDir.normalize()
+                newDir.normalize()
+                dotProduct = oldDir.dot(newDir)
+                # ... and compare them using the dot product, which is the cosine of the angle between two unit vectors
+                if dotProduct > mrw_g2_constants.BONE_ANGLE_ERROR_MARGIN:
+                    blenderParent.tail = pos
+                    bone.use_connect = True
         
         # save to created bones
         blenderBonesSoFar[self.index] = bone
@@ -112,13 +149,16 @@ class MdxaSkel:
         self.armature = None
         self.armatureObject = None
     
-    def loadFromFile(self, file, offsets):
+    def loadFromFile(self, file, offsets, skeletonFixes):
         for i, offset in enumerate(offsets.boneOffsets):
             file.seek(offsets.baseOffset + offset)
             bone = MdxaBone()
             bone.loadFromFile(file)
             bone.index = i
             self.bones.append(bone)
+        # apply the skeleton fixes - bones need to be completely loaded first
+        for bone in self.bones:
+            bone.applySkeletonFixes(skeletonFixes, self.bones)
     
     def fitsArmature(self, armature):
         for bone in self.bones:
@@ -126,7 +166,7 @@ class MdxaSkel:
                 return False, "Bone "+bone.name+" not found in existing skeleton_root armature!"
             return True, ""
     
-    def toBlender(self, scene_root):
+    def toBlender(self, scene_root, skeletonFixes):
         #  Creation
         #create armature
         self.armature = bpy.data.armatures.new("skeleton_root")
@@ -154,7 +194,7 @@ class MdxaSkel:
             for bone in uncreatedBones:
                 # only create those bones whose parent has already been created.
                 if bone.parent in createdBonesIndices:
-                    bone.toBlender(self.armature, createdBones, self.bones)
+                    bone.toBlender(self.armature, createdBones, self.bones, skeletonFixes)
                     createdBonesIndices.append(bone.index)
                     createdBone = True
                 else:
@@ -181,7 +221,8 @@ class GLA:
         self.skeleton_armature = None
         self.skeleton_object = None
     
-    def loadFromFile(self, filepath_abs):
+    def loadFromFile(self, filepath_abs, skeletonFixes):
+        self.skeletonFixes = skeletonFixes
         try:
             file = open(filepath_abs, mode="rb")
         except IOError:
@@ -194,11 +235,11 @@ class GLA:
         # load offsets (directly after header, always)
         self.boneOffsets.loadFromFile(file, self.header.numBones)
         # load bones
-        self.skeleton.loadFromFile(file, self.boneOffsets)
+        self.skeleton.loadFromFile(file, self.boneOffsets, skeletonFixes)
         # build lookup map
         for bone in self.skeleton.bones:
             self.boneIndexByName[bone.name] = bone.index
-        #todo
+        #todo: load animations
         return True, ""
     
     def loadFromBlender(self, gla_filepath_rel):
@@ -209,7 +250,7 @@ class GLA:
         #todo
         return True, ""
     
-    def saveToBlender(self, scene_root):
+    def saveToBlender(self, scene_root,):
         #default skeleton = no skeleton.
         if self.isDefault:
             return True, ""
@@ -248,10 +289,11 @@ class GLA:
             #that's all
             return True, ""
         
+        
         # no existing Armature found, create a new one.
         
         #create armature
-        success, message = self.skeleton.toBlender(scene_root)
+        success, message = self.skeleton.toBlender(scene_root, self.skeletonFixes)
         if not success:
             return False, message
         self.skeleton_armature = self.skeleton.armature

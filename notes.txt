@@ -13,14 +13,57 @@ bones not saved until edit mode left, apparently
 armature.bones[bonename] -> Bone
 bonename in armature.bones -> bool
 
+=== Roll ===
+Roll is somewhat tricky...
+In order to find out if you have the right roll, check the hand of _humanoid and the legs of atst.
+* YZX, -z seems OK, but neither hands nor atst turn out well
+* XYZ is definitely wrong
+* blender default (XYZ?) is definitely wrong
+bone roll needs to be inverted!
+
 == Tags ==
+
 === Vertices ===
 0: at (0, 2, 0)
 1: at (1, 0, 0)
 2: at (0, 0, 0)
 === Faces ===
 1: [1, 0, 2], i.e. [(1, 0, 0), (0, 2, 0), (0, 0, 0)]
+
+=== Theory ===
 Theory A: Short side = X, long side = Y
 Theory B: 2->1 = X+, 2->0 = Y+
-Theory C: tri.vert[0] - tri.vert[2] = X+, tri.vert[1] - tri.vert[2] = Y+ - tri.vert[0] is X+, tri.vert[1] Y+, tri.vert[2] origin.
+Theory C: tri.vert[0] - tri.vert[2] = X+, tri.vert[1] - tri.vert[2] = Y+ - tri.vert[0] is X+, tri.vert[1] Y+, tri.vert[2] origin. Attention: keep in mind I flip 0 and 2 due to different order. So actually 0 is origin.
 I suppose it's C. For validation I could change the order of triangles.
+
+=== Experiment 1 ===
+==== Idea ====
+I flip Index 0 and 2 of the triangles. If C is correct, this will change the tags. If A or B are correct, it does not.
+==== Result ====
+The tags don't change. (But all faces are inverted, which is to be expected.)
+==== Meaning ====
+C is wrong. A or B could be correct.
+
+=== Experiment 2 ===
+==== Idea =====
+I exchange vertex 0 and 1. If B is correct, this will exchange X and Y (and Z should thus point in the opposite direction). If A is correct, nothing will happen.
+==== Result ====
+X and Y are flipped, Z = -Z
+==== Meaning ====
+The index of the vertices is important, B is probably correct.
+
+=== Experiment 3 ===
+==== Idea ====
+I remove the triangle. This will show if it has any meaning at all - my hypothesis is that only the vertices matter.
+==== Result ====
+The tags no longer show up in ModView
+==== Meaning ====
+The triangle is required.
+
+=== Experiment 4 ===
+==== Idea ====
+Mark all surfaces as tags.
+==== Result ====
+ModView shows them all like proper tags
+==== Meaning ====
+There have to be at least 3 vertices and 1 triangle, not exactly.
