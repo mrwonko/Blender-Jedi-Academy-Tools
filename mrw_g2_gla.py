@@ -79,10 +79,38 @@ class MdxaBone:
         self.numChildren, = struct.unpack("i", file.read(4))
         for i in range(self.numChildren):
             self.children.append(struct.unpack("i", file.read(4))[0])
+    
+    #blenderBonesSoFar is a dictionary of boneIndex -> BlenderBone
+    #allBones is the list of all MdxaBones
+    #use it to set up hierarchy and add yourself once done.
+    def toBlender(self, armature, blenderBonesSoFar, allBones):
+        # create bone 
+        bone = armature.edit_bones.new(self.name)
+        
+        # set position
+        #todo
+        bone.head = (0, 0, 1)
+        bone.tail = (0, 0, 0)
+        
+        # set parent, if not -1
+        if self.parent != -1:
+            mdxaParent = allBones[self.parent]
+            blenderParent = blenderBonesSoFar[self.parent]
+            bone.parent = blenderParent
+            # bone.use_connect = True #?
+            # if this is the only child of its parent: Connect the parent to this.
+            if mdxaParent.numChildren == 1:
+                #todo
+                pass
+        
+        # save to created bones
+        blenderBonesSoFar[self.index] = bone
 
 class MdxaSkel:
     def __init__(self):
         self.bones = []
+        self.armature = None
+        self.armatureObject = None
     
     def loadFromFile(self, file, offsets):
         for i, offset in enumerate(offsets.boneOffsets):
@@ -91,6 +119,53 @@ class MdxaSkel:
             bone.loadFromFile(file)
             bone.index = i
             self.bones.append(bone)
+    
+    def fitsArmature(self, armature):
+        for bone in self.bones:
+            if not bone.name in armature.bones:
+                return False, "Bone "+bone.name+" not found in existing skeleton_root armature!"
+            return True, ""
+    
+    def toBlender(self, scene_root):
+        #  Creation
+        #create armature
+        self.armature = bpy.data.armatures.new("skeleton_root")
+        #create object
+        self.armature_object = bpy.data.objects.new("skeleton_root", self.armature)
+        #set parent
+        self.armature_object.parent = scene_root
+        #link object to scene
+        bpy.context.scene.objects.link(self.armature_object)
+        
+        #  Set the armature as active and go to edit mode to add bones
+        bpy.context.scene.objects.active = self.armature_object
+        bpy.ops.object.mode_set(mode='EDIT')
+        # list of indices of already created bones - only those bones with this as parent will be added
+        createdBonesIndices = [-1]
+        # already created blender bone objects by index
+        createdBones = {}
+        # bones yet to be created
+        uncreatedBones = []
+        uncreatedBones.extend(self.bones)
+        while len(uncreatedBones) > 0:
+            # whether a new bone was created this time - if not, there's a hierarchy problem
+            createdBone = False
+            newUncreatedBones = []
+            for bone in uncreatedBones:
+                # only create those bones whose parent has already been created.
+                if bone.parent in createdBonesIndices:
+                    bone.toBlender(self.armature, createdBones, self.bones)
+                    createdBonesIndices.append(bone.index)
+                    createdBone = True
+                else:
+                    newUncreatedBones.append(bone)
+            uncreatedBones = newUncreatedBones
+            if not createdBone:
+                bpy.ops.object.mode_set(mode='OBJECT')
+                return False, "gla has hierarchy problems!"
+        # leave armature edit mode
+        bpy.ops.object.mode_set(mode='OBJECT')
+        return True, ""
 
 class GLA:
     
@@ -102,6 +177,9 @@ class GLA:
         self.skeleton = MdxaSkel()
         self.boneIndexByName = {}
         # boneNameByIndex = {} #just use bones[index].name
+        # the Blender Armature / Object
+        self.skeleton_armature = None
+        self.skeleton_object = None
     
     def loadFromFile(self, filepath_abs):
         try:
@@ -132,23 +210,52 @@ class GLA:
         return True, ""
     
     def saveToBlender(self, scene_root):
-        #todo
-        # if there's already a skeleton, this won't work.
+        #default skeleton = no skeleton.
+        if self.isDefault:
+            return True, ""
+        
+        #  try using existing skeletons
+        # first check if there's already an armature object called skeleton_root. Try using that.
         if "skeleton_root" in bpy.data.objects:
-            return False, "There is already a skeleton_root object!"
-        if "skeleton_root" in bpy.data.armatures:
-            return False, "There is already a skeleton_root armature!"
+            print("Found a skeleton_root object, trying to use it.")
+            self.skeleton_object = bpy.data.objects["skeleton_root"]
+            if self.skeleton_object.type != 'ARMATURE':
+                return False, "Existing skeleton_root object is no armature!"
+            self.skeleton_armature = self.skeleton_object.data
+        # If there's no skeleton, there may yet still be an armature. Use that.
+        elif "skeleton_root" in bpy.data.armatures:
+            print("Found skeleton_root armature, trying to use it.")
+            self.skeleton_armature = bpy.data.armatures["skeleton_root"]
+        
+        # if we found an existing armature, we need to make sure it's linked to an object and valid
+        if self.skeleton_armature:
+            # see if the armature fits
+            success, message =  self.skeleton.fitsArmature(self.skeleton_armature)
+            if not success:
+                return False, message
+            
+            # this armature would work, add it to an object if necessary
+            if not self.skeleton_object:
+                self.skeleton_object = bpy.data.objects.new("skeleton_root", self.skeleton_armature)
+            
+            # link the object to the current scene if necessary
+            if not self.skeleton_object.name in bpy.context.scene.objects:
+                bpy.context.scene.objects.link(self.skeleton_object)
+            
+            # set its parent to the scene_root (not strictly speaking necessary but keeps output consistent)
+            self.skeleton_object.parent = scene_root
+            
+            #that's all
+            return True, ""
+        
+        # no existing Armature found, create a new one.
         
         #create armature
-        skeleton_armature = bpy.data.armatures.new("skeleton_root")
-        
-        #todo: create skeleton
+        success, message = self.skeleton.toBlender(scene_root)
+        if not success:
+            return False, message
+        self.skeleton_armature = self.skeleton.armature
+        self.skeleton_object = self.skeleton.armature_object
         
         #todo: animate
-        
-        #create object
-        skeleton_object = bpy.data.objects.new("skeleton_root", skeleton_armature)
-        skeleton_object.parent = scene_root
-        #link object to scene
-        bpy.context.scene.objects.link(skeleton_object)
         return True, ""

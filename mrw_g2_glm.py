@@ -393,14 +393,21 @@ class MdxmSurface:
         #  create object
         obj = bpy.data.objects.new(blenderName, mesh)
         
-        #  create vertex groups (indices will match)
-        for index in self.boneReferences:
-            obj.vertex_groups.new(data.boneNames[index])
-        
-        #set weights
-        for vertIndex, vert in enumerate(self.vertices):
-            for weightIndex in range(vert.numWeights):
-                obj.vertex_groups[vert.boneIndices[weightIndex]].add([vertIndex], vert.weights[weightIndex], 'ADD')
+        # in the case of the default skeleton, no weighting is needed.
+        if not data.gla.isDefault:
+            
+            #  create armature modifier
+            armatureModifier = obj.modifiers.new("skin", 'ARMATURE')
+            armatureModifier.object = data.gla.skeleton_object
+            
+            #  create vertex groups (indices will match)
+            for index in self.boneReferences:
+                obj.vertex_groups.new(data.boneNames[index])
+            
+            #set weights
+            for vertIndex, vert in enumerate(self.vertices):
+                for weightIndex in range(vert.numWeights):
+                    obj.vertex_groups[vert.boneIndices[weightIndex]].add([vertIndex], vert.weights[weightIndex], 'ADD')
         
         #link object to scene
         bpy.context.scene.objects.link(obj)

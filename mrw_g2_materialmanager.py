@@ -59,7 +59,7 @@ class MaterialManager():
         if self.useSkin:
             if name in self.skin:
                 shader = self.skin[name]
-        if shader == "[nomaterial]" or shader == "":
+        if shader.lower() == "[nomaterial]" or shader == "":
             return
         if shader.lower() in self.materials:
             return self.materials[shader.lower()]

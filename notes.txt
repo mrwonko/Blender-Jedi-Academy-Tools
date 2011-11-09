@@ -1,31 +1,5 @@
 bpy.props.StringProperty(maxlen=0, update=None) #update is function of type (self, context) -> None, self is the object
 
-#make mesh
-mesh = bpy.data.meshes.new('name') #create mesh
-
-#set vertices
-mesh.vertices.add(numVertices)
-# co = coordinate
-mesh.vertices.foreach_set("co", [a1, a2, a3, b1, b2, b3, c1, ...])
-
-#set faces
-mesh.faces.add(numFaces)
-# raw vertices - always 4 per face.
-mesh.faces.foreach_set("vertices_raw", [a1, a2, a3, 0, b1, b2, b3, 0, c1, ...])
-
-#set uv coordinates
-mesh.uv_textures.new()
-uv_faces = mesh.uv_textures.active.data[:]
-uv_faces[n].uv1 = (a_u, a_v)
-uv_faces[n].uv2 = (b_u, b_c)
-uv_faces[n].uv3 = (c_u, c_v)
-
-mesh.validate()
-mesh.update()
-
-meshObj = bpy.data.objects.new('name', mesh) #create object for mesh
-bpy.context.scene.objects.link(meshObj) #link object to scene
-
 integer division: a // b
 
 global g_defaultSkeleton - true if default skeleton, used in mrw_g2_glm for export.
@@ -33,3 +7,20 @@ global g_defaultSkeleton - true if default skeleton, used in mrw_g2_glm for expo
 scene_root is necessary due to scale! (and for no other reason)
 
 Now I got git working at Uni, too. Can work there in spare time.
+
+== Armatures ==
+bones not saved until edit mode left, apparently
+armature.bones[bonename] -> Bone
+bonename in armature.bones -> bool
+
+== Tags ==
+=== Vertices ===
+0: at (0, 2, 0)
+1: at (1, 0, 0)
+2: at (0, 0, 0)
+=== Faces ===
+1: [1, 0, 2], i.e. [(1, 0, 0), (0, 2, 0), (0, 0, 0)]
+Theory A: Short side = X, long side = Y
+Theory B: 2->1 = X+, 2->0 = Y+
+Theory C: tri.vert[0] - tri.vert[2] = X+, tri.vert[1] - tri.vert[2] = Y+ - tri.vert[0] is X+, tri.vert[1] Y+, tri.vert[2] origin.
+I suppose it's C. For validation I could change the order of triangles.
