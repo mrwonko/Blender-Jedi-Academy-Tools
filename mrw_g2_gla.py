@@ -44,7 +44,7 @@ class MdxaHeader:
         if version != mrw_g2_constants.GLA_VERSION:
             return False, "Wrong gla file version! ("+str(version)+" should be "+str(mrw_g2_constants.GLA_VERSION)+")"
         name = readString(file)
-        self.scale, self.numFrames, self.numBones, self.numBones, self.ofsCompBonePool, self.ofsSkel, self.ofsEnd = struct.unpack("f6i", file.read(7*4))
+        self.scale, self.numFrames, self.ofsFrames, self.numBones, self.ofsCompBonePool, self.ofsSkel, self.ofsEnd = struct.unpack("f6i", file.read(7*4))
         return True, ""
 
 class MdxaBoneOffsets:
@@ -103,7 +103,7 @@ class MdxaBone:
     #blenderBonesSoFar is a dictionary of boneIndex -> BlenderBone
     #allBones is the list of all MdxaBones
     #use it to set up hierarchy and add yourself once done.
-    def toBlender(self, armature, blenderBonesSoFar, allBones, skeletonFixes):
+    def saveToBlender(self, armature, blenderBonesSoFar, allBones, skeletonFixes):
         # create bone 
         bone = armature.edit_bones.new(self.name)
         
@@ -124,9 +124,7 @@ class MdxaBone:
             blenderParent = blenderBonesSoFar[self.parent]
             bone.parent = blenderParent
             # if this is the only child of its parent or has priority: Connect the parent to this.
-            # I'd like it unconnected right now.
-            if False:
-            #if mdxaParent.numChildren == 1 or self.name in mrw_g2_constants.PRIORITY_BONES[skeletonFixes]:
+            if mdxaParent.numChildren == 1 or self.name in mrw_g2_constants.PRIORITY_BONES[skeletonFixes]:
                 # but only if that doesn't rotate the bone (much)
                 # so calculate the directions...
                 oldDir = blenderParent.tail - blenderParent.head
@@ -159,13 +157,16 @@ class MdxaSkel:
         for bone in self.bones:
             bone.applySkeletonFixes(skeletonFixes, self.bones)
     
+    def saveToFile(self, file):
+        pass
+    
     def fitsArmature(self, armature):
         for bone in self.bones:
             if not bone.name in armature.bones:
                 return False, "Bone "+bone.name+" not found in existing skeleton_root armature!"
             return True, ""
     
-    def toBlender(self, scene_root, skeletonFixes):
+    def saveToBlender(self, scene_root, skeletonFixes):
         #  Creation
         #create armature
         self.armature = bpy.data.armatures.new("skeleton_root")
@@ -193,7 +194,7 @@ class MdxaSkel:
             for bone in uncreatedBones:
                 # only create those bones whose parent has already been created.
                 if bone.parent in createdBonesIndices:
-                    bone.toBlender(self.armature, createdBones, self.bones, skeletonFixes)
+                    bone.saveToBlender(self.armature, createdBones, self.bones, skeletonFixes)
                     createdBonesIndices.append(bone.index)
                     createdBone = True
                 else:
@@ -205,6 +206,78 @@ class MdxaSkel:
         # leave armature edit mode
         bpy.ops.object.mode_set(mode='OBJECT')
         return True, ""
+
+class MdxaFrame:
+    def __init__(self):
+        self.boneIndices = []
+    
+    # returns the highest referenced index - not nice from a design standpoint but saves space, which is probably good.
+    def loadFromFile(self, file, numBones):
+        maxIndex = 0
+        for i in range(numBones):
+            # bone indices are only 3 bytes long - with 30k+ frames 25% less is quite a bit, reportedly.
+            index, = struct.unpack("i", file.read(3)+b"\0")
+            maxIndex = max(maxIndex, index)
+            self.boneIndices.append(index)
+        return maxIndex
+    
+    def writeToFile(self, file):
+        for index in self.boneIndices:
+            # only write the first 3 bytes of the packed number
+            file.write(struct.pack("i", index)[:3])
+
+class MdxaBonePool:
+    def __init__(self):
+        self.bones = []
+    
+    def loadFromFile(self, file, numCompBones):
+        for i in range(numCompBones):
+            compBone = mrw_g2_math.CompBone()
+            compBone.loadFromFile(file)
+            self.bones.append(compBone)
+
+# Frames & Compressed Bone Pool
+class MdxaAnimation:
+    def __init__(self):
+        self.frames = []
+        self.bonePool = MdxaBonePool()
+    
+    def loadFromFile(self, file, header, skeleton):
+        # read frames
+        if file.tell() != header.ofsFrames:
+            print("Info: Frames in .gla not encountered when expected (at ", file.tell(), " instead of ", header.ofsFrames, "), seeking correct position. There could be a bug in the importer (bad) or the file could be unusual - but not necessarily wrong (no problem).", sep="")
+            file.seek(header.ofsFrames)
+        maxIndex = -1
+        for i in range(header.numFrames):
+            frame = MdxaFrame()
+            # loadFromFile returns highest read index
+            maxIndex = max(maxIndex, frame.loadFromFile(file, header.numBones))
+            self.frames.append(frame)
+        
+        # read compressed bone pool
+        # see if we reached it yet
+        curPos = file.tell()
+        if curPos != header.ofsCompBonePool:
+            # we're not yet there. If we're off by 0-3 bytes, it's because 32-bit-alignment is forced. Silently seek correct position. Otherwise: warn (and seek correct position, too)
+            if curPos > header.ofsCompBonePool or header.ofsCompBonePool > curPos + 3:
+                print("Info: Bone Pool in .gla not encountered when expected (at ", file.tell(), " instead of ", header.ofsCompBonePool, "), seeking correct position. There could be a bug in the importer (bad) or the file could be unusual - but not necessarily wrong (no problem).", sep="")
+            file.seek(header.ofsCompBonePool)
+        # there's one more object than the highest index since those start at 0
+        self.bonePool.loadFromFile(file, maxIndex+1)
+        
+        #file should be over now, bone pool is usually the last thing. I'm not sure it has to be, but so far it has always been.
+        if file.tell() != header.ofsEnd:
+            print("Info: .gla Bone Pool read but file not over yet - this likely indicates a problem.")
+        return True, ""
+    
+    def saveToFile(self, file):
+        for frame in self.frames:
+            frame.writeToFile(file)
+        self.bonePool.writeToFile()
+        pass
+    
+    def saveToBlender(self, skeleton, armature):
+        pass
 
 class GLA:
     
@@ -219,8 +292,9 @@ class GLA:
         # the Blender Armature / Object
         self.skeleton_armature = None
         self.skeleton_object = None
+        self.animation = MdxaAnimation()
     
-    def loadFromFile(self, filepath_abs, skeletonFixes):
+    def loadFromFile(self, filepath_abs, skeletonFixes, loadAnimation):
         self.skeletonFixes = skeletonFixes
         try:
             file = open(filepath_abs, mode="rb")
@@ -239,6 +313,10 @@ class GLA:
         for bone in self.skeleton.bones:
             self.boneIndexByName[bone.name] = bone.index
         #todo: load animations
+        if loadAnimation:
+            success, message = self.animation.loadFromFile(file, self.header, self.skeleton)
+            if not success:
+                return False, message
         return True, ""
     
     def loadFromBlender(self, gla_filepath_rel):
@@ -249,7 +327,7 @@ class GLA:
         #todo
         return True, ""
     
-    def saveToBlender(self, scene_root,):
+    def saveToBlender(self, scene_root, useAnimation):
         #default skeleton = no skeleton.
         if self.isDefault:
             return True, ""
@@ -285,6 +363,10 @@ class GLA:
             # set its parent to the scene_root (not strictly speaking necessary but keeps output consistent)
             self.skeleton_object.parent = scene_root
             
+            # add animations, if any
+            if useAnimation:
+                self.animation.saveToBlender(self.skeleton, self.skeleton_armature)
+            
             #that's all
             return True, ""
         
@@ -292,7 +374,7 @@ class GLA:
         # no existing Armature found, create a new one.
         
         #create armature
-        success, message = self.skeleton.toBlender(scene_root, self.skeletonFixes)
+        success, message = self.skeleton.saveToBlender(scene_root, self.skeletonFixes)
         if not success:
             return False, message
         self.skeleton_armature = self.skeleton.armature

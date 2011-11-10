@@ -61,4 +61,28 @@ class Matrix:
 #todo
 class CompBone:
     def __init__(self):
-        pass
+        self.quat = mathutils.Quaternion()
+        self.loc = mathutils.Vector()
+    
+    def loadFromFile(self, file):
+        # 14 bytes: 4 shorts for quat = 8 bytes, 3 shorts for position = 6 bytes
+        q_w, q_x, q_y, q_z, l_x, l_y, l_z = struct.unpack("7H", file.read(14))
+        # map quaternion values from 0..65535 to -2..2
+        self.quat.w = (q_w / 16383) - 2
+        self.quat.x = (q_x / 16383) - 2
+        self.quat.y = (q_y / 16383) - 2
+        self.quat.z = (q_z / 16383) - 2
+        # map location from 0..65535 to -512..512 (511.984375)
+        self.loc.x = (l_x / 64) - 512
+        self.loc.y = (l_y / 64) - 512
+        self.loc.z = (l_z / 64) - 512
+    
+    def saveToFile(self, file):
+        file.write(struct.pack("7H",
+            round((self.quat.w+2)*16383),
+            round((self.quat.x+2)*16383),
+            round((self.quat.y+2)*16383),
+            round((self.quat.z+2)*16383),
+            round((self.loc.x+512)*64),
+            round((self.loc.y+512)*64),
+            round((self.loc.z+512)*64)))

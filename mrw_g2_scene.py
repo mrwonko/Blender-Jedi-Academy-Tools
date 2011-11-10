@@ -51,6 +51,7 @@ class Scene:
     
     # Loads scene from on GLA file
     def loadFromGLA(self, gla_filepath_rel, loadAnimations=False, skeletonFixes='NONE'):
+        self.animations = loadAnimations
         # create default skeleton if necessary (doing it here is a bit of a hack)
         if gla_filepath_rel == "*default":
             self.gla = mrw_g2_gla.GLA()
@@ -61,7 +62,7 @@ class Scene:
             print("File not found: ", self.basepath + gla_filepath_rel + ".gla", sep="")
             return False, "File not found! (no .gla?)"
         self.gla = mrw_g2_gla.GLA()
-        success, message = self.gla.loadFromFile(gla_filepath_abs, skeletonFixes)
+        success, message = self.gla.loadFromFile(gla_filepath_abs, skeletonFixes, loadAnimations)
         if not success:
             return False, message
         return True, ""
@@ -113,7 +114,7 @@ class Scene:
             scene_root.scale = (scale, scale, scale)
             bpy.context.scene.objects.link(scene_root)
         # there's always a skeleton (even if it's *default)
-        success, message = self.gla.saveToBlender(scene_root)
+        success, message = self.gla.saveToBlender(scene_root, self.animations)
         if not success:
             return False, message
         if self.glm:
