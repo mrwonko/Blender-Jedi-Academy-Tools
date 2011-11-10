@@ -1,7 +1,17 @@
 import bpy, mathutils, math
 
-# take current object's matrix (that's kind of like having a basePoseMat)
+obj = bpy.data.objects['Empty']
+# obj = bpy.context.object
+basePoseMat = obj.matrix_world
+x_axis = [basePoseMat[0][0], basePoseMat[0][1], basePoseMat[0][2]]
+z_axis = [basePoseMat[2][0], basePoseMat[2][1], basePoseMat[2][2]]
+loc    = [basePoseMat[3][0], basePoseMat[3][1], basePoseMat[3][2]]
+bone = bpy.data.armatures['Armature'].edit_bones['Bone']
+bone.head = loc
+bone.tail = [loc[0]+x_axis[0], loc[1]+x_axis[1], loc[2] + x_axis[2]]
+bone.align_roll(z_axis)
 
+"""
 # creates meshes representing the axes of this matrix
 def displayMatrix(name, mat, alt=False):
     assert(type(name) == type(""))
@@ -36,7 +46,6 @@ def visualizeEditBone(bone):
     createAxisObject(bone.y_axis, bone.name+"_y")
     createAxisObject(bone.z_axis, bone.name+"_z")
 
-#basePoseMat = bpy.context.object.matrix_world
 #displayMatrix(bpy.context.object.name, basePoseMat)
 
 # bone: Bone, *not* EditBone
@@ -46,8 +55,7 @@ def getBoneRoll(bone):
     euler = mat.to_euler()
     return euler.z
 
-visualizeEditBone(bpy.data.armatures['Armature'].edit_bones['Bone'])
-return
+#visualizeEditBone(bpy.data.armatures['Armature'].edit_bones['Bone'])
 
 mat = bpy.data.armatures['Armature'].bones['Bone'].matrix_local.copy()
 mat.to_4x4()
@@ -71,3 +79,4 @@ for order in possibleOrders:
     print(order, ".x: ", math.degrees(euler.x), " degrees", sep="")
     print(order, ".y: ", math.degrees(euler.y), " degrees", sep="")
     print(order, ".z: ", math.degrees(euler.z), " degrees", sep="", end="\n\n")
+"""
