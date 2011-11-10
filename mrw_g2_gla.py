@@ -109,17 +109,14 @@ class MdxaBone:
         
         # set position
         mat = self.basePoseMat.toBlender()
-        pos, rot, scale = mat.decompose()
-        #TODO: FIX ROLL!
-        #rot_euler = mat.to_euler('YZX') #might be right
-        # bone gets rotated around head -> head at "actual" position
+        pos = mathutils.Vector(mat[3][:3])
         bone.head = pos
         # head is offset a bit.
-        tailPos = mathutils.Vector([mrw_g2_constants.BONELENGTH, 0, 0]) # X points towards next bone.
-        tailPos = rot * tailPos
-        bone.tail = pos + tailPos
-        #bone.roll = -rot_euler.z #works reasonably well with YZX, except for hands & ATST
-        #bone.roll = rot_euler.z
+        x_axis = mathutils.Vector(mat[0][0:3]) # X points towards next bone.
+        bone.tail = pos + x_axis*mrw_g2_constants.BONELENGTH
+        # set roll
+        z_axis = mathutils.Vector(mat[2][0:3])
+        bone.align_roll(z_axis)
         
         # set parent, if any
         if self.parent != -1:
@@ -127,7 +124,9 @@ class MdxaBone:
             blenderParent = blenderBonesSoFar[self.parent]
             bone.parent = blenderParent
             # if this is the only child of its parent or has priority: Connect the parent to this.
-            if mdxaParent.numChildren == 1 or self.name in mrw_g2_constants.PRIORITY_BONES[skeletonFixes]:
+            # I'd like it unconnected right now.
+            if False:
+            #if mdxaParent.numChildren == 1 or self.name in mrw_g2_constants.PRIORITY_BONES[skeletonFixes]:
                 # but only if that doesn't rotate the bone (much)
                 # so calculate the directions...
                 oldDir = blenderParent.tail - blenderParent.head

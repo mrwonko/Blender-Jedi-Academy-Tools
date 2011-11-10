@@ -1,4 +1,4 @@
-* Fix bone roll
+* Change bone hierarchy to allow for IK
 * Verify that it does not work to use a wrong skeleton as base
 * I need to set the display texture (alt-z)
 * model fromBlender
