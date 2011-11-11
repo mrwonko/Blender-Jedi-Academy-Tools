@@ -80,26 +80,6 @@ class MdxaBone:
         for i in range(self.numChildren):
             self.children.append(struct.unpack("i", file.read(4))[0])
     
-    # changes the hierarchy as defined for this fix
-    def applySkeletonFixes(self, skeletonFixes, bones):
-        parentChanges = mrw_g2_constants.PARENT_CHANGES[skeletonFixes]
-        # if this bone's parent changes:
-        if self.index in parentChanges:
-            assert(self.parent != -1) #I don't think I ever need to change from no parent to some parent, so I keep the code simple through this assertion.
-            
-            # remove it from the old parent
-            oldParent = bones[self.parent]
-            oldParent.children.remove(self.index)
-            oldParent.numChildren -= 1
-            
-            # change its parent
-            self.parent = parentChanges[self.index]
-            
-            # and add it to the new one
-            newParent = bones[self.parent]
-            newParent.numChildren += 1
-            newParent.children.append(self.index)
-    
     #blenderBonesSoFar is a dictionary of boneIndex -> BlenderBone
     #allBones is the list of all MdxaBones
     #use it to set up hierarchy and add yourself once done.
@@ -118,13 +98,32 @@ class MdxaBone:
         z_axis = mathutils.Vector(mat[2][0:3])
         bone.align_roll(z_axis)
         
-        # set parent, if any
-        if self.parent != -1:
-            mdxaParent = allBones[self.parent]
-            blenderParent = blenderBonesSoFar[self.parent]
+        # set parent, if any, keeping in mind it might be overwritten
+        parentIndex = self.parent
+        parentChanges = mrw_g2_constants.PARENT_CHANGES[skeletonFixes]
+        if self.index in parentChanges:
+            parentIndex = parentChanges[self.index]
+        if parentIndex != -1:
+            blenderParent = blenderBonesSoFar[parentIndex]
             bone.parent = blenderParent
+            
+            #how many children does the parent have?
+            numParentChildren = allBones[parentIndex].numChildren
+            # we actually need to take into account the hierarchy changes.
+            # so for any bone that used to have this parent but does not anymore, remove one
+            for mdxaBone in allBones:
+                # if a bone gets its parent changed, and it used to be "my" parent, my parent has one child less.
+                if mdxaBone.parent == parentIndex and mdxaBone.index in parentChanges:
+                    numParentChildren -= 1
+            assert(numParentChildren >= 0)
+            # and for any bone that got this as the parent, add one child.
+            for _, newParentIndex in parentChanges.items():
+                if newParentIndex == parentIndex:
+                    numParentChildren += 1
+            assert(numParentChildren > 0) #at least this bone is child.
+            
             # if this is the only child of its parent or has priority: Connect the parent to this.
-            if mdxaParent.numChildren == 1 or self.name in mrw_g2_constants.PRIORITY_BONES[skeletonFixes]:
+            if numParentChildren == 1 or self.name in mrw_g2_constants.PRIORITY_BONES[skeletonFixes]:
                 # but only if that doesn't rotate the bone (much)
                 # so calculate the directions...
                 oldDir = blenderParent.tail - blenderParent.head
@@ -145,17 +144,16 @@ class MdxaSkel:
         self.bones = []
         self.armature = None
         self.armatureObject = None
+        # Blender Bones by index - used by Animation
+        self.blenderBones = {}
     
-    def loadFromFile(self, file, offsets, skeletonFixes):
+    def loadFromFile(self, file, offsets):
         for i, offset in enumerate(offsets.boneOffsets):
             file.seek(offsets.baseOffset + offset)
             bone = MdxaBone()
             bone.loadFromFile(file)
             bone.index = i
             self.bones.append(bone)
-        # apply the skeleton fixes - bones need to be completely loaded first
-        for bone in self.bones:
-            bone.applySkeletonFixes(skeletonFixes, self.bones)
     
     def saveToFile(self, file):
         pass
@@ -182,19 +180,22 @@ class MdxaSkel:
         bpy.ops.object.mode_set(mode='EDIT')
         # list of indices of already created bones - only those bones with this as parent will be added
         createdBonesIndices = [-1]
-        # already created blender bone objects by index
-        createdBones = {}
         # bones yet to be created
         uncreatedBones = []
         uncreatedBones.extend(self.bones)
+        parentChanges = mrw_g2_constants.PARENT_CHANGES[skeletonFixes]
         while len(uncreatedBones) > 0:
             # whether a new bone was created this time - if not, there's a hierarchy problem
             createdBone = False
             newUncreatedBones = []
             for bone in uncreatedBones:
                 # only create those bones whose parent has already been created.
-                if bone.parent in createdBonesIndices:
-                    bone.saveToBlender(self.armature, createdBones, self.bones, skeletonFixes)
+                if bone.index in parentChanges:
+                    parent = parentChanges[bone.index]
+                else:
+                    parent = bone.parent
+                if parent in createdBonesIndices:
+                    bone.saveToBlender(self.armature, self.blenderBones, self.bones, skeletonFixes)
                     createdBonesIndices.append(bone.index)
                     createdBone = True
                 else:
@@ -221,20 +222,29 @@ class MdxaFrame:
             self.boneIndices.append(index)
         return maxIndex
     
-    def writeToFile(self, file):
+    def saveToFile(self, file):
         for index in self.boneIndices:
             # only write the first 3 bytes of the packed number
             file.write(struct.pack("i", index)[:3])
 
 class MdxaBonePool:
     def __init__(self):
+        # during import, this is a list of CompBone objects
+        # during exports, it's a list of 14-byte-objects (compressed bones)
         self.bones = []
     
     def loadFromFile(self, file, numCompBones):
+        self.bones = [mrw_g2_math.CompBone().loadFromFile(file) for i in range(numCompBones)]
+        """
         for i in range(numCompBones):
             compBone = mrw_g2_math.CompBone()
             compBone.loadFromFile(file)
             self.bones.append(compBone)
+        """
+    
+    def saveToFile(self, file):
+        for bone in self.bones:
+            bone.saveToFile(file)
 
 # Frames & Compressed Bone Pool
 class MdxaAnimation:
@@ -294,8 +304,7 @@ class GLA:
         self.skeleton_object = None
         self.animation = MdxaAnimation()
     
-    def loadFromFile(self, filepath_abs, skeletonFixes, loadAnimation):
-        self.skeletonFixes = skeletonFixes
+    def loadFromFile(self, filepath_abs, loadAnimation):
         try:
             file = open(filepath_abs, mode="rb")
         except IOError:
@@ -308,7 +317,7 @@ class GLA:
         # load offsets (directly after header, always)
         self.boneOffsets.loadFromFile(file, self.header.numBones)
         # load bones
-        self.skeleton.loadFromFile(file, self.boneOffsets, skeletonFixes)
+        self.skeleton.loadFromFile(file, self.boneOffsets)
         # build lookup map
         for bone in self.skeleton.bones:
             self.boneIndexByName[bone.name] = bone.index
@@ -327,7 +336,7 @@ class GLA:
         #todo
         return True, ""
     
-    def saveToBlender(self, scene_root, useAnimation):
+    def saveToBlender(self, scene_root, useAnimation, skeletonFixes):
         #default skeleton = no skeleton.
         if self.isDefault:
             return True, ""
@@ -374,11 +383,13 @@ class GLA:
         # no existing Armature found, create a new one.
         
         #create armature
-        success, message = self.skeleton.saveToBlender(scene_root, self.skeletonFixes)
+        success, message = self.skeleton.saveToBlender(scene_root, skeletonFixes)
         if not success:
             return False, message
         self.skeleton_armature = self.skeleton.armature
         self.skeleton_object = self.skeleton.armature_object
         
-        #todo: animate
+        #add animations, if any
+        if useAnimation:
+            self.animation.saveToBlender(self.skeleton, self.skeleton_armature)
         return True, ""

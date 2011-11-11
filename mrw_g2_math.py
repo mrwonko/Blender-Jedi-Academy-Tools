@@ -64,6 +64,7 @@ class CompBone:
         self.quat = mathutils.Quaternion()
         self.loc = mathutils.Vector()
     
+    # returns self
     def loadFromFile(self, file):
         # 14 bytes: 4 shorts for quat = 8 bytes, 3 shorts for position = 6 bytes
         q_w, q_x, q_y, q_z, l_x, l_y, l_z = struct.unpack("7H", file.read(14))
@@ -76,13 +77,18 @@ class CompBone:
         self.loc.x = (l_x / 64) - 512
         self.loc.y = (l_y / 64) - 512
         self.loc.z = (l_z / 64) - 512
+        return self
     
-    def saveToFile(self, file):
-        file.write(struct.pack("7H",
-            round((self.quat.w+2)*16383),
-            round((self.quat.x+2)*16383),
-            round((self.quat.y+2)*16383),
-            round((self.quat.z+2)*16383),
-            round((self.loc.x+512)*64),
-            round((self.loc.y+512)*64),
-            round((self.loc.z+512)*64)))
+    # returns the 14 byte compressed representation of this matrix (no scale) as saved in the compBonePool
+    @classmethod
+    def compress(mat):
+        loc = mat.to_translation()
+        quat = mat.to_quaternion()
+        return struct.pack("7H",
+            round((quat.w+2)*16383),
+            round((quat.x+2)*16383),
+            round((quat.y+2)*16383),
+            round((quat.z+2)*16383),
+            round((loc.x+512)*64),
+            round((loc.y+512)*64),
+            round((loc.z+512)*64))

@@ -56,6 +56,7 @@ PRIORITY_BONES = {
 }
 
 # bones that get different parents
+# bone index -> new parent index
 PARENT_CHANGES = {
     'NONE' : {},
     'JKA_HUMANOID' : {

@@ -66,7 +66,7 @@ class GLMImport(bpy.types.Operator):
                 glafile = scene.getRequestedGLA()
             else:
                 glafile = self.glaOverride
-            success, message = scene.loadFromGLA(glafile, self.loadAnimations, self.skeletonFixes)
+            success, message = scene.loadFromGLA(glafile, self.loadAnimations)
             if not success:
                 self.report({'ERROR'}, message)
                 return {'FINISHED'}
@@ -74,7 +74,7 @@ class GLMImport(bpy.types.Operator):
             skin = ""
             if self.skin != "":
                 skin = filepath+"_"+self.skin
-            success, message = scene.saveToBlender(scale, skin, self.guessTextures)
+            success, message = scene.saveToBlender(scale, skin, self.guessTextures, self.skeletonFixes)
             if not success:
                 self.report({'ERROR'}, message)
             return {'FINISHED'}
@@ -115,12 +115,12 @@ class GLAImport(bpy.types.Operator):
                 return {'FINISHED'}
             #load GLA
             scene = mrw_g2_scene.Scene(basepath)
-            success, message = scene.loadFromGLA(filepath, self.loadAnimations, self.skeletonFixes)
+            success, message = scene.loadFromGLA(filepath, self.loadAnimations)
             if not success:
                 self.report({'ERROR'}, message)
                 return {'FINISHED'}
             #output to blender
-            success, message = scene.saveToBlender(scale)
+            success, message = scene.saveToBlender(scale, "", False, self.skeletonFixes)
             if not success:
                 self.report({'ERROR'}, message)
             return {'FINISHED'}
