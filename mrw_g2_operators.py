@@ -48,6 +48,7 @@ class GLMImport(bpy.types.Operator):
         ])
 
         def execute(self, context):
+            print("\n== GLM Import ==\n")
             # initialize paths
             basepath, filepath = GetPaths(self.basepath, self.filepath);
             if self.basepath != "" and mrw_g2_filesystem.RemoveExtension(self.filepath) == filepath:
@@ -106,6 +107,7 @@ class GLAImport(bpy.types.Operator):
         
 
         def execute(self, context):
+            print("\n== GLA Import ==\n")
             # de-percentagionise scale
             scale = self.scale / 100
             # initialize paths
@@ -145,6 +147,7 @@ class GLMExport(bpy.types.Operator):
         gla = bpy.props.StringProperty(name=".gla name", description="Name of the skeleton this model uses (must exist!)", default="models/players/_humanoid/_humanoid")
 
         def execute(self, context):
+            print("\n== GLM Export ==\n")
             # initialize paths
             basepath, filepath = GetPaths(self.basepath, self.filepath);
             if self.basepath != "" and mrw_g2_filesystem.RemoveExtension(self.filepath) == filepath:
@@ -182,6 +185,7 @@ class GLAExport(bpy.types.Operator):
         basepath = bpy.props.StringProperty(name="gla name", description="The relative path of this gla. Leave empty to let the exporter guess (needs /GameData/ in filepath).", maxlen=64, default="")
 
         def execute(self, context):
+            print("\n== GLA Export ==\n")
             # initialize paths
             basepath, filepath = GetPaths(self.basepath, self.filepath);
             if self.basepath != "" and mrw_g2_filesystem.RemoveExtension(self.filepath) == filepath:
@@ -209,15 +213,25 @@ class ObjectAddG2Properties(bpy.types.Operator):
     bl_label = "Add G2 properties"
     bl_description = "Adds Ghoul 2 properties"
 
+    @classmethod
+    def poll(cls, context):
+        if context.active_object:
+            return context.active_object.type in ['MESH', 'ARMATURE']
+    
     def execute(self, context):
-        obj = context.object
-        # don't overwrite those that already exist
-        if not "g2_prop_off" in obj:
-            obj.g2_prop_off = False
-        if not "g2_prop_tag" in obj:
-            obj.g2_prop_tag = False
-        if not "g2_prop_name" in obj:
-            obj.g2_prop_name = ""
+        obj = context.active_object
+        if obj.type == 'MESH':
+            # don't overwrite those that already exist
+            if not "g2_prop_off" in obj:
+                obj.g2_prop_off = False
+            if not "g2_prop_tag" in obj:
+                obj.g2_prop_tag = False
+            if not "g2_prop_name" in obj:
+                obj.g2_prop_name = ""
+        else:
+            assert(obj.type == 'ARMATURE')
+            if not "g2_prop_scale" in obj:
+                obj.g2_prop_scale = 100
         return{'FINISHED'}
 
 class ObjectRemoveG2Properties(bpy.types.Operator):
@@ -225,11 +239,20 @@ class ObjectRemoveG2Properties(bpy.types.Operator):
     bl_label = "Remove G2 properties"
     bl_description = "Removes Ghoul 2 properties"
 
+    @classmethod
+    def poll(cls, context):
+        if context.active_object:
+            return context.active_object.type in ['MESH', 'ARMATURE']
+    
     def execute(self, context):
-        obj = context.object
-        bpy.types.Object.__delitem__(obj, "g2_prop_off")
-        bpy.types.Object.__delitem__(obj, "g2_prop_tag")
-        bpy.types.Object.__delitem__(obj, "g2_prop_name")
+        obj = context.active_object
+        if obj.type == 'MESH':
+            bpy.types.Object.__delitem__(obj, "g2_prop_off")
+            bpy.types.Object.__delitem__(obj, "g2_prop_tag")
+            bpy.types.Object.__delitem__(obj, "g2_prop_name")
+        else:
+            assert(obj.type == 'ARMATURE')
+            bpy.types.Object.__delitem__(obj, "g2_prop_scale")
         return{'FINISHED'}
 
 # menu button callback functions

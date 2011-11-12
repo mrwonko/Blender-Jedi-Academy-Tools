@@ -102,7 +102,9 @@ class CompBone:
         self.matrix.resize_4x4()
         #add translation
         self.matrix[3] = loc
+        assert(self.matrix[3][3] == 1)
         #convert to blender style
+        #shouldn't be done until all offsets have been combined.
         #GLABoneRotToBlender(self.matrix)
         
         return self

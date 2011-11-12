@@ -16,7 +16,7 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-from . import mrw_g2_stringhelpers, mrw_g2_filesystem, mrw_g2_constants, mrw_g2_gla, mrw_g2_materialmanager
+from . import mrw_g2_stringhelpers, mrw_g2_filesystem, mrw_g2_constants, mrw_g2_gla, mrw_g2_materialmanager, mrw_profiler
 import struct, bpy
 
 def buildBoneIndexLookupMap(gla_filepath_abs):
@@ -378,9 +378,15 @@ class MdxmSurface:
             face.vertices = tri.indices
         
         #create uv coordinates
+        material = data.materialManager.getMaterial(name, surfaceData.shader)
+        image = None
+        if material:
+            assert(material.active_texture)
+            assert(material.active_texture.type == 'IMAGE')
+            image = material.active_texture.image
+        
         mesh.uv_textures.new()
-        uv_faces = mesh.uv_textures.active.data[:]
-        for i, uv_face in enumerate(uv_faces):
+        for i, uv_face in enumerate(mesh.uv_textures.active.data):
             tri = self.triangles[i]
             uv_face.uv1 = self.vertices[tri.indices[0]].uv
             uv_face.uv1[1] = 1 - uv_face.uv1[1] #flip y
@@ -388,6 +394,7 @@ class MdxmSurface:
             uv_face.uv2[1] = 1 - uv_face.uv2[1]
             uv_face.uv3 = self.vertices[tri.indices[2]].uv
             uv_face.uv3[1] = 1 - uv_face.uv3[1]
+            uv_face.image = image
         
         mesh.validate()
         mesh.update()
@@ -420,7 +427,6 @@ class MdxmSurface:
         #todo smooth does not work
         bpy.ops.object.shade_smooth()
         #set material
-        material = data.materialManager.getMaterial(name, surfaceData.shader)
         if material:
             bpy.ops.object.material_slot_add()
             obj.material_slots[0].material = material
@@ -560,25 +566,33 @@ class GLM:
         self.LODCollection = MdxmLODCollection()
     
     def loadFromFile(self, filepath_abs):
+        print("Loading {}...".format(filepath_abs))
+        profiler = mrw_profiler.SimpleProfiler(True)
         # open file
         try:
             file = open(filepath_abs, mode = "rb")
         except IOError:
             print("Could not open file: ", filepath_abs, sep="")
             return False, "Could not open file"
+        profiler.start("reading header")
         success, message = self.header.loadFromFile(file)
         if not success:
             return False, message
+        profiler.stop("reading header")
         
         # load surface hierarchy offsets
+        profiler.start("reading surface hierarchy")
         self.surfaceDataOffsets.loadFromFile(file, self.header.numSurfaces)
         
         # load surfaces' information - seeks positon using surfaceDataOffsets
         self.surfaceDataCollection.loadFromFile(file, self.surfaceDataOffsets)
+        profiler.stop("reading surface hierarchy")
         
         # load LODs
+        profiler.start("reading surfaces")
         file.seek(self.header.ofsLODs)
         self.LODCollection.loadFromFile(file, self.header)
+        profiler.stop("reading surfaces")
         
         #should be at the end now, if the structures are in the expected order.
         if file.tell() != self.header.ofsEnd:
@@ -645,6 +659,9 @@ class GLM:
     # gla: mrw_g2_gla.GLA object - the Skeleton (for weighting purposes)
     # scene_root: "scene_root" object in Blender
     def saveToBlender(self, basepath, gla, scene_root, skin_rel, guessTextures):
+        print("creating model...")
+        profiler = mrw_profiler.SimpleProfiler(True)
+        profiler.start("creating surfaces")
         class GeneralData:
             pass
         data = GeneralData()
@@ -660,6 +677,7 @@ class GLM:
             return False, message
         
         self.LODCollection.saveToBlender(data)
+        profiler.stop("creating surfaces")
         return True, ""
     
     def getRequestedGLA(self):

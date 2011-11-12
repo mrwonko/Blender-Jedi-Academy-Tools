@@ -1,5 +1,4 @@
-* find a better way to handle animation scale
-* I need to set the display texture (alt-z)
+* animation toBlender progress bar of some kind
 * model fromBlender
 * model export option: strip texture paths (force .skin)
 * skeleton fromBlender
