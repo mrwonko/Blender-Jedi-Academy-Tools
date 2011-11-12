@@ -1,4 +1,3 @@
-* Verify that it does not work to use a wrong skeleton as base
 * I need to set the display texture (alt-z)
 * model fromBlender
 * model export option: strip texture paths (force .skin)
@@ -7,4 +6,8 @@
 * friggin animation toBlender
 * animation fromBlender
 * animation export option: gla reference (index & hierarchy)
-* fix smoothing
+* smoothing (optional?)
+* Test
+  * "*default" skeleton glm
+  * gla override with invalid skeleton
+  * in general all kinds of invalid input

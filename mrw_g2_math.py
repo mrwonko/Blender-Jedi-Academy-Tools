@@ -60,10 +60,10 @@ class Matrix:
 # changes a GLA bone's rotation matrix (X+ = front) to blender style (Y+ = front)
 # must not have shear
 def GLABoneRotToBlender(matrix):
-    return matrix
+    #return
     if True:
         # this appears to givecorrect results, although I think one should have its sign flipped...
-        new_x = matrix[1].copy()
+        new_x = -matrix[1].copy()
         new_y = matrix[0].copy()
         matrix[0] = new_x
         matrix[1] = new_y
@@ -119,7 +119,7 @@ class CompBone:
         #add translation
         self.matrix[3] = loc
         #convert to blender style
-        GLABoneRotToBlender(self.matrix)
+        #GLABoneRotToBlender(self.matrix)
         
         return self
     

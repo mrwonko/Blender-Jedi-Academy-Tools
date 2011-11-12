@@ -353,7 +353,7 @@ class MdxaAnimation:
                 assert(mdxaBone.index == index)
                 bonePoolIndex = frame.boneIndices[index]
                 # get transformation matrix (relative (=parent space)!)
-                transformation = basePoses[index] * self.bonePool.bones[bonePoolIndex].matrix
+                transformation = self.bonePool.bones[bonePoolIndex].matrix
                 # turn into absolute matrix (already is if this is top level bone)
                 if mdxaBone.parent != -1:
                     # this is probably correct.
@@ -362,28 +362,21 @@ class MdxaAnimation:
                     #transformation = transformation * absoluteTransformations[mdxaBone.parent]
                 # save this absolute transformation for use by children
                 absoluteTransformations[index] = transformation
-                
-                #visualize test frame
-                if frameNum == 41:
-                    print(mdxaBone.name, bonePoolIndex)
-                    root = bpy.data.objects['scene_root']
-                    obj = bpy.data.objects.new(mdxaBone.name, None)
-                    obj.parent = root
-                    obj.matrix_local = self.bonePool.bones[bonePoolIndex].matrix.copy()
-                    #obj.matrix_local = transformation.copy() #relative to scene_root
-                    bpy.context.scene.objects.link(obj)
+                transformation = basePoses[index] * transformation
+                mrw_g2_math.GLABoneRotToBlender(transformation)
                 
                 # Code A could go here
                 pose_bone = bones[index]
-                pose_bone.matrix = absoluteTransformations[index].copy()
+                pose_bone.matrix = transformation
                 pose_bone.keyframe_insert('location')
                 pose_bone.keyframe_insert('rotation_quaternion')
                 bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
                 
             # set the matrices in opposite direction - setting the parent first causes a bug in blender.
-            #for index in reverseHierarchyOrder:
+            for index in reverseHierarchyOrder:
                 
                 # Code A could also go here
+                pass
         
         scene.frame_current = 1
 
