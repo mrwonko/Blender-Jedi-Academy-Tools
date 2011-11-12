@@ -2,12 +2,9 @@
 * I need to set the display texture (alt-z)
 * model fromBlender
 * model export option: strip texture paths (force .skin)
-* bone toBlender position
-* bone toBlender connection?
-* skeleton save
 * skeleton fromBlender
-* animation save
-* animation toBlender
+* animation compBonePool save
+* friggin animation toBlender
 * animation fromBlender
-* animation save gla reference (index & hierarchy)
+* animation export option: gla reference (index & hierarchy)
 * fix smoothing

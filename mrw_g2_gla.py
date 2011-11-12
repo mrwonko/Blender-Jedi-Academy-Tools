@@ -45,7 +45,11 @@ class MdxaHeader:
             return False, "Wrong gla file version! ("+str(version)+" should be "+str(mrw_g2_constants.GLA_VERSION)+")"
         name = readString(file)
         self.scale, self.numFrames, self.ofsFrames, self.numBones, self.ofsCompBonePool, self.ofsSkel, self.ofsEnd = struct.unpack("f6i", file.read(7*4))
+        print("GLA scale: %f" % (self.scale))
         return True, ""
+    
+    def saveToFile(self, file, name):
+        file.write(struct.pack("4si64sf6i", mrw_g2_constants.GLA_IDENT, mrw_g2_constants.GLA_VERSION, name.encode(), self.scale, self.numFrames, self.ofsFrames, self.numBones, self.ofsCompBonePool, self.ofsSkel, self.ofsEnd))
 
 class MdxaBoneOffsets:
     
@@ -58,6 +62,11 @@ class MdxaBoneOffsets:
         assert(self.baseOffset == file.tell())
         for i in range(numBones):
             self.boneOffsets.append(struct.unpack("i", file.read(4))[0])
+    
+    def saveToFile(self, file):
+        assert(file.tell() == self.baseOffset) #must be after header
+        for offset in self.boneOffsets:
+            file.write(struct.pack("i", offset))
 
 # originally called MdxaSkel_t, but I find that name misleading
 class MdxaBone:
@@ -79,6 +88,15 @@ class MdxaBone:
         self.numChildren, = struct.unpack("i", file.read(4))
         for i in range(self.numChildren):
             self.children.append(struct.unpack("i", file.read(4))[0])
+    
+    def saveToFile(self, file):
+        file.write(struct.pack("64sIi", self.name.encode(), self.flags, self.parent))
+        self.basePoseMat.saveToFile(file)
+        self.basePoseMatInv.saveToFile(file)
+        file.write(struct.pack("i", self.numChildren))
+        assert(len(self.children) == self.numChildren)
+        for child in self.children:
+            file.write(struct.pack("i", child))
     
     #blenderBonesSoFar is a dictionary of boneIndex -> BlenderBone
     #allBones is the list of all MdxaBones
@@ -144,8 +162,6 @@ class MdxaSkel:
         self.bones = []
         self.armature = None
         self.armatureObject = None
-        # Blender Bones by index - used by Animation
-        self.blenderBones = {}
     
     def loadFromFile(self, file, offsets):
         for i, offset in enumerate(offsets.boneOffsets):
@@ -156,7 +172,8 @@ class MdxaSkel:
             self.bones.append(bone)
     
     def saveToFile(self, file):
-        pass
+        for bone in self.bones:
+            bone.saveToFile(file)
     
     def fitsArmature(self, armature):
         for bone in self.bones:
@@ -184,6 +201,8 @@ class MdxaSkel:
         uncreatedBones = []
         uncreatedBones.extend(self.bones)
         parentChanges = mrw_g2_constants.PARENT_CHANGES[skeletonFixes]
+        # Blender EditBones so far by index
+        blenderEditBones = {}
         while len(uncreatedBones) > 0:
             # whether a new bone was created this time - if not, there's a hierarchy problem
             createdBone = False
@@ -195,7 +214,7 @@ class MdxaSkel:
                 else:
                     parent = bone.parent
                 if parent in createdBonesIndices:
-                    bone.saveToBlender(self.armature, self.blenderBones, self.bones, skeletonFixes)
+                    bone.saveToBlender(self.armature, blenderEditBones, self.bones, skeletonFixes)
                     createdBonesIndices.append(bone.index)
                     createdBone = True
                 else:
@@ -234,17 +253,14 @@ class MdxaBonePool:
         self.bones = []
     
     def loadFromFile(self, file, numCompBones):
-        self.bones = [mrw_g2_math.CompBone().loadFromFile(file) for i in range(numCompBones)]
-        """
         for i in range(numCompBones):
             compBone = mrw_g2_math.CompBone()
             compBone.loadFromFile(file)
             self.bones.append(compBone)
-        """
     
     def saveToFile(self, file):
-        for bone in self.bones:
-            bone.saveToFile(file)
+        #todo: implement!
+        pass
 
 # Frames & Compressed Bone Pool
 class MdxaAnimation:
@@ -282,12 +298,94 @@ class MdxaAnimation:
     
     def saveToFile(self, file):
         for frame in self.frames:
-            frame.writeToFile(file)
-        self.bonePool.writeToFile()
+            frame.saveToFile(file)
+        self.bonePool.saveToFile(file)
         pass
     
     def saveToBlender(self, skeleton, armature):
-        pass
+        #   Bone Position Set Order
+        # bones have to be set in hierarchical order - their position depends on their parent's absolute position, after all.
+        # so this is the order in which bones have to be processed.
+        hierarchyOrder = []
+        while len(hierarchyOrder) < len(skeleton.bones):
+            # make sure we add something each frame (infinite loop otherwise)
+            addedSomething = False
+            # I could copy skeleton.bones for minor speed boost, imho not necessary.
+            for bone in skeleton.bones:
+                if bone.index in hierarchyOrder:
+                    continue #we already have this one.
+                if bone.parent != -1 and bone.parent not in hierarchyOrder:
+                    continue #we don't have the parent yet, so this cannot come yet.
+                hierarchyOrder.append(bone.index)
+                addedSomething = True
+            assert(addedSomething)
+        # for going leaf to root
+        #todo: delete if it turns out not to be required.
+        reverseHierarchyOrder = hierarchyOrder[:];
+        reverseHierarchyOrder.reverse()
+        
+        print("hierarchy order:", hierarchyOrder)
+        
+        #   Blender PoseBones list
+        bones = []
+        for info in skeleton.bones: # is ordered by index
+            bones.append(armature.pose.bones[info.name])
+        
+        basePoses = []
+        for bone in skeleton.bones:
+            basePoses.append(bone.basePoseMat.toBlender())
+        
+        #   Prepare animation
+        scene = bpy.context.scene
+        scene.frame_start = 1
+        scene.frame_end = len(self.frames)
+        #todo
+        
+        #   Export animation
+        for frameNum, frame in enumerate(self.frames):
+            #set current frame
+            scene.frame_set(frameNum+1)
+            
+            # absolute transformation matrices by bone index - I don't think poseBones store their state in a matrix, so I prevent unnecessary conversions this way.
+            absoluteTransformations = {}
+            for index in hierarchyOrder:
+                mdxaBone = skeleton.bones[index]
+                assert(mdxaBone.index == index)
+                bonePoolIndex = frame.boneIndices[index]
+                # get transformation matrix (relative (=parent space)!)
+                transformation = basePoses[index] * self.bonePool.bones[bonePoolIndex].matrix
+                # turn into absolute matrix (already is if this is top level bone)
+                if mdxaBone.parent != -1:
+                    # this is probably correct.
+                    transformation = absoluteTransformations[mdxaBone.parent] * transformation
+                    # while this is not.
+                    #transformation = transformation * absoluteTransformations[mdxaBone.parent]
+                # save this absolute transformation for use by children
+                absoluteTransformations[index] = transformation
+                
+                #visualize test frame
+                if frameNum == 41:
+                    print(mdxaBone.name, bonePoolIndex)
+                    root = bpy.data.objects['scene_root']
+                    obj = bpy.data.objects.new(mdxaBone.name, None)
+                    obj.parent = root
+                    obj.matrix_local = self.bonePool.bones[bonePoolIndex].matrix.copy()
+                    #obj.matrix_local = transformation.copy() #relative to scene_root
+                    bpy.context.scene.objects.link(obj)
+                
+                # Code A could go here
+                pose_bone = bones[index]
+                pose_bone.matrix = absoluteTransformations[index].copy()
+                pose_bone.keyframe_insert('location')
+                pose_bone.keyframe_insert('rotation_quaternion')
+                bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+                
+            # set the matrices in opposite direction - setting the parent first causes a bug in blender.
+            #for index in reverseHierarchyOrder:
+                
+                # Code A could also go here
+        
+        scene.frame_current = 1
 
 class GLA:
     
@@ -326,14 +424,25 @@ class GLA:
             success, message = self.animation.loadFromFile(file, self.header, self.skeleton)
             if not success:
                 return False, message
+        # todo: remove. Test: Save back to file for comparision
+        # self.saveToFile(filepath_abs+"_reexported.gla")
         return True, ""
     
     def loadFromBlender(self, gla_filepath_rel):
         #todo
         return True, ""
     
+    # todo: needs relative path?
     def saveToFile(self, filepath_abs):
-        #todo
+        try:
+            file = open(filepath_abs, mode="wb")
+        except IOError:
+            print("Could not open file: ", filepath_abs, sep="")
+            return False, "Could not open file!"
+        self.header.saveToFile(file, "foo/bar.gla") #todo: real name!
+        self.boneOffsets.saveToFile(file)
+        self.skeleton.saveToFile(file)
+        self.animation.saveToFile(file)
         return True, ""
     
     def saveToBlender(self, scene_root, useAnimation, skeletonFixes):
@@ -374,7 +483,10 @@ class GLA:
             
             # add animations, if any
             if useAnimation:
-                self.animation.saveToBlender(self.skeleton, self.skeleton_armature)
+                # go to object mode
+                bpy.context.scene.objects.active = self.skeleton_object
+                bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+                self.animation.saveToBlender(self.skeleton, self.skeleton_object)
             
             #that's all
             return True, ""
@@ -391,5 +503,8 @@ class GLA:
         
         #add animations, if any
         if useAnimation:
-            self.animation.saveToBlender(self.skeleton, self.skeleton_armature)
+            # go to object mode
+            bpy.context.scene.objects.active = self.skeleton_object
+            bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+            self.animation.saveToBlender(self.skeleton, self.skeleton_object)
         return True, ""
