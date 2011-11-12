@@ -1,9 +1,9 @@
+* find a better way to handle animation scale
 * I need to set the display texture (alt-z)
 * model fromBlender
 * model export option: strip texture paths (force .skin)
 * skeleton fromBlender
 * animation compBonePool save
-* friggin animation toBlender
 * animation fromBlender
 * animation export option: gla reference (index & hierarchy)
 * smoothing (optional?)

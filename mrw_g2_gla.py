@@ -302,7 +302,7 @@ class MdxaAnimation:
         self.bonePool.saveToFile(file)
         pass
     
-    def saveToBlender(self, skeleton, armature):
+    def saveToBlender(self, skeleton, armature, scale):
         #   Bone Position Set Order
         # bones have to be set in hierarchical order - their position depends on their parent's absolute position, after all.
         # so this is the order in which bones have to be processed.
@@ -320,11 +320,6 @@ class MdxaAnimation:
                 addedSomething = True
             assert(addedSomething)
         # for going leaf to root
-        #todo: delete if it turns out not to be required.
-        reverseHierarchyOrder = hierarchyOrder[:];
-        reverseHierarchyOrder.reverse()
-        
-        print("hierarchy order:", hierarchyOrder)
         
         #   Blender PoseBones list
         bones = []
@@ -339,44 +334,49 @@ class MdxaAnimation:
         scene = bpy.context.scene
         scene.frame_start = 1
         scene.frame_end = len(self.frames)
-        #todo
+        
+        if scale == 0:
+            scale = 1
+        scaleMatrix = mathutils.Matrix([
+            [scale, 0, 0, 0],
+            [0, scale, 0, 0],
+            [0, 0, scale, 0],
+            [0, 0, 0, 1]
+            ])
         
         #   Export animation
         for frameNum, frame in enumerate(self.frames):
             #set current frame
             scene.frame_set(frameNum+1)
             
-            # absolute transformation matrices by bone index - I don't think poseBones store their state in a matrix, so I prevent unnecessary conversions this way.
-            absoluteTransformations = {}
+            # absolute offset matrices by bone index
+            offsets = {}
             for index in hierarchyOrder:
                 mdxaBone = skeleton.bones[index]
                 assert(mdxaBone.index == index)
                 bonePoolIndex = frame.boneIndices[index]
-                # get transformation matrix (relative (=parent space)!)
-                transformation = self.bonePool.bones[bonePoolIndex].matrix
-                # turn into absolute matrix (already is if this is top level bone)
+                # get offset transformation matrix, relative to parent
+                offset = self.bonePool.bones[bonePoolIndex].matrix
+                # apply scale
+                offset = scaleMatrix * offset
+                # turn into absolute offset matrix (already is if this is top level bone)
                 if mdxaBone.parent != -1:
                     # this is probably correct.
-                    transformation = absoluteTransformations[mdxaBone.parent] * transformation
-                    # while this is not.
-                    #transformation = transformation * absoluteTransformations[mdxaBone.parent]
-                # save this absolute transformation for use by children
-                absoluteTransformations[index] = transformation
-                transformation = basePoses[index] * transformation
+                    #offset = offset * offsets[mdxaBone.parent]
+                    offset = offsets[mdxaBone.parent] * offset
+                # save this absolute offset for use by children
+                offsets[index] = offset
+                # calculate the actual position
+                transformation = offset * basePoses[index]
+                # flip axes as required for blender bone
                 mrw_g2_math.GLABoneRotToBlender(transformation)
                 
-                # Code A could go here
                 pose_bone = bones[index]
                 pose_bone.matrix = transformation
                 pose_bone.keyframe_insert('location')
                 pose_bone.keyframe_insert('rotation_quaternion')
+                # hackish way to force the matrix to update
                 bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
-                
-            # set the matrices in opposite direction - setting the parent first causes a bug in blender.
-            for index in reverseHierarchyOrder:
-                
-                # Code A could also go here
-                pass
         
         scene.frame_current = 1
 
@@ -479,7 +479,7 @@ class GLA:
                 # go to object mode
                 bpy.context.scene.objects.active = self.skeleton_object
                 bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
-                self.animation.saveToBlender(self.skeleton, self.skeleton_object)
+                self.animation.saveToBlender(self.skeleton, self.skeleton_object, self.header.scale)
             
             #that's all
             return True, ""
@@ -493,11 +493,12 @@ class GLA:
             return False, message
         self.skeleton_armature = self.skeleton.armature
         self.skeleton_object = self.skeleton.armature_object
+        #self.skeleton_object.scale = [self.header.scale, self.header.scale, self.header.scale]
         
         #add animations, if any
         if useAnimation:
             # go to object mode
             bpy.context.scene.objects.active = self.skeleton_object
             bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
-            self.animation.saveToBlender(self.skeleton, self.skeleton_object)
+            self.animation.saveToBlender(self.skeleton, self.skeleton_object, self.header.scale)
         return True, ""

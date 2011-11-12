@@ -58,35 +58,19 @@ class Matrix:
         del self.rows[3]
 
 # changes a GLA bone's rotation matrix (X+ = front) to blender style (Y+ = front)
-# must not have shear
+# matrix must not have shear
 def GLABoneRotToBlender(matrix):
-    #return
-    if True:
-        # this appears to givecorrect results, although I think one should have its sign flipped...
-        new_x = -matrix[1].copy()
-        new_y = matrix[0].copy()
-        matrix[0] = new_x
-        matrix[1] = new_y
-    #z not changed
-    loc = matrix[3]
-    assert(loc[3] == 1)
-    if False:
-        # I may need to do the same to the translation?
-        new_x = -loc[1]
-        loc[1] = loc[0]
-        loc[0] = new_x
-    elif False:
-        # swap X and Z - no, most definitely wrong.
-        new_x = loc[2]
-        loc[2] = loc[0]
-        loc[0] = new_x
+    new_x = -matrix[1].copy()
+    new_y = matrix[0].copy()
+    matrix[0] = new_x
+    matrix[1] = new_y
         
 
 # changes a blender bone's rotation matrix (Y+ = front) to GLA style (X+ = front)
 # must not have shear
 def BlenderBoneRotToGLA(matrix):
     new_x = matrix[1].copy()
-    new_y = matrix[0].copy()
+    new_y = -matrix[0].copy()
     matrix[0] = new_x
     matrix[1] = new_y
 
