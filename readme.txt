@@ -30,8 +30,6 @@ Jedi Academy imposes some further restrictions, for example:
 
 File paths in glm files are basically relative to GameData/Base/ or GameData/YourMod/. Using the "Base Path" option you can define relative to which folder they should be interpreted. Can be left empty if the file's path includes /GameData/.
 
-Note: There is no support for .skin files yet, although that would be useful.
-
 Import Options explained:
 * TODO
 

@@ -372,16 +372,6 @@ class MdxaAnimation:
                 offset = self.bonePool.bones[bonePoolIndex].matrix
                 # turn into absolute offset matrix (already is if this is top level bone)
                 if mdxaBone.parent != -1:
-                    # apply scale, but not to model_root, apparently?
-                    #offset = scaleMatrix * offset
-                    # this is probably correct.
-                    #offset = offset * offsets[mdxaBone.parent]
-                    # scale location (the only thing that needs scaling)
-                    """
-                    offset[3][0] = offset[3][0] * scale
-                    offset[3][1] = offset[3][1] * scale
-                    offset[3][2] = offset[3][2] * scale
-                    """
                     offset = offsets[mdxaBone.parent] * offset
                 # save this absolute offset for use by children
                 offsets[index] = offset
