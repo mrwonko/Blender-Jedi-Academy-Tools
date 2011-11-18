@@ -19,8 +19,8 @@
 from . import mrw_g2_stringhelpers, mrw_g2_constants, mrw_g2_math, mrw_profiler
 import struct, bpy, mathutils
 
-PROFILE = True
-STOP_AFTER_60S = False
+PROFILE = False
+PROGRESS_UPDATE_INTERVAL = 30 # show progress & remaining time every 30 seconds.
 
 def readString(file):
     return mrw_g2_stringhelpers.decode(struct.unpack("64s", file.read(mrw_g2_constants.MAX_QPATH))[0])
@@ -355,33 +355,20 @@ class MdxaAnimation:
         
         # show progress every 1000 steps, but at least 10 times)
         progressStep = min(1000, round(numFrames / 10))
+        nextProgressDisplayTime = time.time() + PROGRESS_UPDATE_INTERVAL
         
         #   Export animation
         for frameNum, frame in enumerate(self.frames):
-            # stop after 60 seconds
-            if STOP_AFTER_60S and time.time() - startTime > 60:
-                print("Stopping after 60 seconds at frame {0}".format(frameNum))
-                break
-            if frameNum % progressStep == 0:
-                if frameNum > 0: # cannot predict remaining time at frame 0
-                    timeTaken = time.time() - startTime
-                    framesRemaining = numFrames - frameNum
-                    timeRemaining = timeTaken * framesRemaining / frameNum
-                    print("Frame {}/{} - {:.2%} - remaining time ca. {:.0f}s".format(frameNum, numFrames, frameNum/numFrames, timeRemaining))
-                else:
-                    print("Frame {0}/{1} - {2}%".format(frameNum, numFrames, frameNum/numFrames*100))
+            # show progress bar / remaining time
+            if time.time() >= nextProgressDisplayTime:
+                timeTaken = time.time() - startTime
+                framesRemaining = numFrames - frameNum
+                timeRemaining = timeTaken * framesRemaining / frameNum
+                print("Frame {}/{} - {:.2%} - time so far: {:.0f}s - remaining time: ca. {:.0f}m {:.0f}s".format(frameNum, numFrames, frameNum/numFrames, timeTaken, timeRemaining // 60, timeRemaining % 60))
+                nextProgressDisplayTime = time.time() + PROGRESS_UPDATE_INTERVAL
             
             #set current frame
             scene.frame_set(frameNum)
-            
-            """
-            # todo: delete test - I'm only importing root here.
-            # root is usually at the end, let's skip there and import that.
-            if frameNum != len(self.frames) -1:
-                continue
-            scene.frame_set(0)
-            scene.frame_end = 0
-            """
             
             # absolute offset matrices by bone index
             offsets = {}
