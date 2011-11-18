@@ -1,3 +1,27 @@
 global g_defaultSkeleton - true if default skeleton, used in mrw_g2_glm for export.
 
 gla export with existing skeleton: basically load file without animations, then add those and save.
+
+weights:
+* by group:
+  * mesh.vertices[n].groups[n].(group|weight)
+  * group is index into object.vertex_groups
+  * object.vertex_groups[index].name is the only interesting thing, methinks.
+* by bone:
+  * ???
+
+fromBlender() can FAIL!
+
+export:
+* Skeleton:
+  * check if bones match specification, if any
+  * save bones
+  * save animations
+    * create dictionary of parent bones (once)
+	* somehow calculate correct offset
+    * list of compBones
+	* dict of compBone -> listIndex
+* Mesh:
+  * create bone dictionary
+  * make sure bone dictionary keys = bone names in models
+  * todo

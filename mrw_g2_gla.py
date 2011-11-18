@@ -19,6 +19,9 @@
 from . import mrw_g2_stringhelpers, mrw_g2_constants, mrw_g2_math, mrw_profiler
 import struct, bpy, mathutils
 
+PROFILE = True
+STOP_AFTER_60S = False
+
 def readString(file):
     return mrw_g2_stringhelpers.decode(struct.unpack("64s", file.read(mrw_g2_constants.MAX_QPATH))[0])
 
@@ -303,6 +306,8 @@ class MdxaAnimation:
         pass
     
     def saveToBlender(self, skeleton, armature, scale):
+        import time
+        startTime = time.time()
         #   Bone Position Set Order
         # bones have to be set in hierarchical order - their position depends on their parent's absolute position, after all.
         # so this is the order in which bones have to be processed.
@@ -333,7 +338,8 @@ class MdxaAnimation:
         #   Prepare animation
         scene = bpy.context.scene
         scene.frame_start = 0
-        scene.frame_end = len(self.frames) - 1
+        numFrames = len(self.frames)
+        scene.frame_end = numFrames - 1
         
         if scale == 0:
         #if True:
@@ -347,8 +353,23 @@ class MdxaAnimation:
             [0, 0, 0, 1]
             ])
         
+        # show progress every 1000 steps, but at least 10 times)
+        progressStep = min(1000, round(numFrames / 10))
+        
         #   Export animation
         for frameNum, frame in enumerate(self.frames):
+            # stop after 60 seconds
+            if STOP_AFTER_60S and time.time() - startTime > 60:
+                print("Stopping after 60 seconds at frame {0}".format(frameNum))
+                break
+            if frameNum % progressStep == 0:
+                if frameNum > 0: # cannot predict remaining time at frame 0
+                    timeTaken = time.time() - startTime
+                    framesRemaining = numFrames - frameNum
+                    timeRemaining = timeTaken * framesRemaining / frameNum
+                    print("Frame {}/{} - {:.2%} - remaining time ca. {:.0f}s".format(frameNum, numFrames, frameNum/numFrames, timeRemaining))
+                else:
+                    print("Frame {0}/{1} - {2}%".format(frameNum, numFrames, frameNum/numFrames*100))
             
             #set current frame
             scene.frame_set(frameNum)
@@ -477,6 +498,8 @@ class GLA:
             print("Found skeleton_root armature, trying to use it.")
             self.skeleton_armature = bpy.data.armatures["skeleton_root"]
         
+        # for profiling, possibly
+        global g_temp
         # if we found an existing armature, we need to make sure it's linked to an object and valid
         if self.skeleton_armature:
             # see if the armature fits
@@ -502,7 +525,13 @@ class GLA:
                 # go to object mode
                 bpy.context.scene.objects.active = self.skeleton_object
                 bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
-                self.animation.saveToBlender(self.skeleton, self.skeleton_object, self.header.scale)
+                if PROFILE:
+                    import cProfile
+                    print("=== Profile start ===")
+                    cProfile.runctx("self.animation.saveToBlender(self.skeleton, self.skeleton_object, self.header.scale)", globals(), locals())
+                    print("=== Profile stop ===")
+                else:
+                    self.animation.saveToBlender(self.skeleton, self.skeleton_object, self.header.scale)
                 profiler.stop("applying animations")
             
             #that's all
@@ -526,7 +555,13 @@ class GLA:
             profiler.start("applying animations")
             # go to object mode
             bpy.context.scene.objects.active = self.skeleton_object
-            bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
-            self.animation.saveToBlender(self.skeleton, self.skeleton_object, self.header.scale)
+            bpy.ops.object.mode_set(mode='OBJECT', toggle=False)            
+            if PROFILE:
+                import cProfile
+                print("=== Profile start ===")
+                cProfile.runctx("self.animation.saveToBlender(self.skeleton, self.skeleton_object, self.header.scale)", globals(), locals())
+                print("=== Profile stop ===")
+            else:
+                self.animation.saveToBlender(self.skeleton, self.skeleton_object, self.header.scale)
             profiler.stop("applying animations")
         return True, ""
