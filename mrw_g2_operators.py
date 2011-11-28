@@ -41,11 +41,17 @@ class GLMImport(bpy.types.Operator):
         basepath = bpy.props.StringProperty(name="Base Path", description="The base folder relative to which paths should be interpreted. Leave empty to let the importer guess (needs /GameData/ in filepath).", default="")
         glaOverride = bpy.props.StringProperty(name=".gla override", description="Gla file to use, relative to base. Leave empty to use the one referenced in the file.", maxlen=64, default="")
         scale = bpy.props.FloatProperty(name="Scale", description="Scale to apply to the imported model.", default=10, min=0, max=1000, subtype='PERCENTAGE')
-        loadAnimations = bpy.props.BoolProperty(name="Load Animations", description="Whether animations should be loaded from the .gla", default=False)
         skeletonFixes = bpy.props.EnumProperty(name="skeleton changes", description="You can select a preset for automatic skeleton changes which result in a nicer imported skeleton.", default='NONE', items=[
             ('NONE', "None", "Don't change the skeleton in any way.", 0),
             ('JKA_HUMANOID', "Jedi Academy _humanoid", "Fixes for the default humanoid Jedi Academy skeleton", 1)
         ])
+        loadAnimations = bpy.props.EnumProperty(name="animations", description="Whether to import all animations, some animations or only a range from the .gla. (Importing huge animations takes forever.)", default='NONE', items=[
+            ('NONE', "None", "Don't import animations.", 0),
+            ('ALL', "All", "Import all animations", 1),
+            ('RANGE', "Range", "Import a certain range of frames", 2)
+        ])
+        startFrame = bpy.props.IntProperty(name="Start frame", description="If only a range of frames of the animation is to be imported, this is the first.", min=0)
+        numFrames = bpy.props.IntProperty(name="number of frames", description="If only a range of frames of the animation is to be imported, this is the total number of frames to import", min=1)
 
         def execute(self, context):
             print("\n== GLM Import ==\n")
@@ -67,7 +73,7 @@ class GLMImport(bpy.types.Operator):
                 glafile = scene.getRequestedGLA()
             else:
                 glafile = self.glaOverride
-            success, message = scene.loadFromGLA(glafile, self.loadAnimations)
+            success, message = scene.loadFromGLA(glafile, self.loadAnimations, self.startFrame, self.numFrames)
             if not success:
                 self.report({'ERROR'}, message)
                 return {'FINISHED'}
@@ -99,11 +105,17 @@ class GLAImport(bpy.types.Operator):
         filepath = bpy.props.StringProperty(name="File Path", description="The .gla file to import", maxlen=1024, default="", subtype='FILE_PATH')
         basepath = bpy.props.StringProperty(name="Base Path", description="The base folder relative to which paths should be interpreted. Leave empty to let the importer guess (needs /GameData/ in filepath).", default="")
         scale = bpy.props.FloatProperty(name="Scale", description="Scale to apply to the imported model.", default=10, min=0, max=1000, subtype='PERCENTAGE')
-        loadAnimations = bpy.props.BoolProperty(name="Load Animations", description="Whether animations should be loaded from the .gla", default=False)
         skeletonFixes = bpy.props.EnumProperty(name="skeleton changes", description="You can select a preset for automatic skeleton changes which result in a nicer imported skeleton.", default='NONE', items=[
             ('NONE', "None", "Don't change the skeleton in any way.", 0),
             ('JKA_HUMANOID', "Jedi Academy _humanoid", "Fixes for the default humanoid Jedi Academy skeleton", 1)
         ])
+        loadAnimations = bpy.props.EnumProperty(name="animations", description="Whether to import all animations, some animations or only a range from the .gla. (Importing huge animations takes forever.)", default='NONE', items=[
+            ('NONE', "None", "Don't import animations.", 0),
+            ('ALL', "All", "Import all animations", 1),
+            ('RANGE', "Range", "Import a certain range of frames", 2)
+        ])
+        startFrame = bpy.props.IntProperty(name="Start frame", description="If only a range of frames of the animation is to be imported, this is the first.", min=0)
+        numFrames = bpy.props.IntProperty(name="number of frames", description="If only a range of frames of the animation is to be imported, this is the total number of frames to import", min=1)
         
 
         def execute(self, context):
@@ -117,7 +129,7 @@ class GLAImport(bpy.types.Operator):
                 return {'FINISHED'}
             #load GLA
             scene = mrw_g2_scene.Scene(basepath)
-            success, message = scene.loadFromGLA(filepath, self.loadAnimations)
+            success, message = scene.loadFromGLA(filepath, self.loadAnimations, self.startFrame, self.numFrames)
             if not success:
                 self.report({'ERROR'}, message)
                 return {'FINISHED'}

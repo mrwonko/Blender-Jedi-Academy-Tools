@@ -238,7 +238,7 @@ class MdxaFrame:
     def loadFromFile(self, file, numBones):
         maxIndex = 0
         for i in range(numBones):
-            # bone indices are only 3 bytes long - with 30k+ frames 25% less is quite a bit, reportedly.
+            # bone indices are only 3 bytes long - with 20k+ frames 25% less is quite a bit, reportedly.
             index, = struct.unpack("i", file.read(3)+b"\0")
             maxIndex = max(maxIndex, index)
             self.boneIndices.append(index)
@@ -271,13 +271,31 @@ class MdxaAnimation:
         self.frames = []
         self.bonePool = MdxaBonePool()
     
-    def loadFromFile(self, file, header, skeleton):
+    def loadFromFile(self, file, header, skeleton, startFrame, numFrames):
         # read frames
         if file.tell() != header.ofsFrames:
             print("Info: Frames in .gla not encountered when expected (at ", file.tell(), " instead of ", header.ofsFrames, "), seeking correct position. There could be a bug in the importer (bad) or the file could be unusual - but not necessarily wrong (no problem).", sep="")
             file.seek(header.ofsFrames)
+        
+        # prepare frame start/end settings
+        if numFrames == -1:
+            assert(startFrame == 0)
+            numFrames = header.numFrames
+        else:
+            print("Reading {} frames, starting at {}".format(numFrames, startFrame))
+        if startFrame >= header.numFrames:
+            print("Warning: StartFrame beyond existing frames, using last one")
+            startFrame = header.numFrames - 1
+            numFrames = 1
+        if startFrame + numFrames > header.numFrames:
+            print("Warning: Trying to import more frames than there are, fixing")
+            numFrames = header.numFrames - startFrame
+        # skip first startFrame frames
+        file.seek(startFrame * 3 * header.numBones, 1) #1 = from current position
+        
+        #read (remaining) frames
         maxIndex = -1
-        for i in range(header.numFrames):
+        for i in range(numFrames):
             frame = MdxaFrame()
             # loadFromFile returns highest read index
             maxIndex = max(maxIndex, frame.loadFromFile(file, header.numBones))
@@ -288,14 +306,15 @@ class MdxaAnimation:
         curPos = file.tell()
         if curPos != header.ofsCompBonePool:
             # we're not yet there. If we're off by 0-3 bytes, it's because 32-bit-alignment is forced. Silently seek correct position. Otherwise: warn (and seek correct position, too)
-            if curPos > header.ofsCompBonePool or header.ofsCompBonePool > curPos + 3:
+            # if we're only importing some frames, we may or may not be there yet, of course, so don't warn.
+            if curPos > header.ofsCompBonePool or (header.ofsCompBonePool > curPos + 3 and numFrames == header.numFrames):
                 print("Info: Bone Pool in .gla not encountered when expected (at ", file.tell(), " instead of ", header.ofsCompBonePool, "), seeking correct position. There could be a bug in the importer (bad) or the file could be unusual - but not necessarily wrong (no problem).", sep="")
             file.seek(header.ofsCompBonePool)
         # there's one more object than the highest index since those start at 0
         self.bonePool.loadFromFile(file, maxIndex+1)
         
         #file should be over now, bone pool is usually the last thing. I'm not sure it has to be, but so far it has always been.
-        if file.tell() != header.ofsEnd:
+        if file.tell() != header.ofsEnd and numFrames == header.numFrames:
             print("Info: .gla Bone Pool read but file not over yet - this likely indicates a problem.")
         return True, ""
     
@@ -356,15 +375,21 @@ class MdxaAnimation:
         # show progress every 1000 steps, but at least 10 times)
         progressStep = min(1000, round(numFrames / 10))
         nextProgressDisplayTime = time.time() + PROGRESS_UPDATE_INTERVAL
+        lastFrameNum = 0
         
         #   Export animation
         for frameNum, frame in enumerate(self.frames):
             # show progress bar / remaining time
             if time.time() >= nextProgressDisplayTime:
-                timeTaken = time.time() - startTime
+                numProcessedFrames = frameNum - lastFrameNum
                 framesRemaining = numFrames - frameNum
-                timeRemaining = timeTaken * framesRemaining / frameNum
-                print("Frame {}/{} - {:.2%} - time so far: {:.0f}s - remaining time: ca. {:.0f}m {:.0f}s".format(frameNum, numFrames, frameNum/numFrames, timeTaken, timeRemaining // 60, timeRemaining % 60))
+                # only take the frames since the last update into account since the speed varies.
+                # speed's roughly inversely proportional to the current frame number so I could use that to predict remaining time...
+                timeRemaining = PROGRESS_UPDATE_INTERVAL * framesRemaining / numProcessedFrames
+                
+                print("Frame {}/{} - {:.2%} - time so far: {:.0f}m {:.0f}s - remaining time: ca. {:.0f}m {:.0f}s".format(frameNum, numFrames, frameNum/numFrames, timeTaken // 60, timeTaken % 60, timeRemaining // 60, timeRemaining % 60))
+                
+                lastFrameNum = frameNum
                 nextProgressDisplayTime = time.time() + PROGRESS_UPDATE_INTERVAL
             
             #set current frame
@@ -413,7 +438,7 @@ class GLA:
         self.skeleton_object = None
         self.animation = MdxaAnimation()
     
-    def loadFromFile(self, filepath_abs, loadAnimation):
+    def loadFromFile(self, filepath_abs, loadAnimation, startFrame, numFrames):
         print("Loading {}...".format(filepath_abs))
         try:
             file = open(filepath_abs, mode="rb")
@@ -436,15 +461,16 @@ class GLA:
         for bone in self.skeleton.bones:
             self.boneIndexByName[bone.name] = bone.index
         profiler.stop("reading bone hierarchy")
-        #todo: load animations
-        if loadAnimation:
+        if loadAnimation != 'NONE':
             profiler.start("reading animations")
-            success, message = self.animation.loadFromFile(file, self.header, self.skeleton)
+            if loadAnimation == 'ALL':
+                success, message = self.animation.loadFromFile(file, self.header, self.skeleton, 0, -1)
+            else:
+                assert(loadAnimation == 'RANGE')
+                success, message = self.animation.loadFromFile(file, self.header, self.skeleton, startFrame, numFrames)
             if not success:
                 return False, message
             profiler.stop("reading animations")
-        # todo: remove. Test: Save back to file for comparision
-        # self.saveToFile(filepath_abs+"_reexported.gla")
         return True, ""
     
     def loadFromBlender(self, gla_filepath_rel):

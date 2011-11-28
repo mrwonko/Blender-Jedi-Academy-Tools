@@ -50,7 +50,7 @@ class Scene:
         return True, ""
     
     # Loads scene from on GLA file
-    def loadFromGLA(self, gla_filepath_rel, loadAnimations=False):
+    def loadFromGLA(self, gla_filepath_rel, loadAnimations='NONE', startFrame=0, numFrames=1):
         self.animations = loadAnimations
         # create default skeleton if necessary (doing it here is a bit of a hack)
         if gla_filepath_rel == "*default":
@@ -62,7 +62,7 @@ class Scene:
             print("File not found: ", self.basepath + gla_filepath_rel + ".gla", sep="")
             return False, "File not found! (no .gla?)"
         self.gla = mrw_g2_gla.GLA()
-        success, message = self.gla.loadFromFile(gla_filepath_abs, loadAnimations)
+        success, message = self.gla.loadFromFile(gla_filepath_abs, loadAnimations, startFrame, numFrames)
         if not success:
             return False, message
         return True, ""

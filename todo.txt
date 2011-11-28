@@ -1,4 +1,3 @@
-* animation toBlender progress bar of some kind
 * model fromBlender
 * model export option: strip texture paths (force .skin)
 * skeleton fromBlender
