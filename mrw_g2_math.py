@@ -39,7 +39,6 @@ class Matrix:
             for x in range(4):
                 file.write(struct.pack("f", self.rows[y][x]))
     
-    #todo: toBlender()/fromBlender(blenderMat)
     def toBlender(self):
         mat = mathutils.Matrix([self.rows[0], self.rows[1], self.rows[2], [0, 0, 0, 1]])
         mat.transpose() # row major <-> col major
@@ -58,21 +57,23 @@ class Matrix:
         del self.rows[3]
 
 # changes a GLA bone's rotation matrix (X+ = front) to blender style (Y+ = front)
-# matrix must not have shear
 def GLABoneRotToBlender(matrix):
     new_x = -matrix[1].copy()
     new_y = matrix[0].copy()
     matrix[0] = new_x
     matrix[1] = new_y
+    # undo change in last column
+    matrix[0][3], matrix[1][3] = matrix[1][3], -matrix[0][3]
         
 
 # changes a blender bone's rotation matrix (Y+ = front) to GLA style (X+ = front)
-# must not have shear
 def BlenderBoneRotToGLA(matrix):
     new_x = matrix[1].copy()
     new_y = -matrix[0].copy()
     matrix[0] = new_x
     matrix[1] = new_y
+    # undo change in last column
+    matrix[0][3], matrix[1][3] = matrix[1][3], -matrix[0][3]
 
 # compressed bones as used in GLA files
 #todo
@@ -110,7 +111,7 @@ class CompBone:
         return self
     
     # returns the 14 byte compressed representation of this matrix (no scale) as saved in the compBonePool
-    @classmethod
+    @staticmethod
     def compress(mat):
         loc = mat.to_translation()
         quat = mat.to_quaternion()

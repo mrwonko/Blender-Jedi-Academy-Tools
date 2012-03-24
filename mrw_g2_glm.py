@@ -266,9 +266,16 @@ class MdxmTriangle:
     
     def loadFromFile(self, file):
         self.indices.extend(struct.unpack("3i", file.read(3*4)))
+        #flip CW/CCW
         temp = self.indices[0]
         self.indices[0] = self.indices[2]
         self.indices[2] = temp
+        #make sure last index is not 0, eeekadoodle or something...
+        if self.indices[2] == 0:
+            temp = self.indices[0]
+            self.indices[0] = self.indices[2]
+            self.indices[2] = self.indices[1]
+            self.indices[1] = temp
     
     def saveToFile(self, file):
         # triangles are flipped because otherwise they'd face the wrong way.
@@ -380,8 +387,8 @@ class MdxmSurface:
         #create uv coordinates
         material = data.materialManager.getMaterial(name, surfaceData.shader)
         image = None
-        if material:
-            assert(material.active_texture)
+        if material and material.active_texture:
+            #assert(material.active_texture) # loading may fail...
             assert(material.active_texture.type == 'IMAGE')
             image = material.active_texture.image
         
@@ -408,6 +415,7 @@ class MdxmSurface:
             #  create armature modifier
             armatureModifier = obj.modifiers.new("skin", 'ARMATURE')
             armatureModifier.object = data.gla.skeleton_object
+            armatureModifier.use_bone_envelopes = False #only use vertex groups by default
             
             #  create vertex groups (indices will match)
             for index in self.boneReferences:

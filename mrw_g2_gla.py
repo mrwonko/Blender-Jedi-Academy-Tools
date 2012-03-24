@@ -29,7 +29,7 @@ class MdxaHeader:
     
     def __init__(self):
         self.name = ""
-        self.scale = 0
+        self.scale = 1 # does not seem to be used by Jedi Academy anyway - or is it? I need it in import!
         self.numFrames = -1
         self.ofsFrames = -1
         self.numBones = -1
@@ -46,13 +46,13 @@ class MdxaHeader:
         version, = struct.unpack("i", file.read(4))
         if version != mrw_g2_constants.GLA_VERSION:
             return False, "Wrong gla file version! ("+str(version)+" should be "+str(mrw_g2_constants.GLA_VERSION)+")"
-        name = readString(file)
+        self.name = readString(file)
         self.scale, self.numFrames, self.ofsFrames, self.numBones, self.ofsCompBonePool, self.ofsSkel, self.ofsEnd = struct.unpack("f6i", file.read(7*4))
         print("Scale: {:.3f}".format(self.scale))
         return True, ""
     
-    def saveToFile(self, file, name):
-        file.write(struct.pack("4si64sf6i", mrw_g2_constants.GLA_IDENT, mrw_g2_constants.GLA_VERSION, name.encode(), self.scale, self.numFrames, self.ofsFrames, self.numBones, self.ofsCompBonePool, self.ofsSkel, self.ofsEnd))
+    def saveToFile(self, file):
+        file.write(struct.pack("4si64sf6i", mrw_g2_constants.GLA_IDENT, mrw_g2_constants.GLA_VERSION, self.name.encode(), self.scale, self.numFrames, self.ofsFrames, self.numBones, self.ofsCompBonePool, self.ofsSkel, self.ofsEnd))
 
 class MdxaBoneOffsets:
     
@@ -60,7 +60,7 @@ class MdxaBoneOffsets:
         self.baseOffset = 2*4 + 64 + 4*7 #sizeof header
         self.boneOffsets = []
     
-    # fail-safe (except exceptions)
+    # fail-safe (except for exceptions)
     def loadFromFile(self, file, numBones):
         assert(self.baseOffset == file.tell())
         for i in range(numBones):
@@ -75,13 +75,16 @@ class MdxaBoneOffsets:
 class MdxaBone:
     def __init__(self):
         self.name = ""
-        self.flags = -1
+        self.flags = 0
         self.parent = -1
         self.basePoseMat = mrw_g2_math.Matrix()
         self.basePoseMatInv = mrw_g2_math.Matrix()
-        self.numChildren = -1
+        self.numChildren = 0
         self.children = []
-        self.index = -1 # not saved, filled by loadBonesFromFile()
+        self.index = -1 # not saved, filled by loadBonesFromFile() and when loaded from blender
+    
+    def getSize(self):
+        return struct.calcsize("64sIi12f12fi{}i".format(self.numChildren))
     
     def loadFromFile(self, file):
         self.name = readString(file)
@@ -100,6 +103,26 @@ class MdxaBone:
         assert(len(self.children) == self.numChildren)
         for child in self.children:
             file.write(struct.pack("i", child))
+    
+    def loadFromBlender(self, editbone, boneIndicesByName, bones):
+        # set name
+        self.name = editbone.name
+        
+        # add index to dictionary
+        boneIndicesByName[self.name] = self.index
+        
+        # parent is -1 by default - change if there is one.
+        if editbone.parent != None:
+            self.parent = boneIndicesByName[editbone.parent.name]
+            parent = bones[self.parent]
+            parent.numChildren += 1
+            parent.children.append(self.index)
+        
+        # save (inverted) base pose matrix
+        self.basePoseMat.fromBlender(editbone.matrix)
+        self.basePoseMatInv.fromBlender(editbone.matrix.inverted())
+        BlenderBoneRotToGLA(self.basePoseMat) # must not be used for blender-internal calculations anymore!
+        BlenderBoneRotToGLA(self.basePoseMatInv) # ^ same
     
     #blenderBonesSoFar is a dictionary of boneIndex -> BlenderBone
     #allBones is the list of all MdxaBones
@@ -174,7 +197,8 @@ class MdxaSkel:
             bone.index = i
             self.bones.append(bone)
     
-    def saveToFile(self, file):
+    def saveToFile(self, file, header):
+        assert(file.tell() == header.ofsSkel)
         for bone in self.bones:
             bone.saveToFile(file)
     
@@ -239,7 +263,7 @@ class MdxaFrame:
         maxIndex = 0
         for i in range(numBones):
             # bone indices are only 3 bytes long - with 20k+ frames 25% less is quite a bit, reportedly.
-            index, = struct.unpack("i", file.read(3)+b"\0")
+            index, = struct.unpack("I", file.read(3)+b"\0")
             maxIndex = max(maxIndex, index)
             self.boneIndices.append(index)
         return maxIndex
@@ -247,7 +271,7 @@ class MdxaFrame:
     def saveToFile(self, file):
         for index in self.boneIndices:
             # only write the first 3 bytes of the packed number
-            file.write(struct.pack("i", index)[:3])
+            file.write(struct.pack("I", index)[:3])
 
 class MdxaBonePool:
     def __init__(self):
@@ -262,8 +286,8 @@ class MdxaBonePool:
             self.bones.append(compBone)
     
     def saveToFile(self, file):
-        #todo: implement!
-        pass
+        for bone in self.bones:
+            file.write(bone)
 
 # Frames & Compressed Bone Pool
 class MdxaAnimation:
@@ -318,11 +342,15 @@ class MdxaAnimation:
             print("Info: .gla Bone Pool read but file not over yet - this likely indicates a problem.")
         return True, ""
     
-    def saveToFile(self, file):
+    def saveToFile(self, file, header):
+        assert(file.tell() == header.ofsFrames)
         for frame in self.frames:
             frame.saveToFile(file)
+        # add padding if not 32 bit aligned (due to 3-byte-indices)
+        if file.tell() % 4 != 0:
+            file.seek(4 - (file.tell() % 4), 1) # from_what = 1 -> from current position
+        assert(file.tell() == header.ofsCompBonePool)
         self.bonePool.saveToFile(file)
-        pass
     
     def saveToBlender(self, skeleton, armature, scale):
         import time
@@ -414,7 +442,6 @@ class MdxaAnimation:
                 mrw_g2_math.GLABoneRotToBlender(transformation)
                 
                 pose_bone = bones[index]
-                #pose_bone.matrix = scaleMatrix * transformation
                 pose_bone.matrix = transformation * scaleMatrix
                 pose_bone.keyframe_insert('location')
                 pose_bone.keyframe_insert('rotation_quaternion')
@@ -473,21 +500,249 @@ class GLA:
             profiler.stop("reading animations")
         return True, ""
     
-    def loadFromBlender(self, gla_filepath_rel):
-        #todo
+    def loadFromBlender(self, gla_filepath_rel, gla_reference_abs):
+        # fill out header name
+        self.header.name = gla_filepath_rel
+        
+        # find skeleton_root
+        if not "skeleton_root" in bpy.data.objects:
+            return False, "No skeleton_root object found!"
+        self.skeleton_object = bpy.data.objects["skeleton_root"]
+        if self.skeleton_object.type != 'ARMATURE':
+            return False, "skeleton_root is no Armature!"
+        self.skeleton_armature = self.skeleton_object.data
+        self.header.scale = self.skeleton_object.g2_prop_scale / 100
+        
+        # make skeleton_root the active object
+        bpy.context.scene.objects.active = self.skeleton_object
+        
+        # if there's a reference GLA (for bone indices), load that
+        if gla_reference_abs != "":
+            print("Using reference GLA skeleton - warning: there's no check beyond bone names (hierarchy, base pose etc.)")
+            
+            # load reference GLA
+            referenceGLA = GLA()
+            success, message = referenceGLA.loadFromFile(gla_reference_abs, 'NONE', 0, 0)
+            if not success:
+                return False, "Could not load reference GLA: {}".format(message)
+            
+            # copy relevant data from reference
+            self.boneIndexByName = referenceGLA.boneIndexByName
+            self.skeleton = referenceGLA.skeleton # will be changed, but reference is discarded later anyway
+            self.boneOffsets = referenceGLA.boneOffsets
+            self.header.ofsFrames = referenceGLA.header.ofsFrames
+            self.header.ofsSkel = referenceGLA.header.ofsSkel
+            self.header.numBones = referenceGLA.header.numBones
+            
+            # verify all bones exist
+            success, message = self.skeleton.fitsArmature(self.skeleton_armature)
+            if not success:
+                return False, "Armature does not fit reference: {}".format(message)
+        
+        # or no reference GLA? build new skeleton then.
+        else:
+            # enter edit mode so we can access editbones
+            bpy.ops.object.mode_set(mode='EDIT')
+            
+            # populate bone hierarchy
+            bonesToAdd = [bone for bone in self.skeleton_armature.edit_bones]
+            while len(bonesToAdd) > 0:
+                addedSomething = False
+                newBonesToAdd = []
+                for bone in bonesToAdd:
+                    # add bones whose parents have already been added
+                    if bone.parent == None or bone.parent.name in self.boneIndexByName:
+                        # create this bone
+                        newBone = MdxaBone()
+                        
+                        # set its index (will be appended, hence the size)
+                        newBone.index = len(self.skeleton.bones)
+                        
+                        # read the rest from the editbone
+                        newBone.loadFromBlender(bone, self.boneIndexByName, self.skeleton.bones)
+                        
+                        # append bone
+                        self.skeleton.bones.append(newBone)
+                        addedSomething = True
+                    else:
+                        newBonesToAdd.append(bone)
+                bonesToAdd = newBonesToAdd
+                if addedSomething == False:
+                    return False, "Hierarchy error (most likely a bug, actually)"
+            
+            # calculate bone file position offsets
+            offset = 4 * len(self.skeleton.bones) # first bone starts after the bone offsets
+            self.header.ofsSkel = offset + self.boneOffsets.baseOffset # save first bones position
+            for bone in self.skeleton.bones:
+                self.boneOffsets.boneOffsets.append(offset)
+                offset += bone.getSize()
+            
+            self.header.ofsFrames = self.boneOffsets.baseOffset + offset # frames start after last bone
+            self.header.numBones = len(self.skeleton.bones)
+        
+        
+        #   retrieve animations
+        
+        print("Compressing animation...")
+        
+        # enter pose mode
+        bpy.ops.object.mode_set(mode='POSE')
+        
+        # this whole caching is just confusing, I may come back to it if I need more performance though
+        # DELETEME
+        if False:
+            # cache pose bones and their inverted base pose matrices ordered by index
+            class BoneInfo:
+                def __init__(self):
+                    self.bone = None #MdxaBone - contains hierarchy data etc.
+                    self.posebone = None #Blender PoseBone
+                    self.basePoseMat = None #Blender Matrix of BasePose
+                    self.basePoseMatInv = None #inverted Blender Matrix of BasePose
+                    #outdated, DELETEME
+                    if False:
+                        self.basePoseMatInvPS = None # as above, but in PS = ParentSpace
+            orderedBoneInfo = []
+            for index, bone in enumerate(self.skeleton.bones):
+                assert(index == bone.index)
+                info = BoneInfo()
+                info.bone = bone
+                info.posebone = (self.skeleton_object.pose.bones[bone.name])
+                info.basePoseMat = bone.basePoseMat.toBlender()
+                info.basePoseMatInv = bone.basePoseMatInv.toBlender()
+                
+                #outdated, DELETEME
+                if False:
+                    # inverted base pose matrix /in parent space!/
+                    if bone.parent == -1:
+                        basePoseMatPS = bone.basePoseMat.toBlender()
+                        #mrw_g2_math.BlenderBoneRotToGLA(basePoseMatPS)
+                        info.basePoseMatInvPS = basePoseMatPS.inverted()
+                        #info.basePoseMatInvPS = bone.basePoseMatInv.toBlender()
+                    else:
+                        parent = self.skeleton.bones[bone.parent]
+                        basePoseMatPS = bone.basePoseMat.toBlender() * parent.basePoseMatInv.toBlender()
+                        #mrw_g2_math.BlenderBoneRotToGLA(basePoseMatPS)
+                        info.basePoseMatInvPS = basePoseMatPS.inverted()
+                orderedBoneInfo.append(info)
+        
+        # create a dictionary containing the indices of already added compressed bones - lookup should be faster than a linear search through the existing compressed bones (at the cost of more RAM usage - that's ok)
+        compBoneIndices = {}
+        
+        scale = self.header.scale
+        if scale == 0:
+        #if True:
+            scale = 1
+        scaleMatrix = mathutils.Matrix([
+            [scale, 0, 0, 0],
+            [0, scale, 0, 0],
+            [0, 0, scale, 0],
+            [0, 0, 0, 1]
+            ])
+        
+        # for each frame:
+        
+        for curFrame in range(bpy.context.scene.frame_start, bpy.context.scene.frame_end + 1):
+            # progress bar-ish thing
+            if curFrame % 10 == 0:
+                print("Compressing frame {}...".format(curFrame))
+            
+            frame = MdxaFrame()
+            bpy.context.scene.frame_set(curFrame)
+            #bpy.context.scene.frame_current = curFrame
+            
+            # bone offsets need to be calculated in hierarchical order, but written in index order
+            # so calculate first:
+            relativeBoneOffsets = [None] * self.header.numBones # these get written to the GLA
+            
+            absoluteBoneOffsets = [None] * self.header.numBones # these are for calculating
+            
+            unprocessed = [i for i in range(self.header.numBones)]
+            while len(unprocessed) > 0:
+                # make sure we're not looping infinitely (shouldn't be possible)
+                progressed = False
+                
+                newUnprocessed = []
+                for index in unprocessed:
+                    bone = self.skeleton.bones[index]
+                    basebone = self.skeleton_armature.bones[bone.name]
+                    posebone = self.skeleton_object.pose.bones[bone.name]
+                    
+                    basePoseMat = basebone.matrix_local.copy()
+                    poseMat = posebone.matrix.copy()
+                    
+                    # TODO: there's some problem related to scaling, I'm not sure how to fix it.
+                    # is this partially right?
+                    if False:
+                        # scale all but trans, or something?
+                        trans = poseMat[3].copy()
+                        poseMat *= scaleMatrix
+                        poseMat[3] = trans
+                    
+                    # change rotation axes from blender style to gla style
+                    mrw_g2_math.BlenderBoneRotToGLA(basePoseMat)
+                    mrw_g2_math.BlenderBoneRotToGLA(poseMat)
+                    if bone.parent == -1:
+                        # offset is difference between actual position and base pose
+                        relativeBoneOffsets[index] = absoluteBoneOffsets[index] = poseMat * basePoseMat.inverted()
+                        progressed = True
+                        
+                    elif bone.parent not in unprocessed:
+                        assert(absoluteBoneOffsets[bone.parent]) #just what the if checks
+                        
+                        theoreticalPosition = absoluteBoneOffsets[bone.parent] * basePoseMat
+                        relativeBoneOffsets[index] = poseMat * theoreticalPosition.inverted()
+                        absoluteBoneOffsets[index] = relativeBoneOffsets[index] * absoluteBoneOffsets[bone.parent]
+                        # test - force identity DELETEME
+                        # relativeBoneOffsets[index] = absoluteBoneOffsets[index] = mathutils.Matrix([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
+                        
+                        progressed = True
+                        
+                    else:
+                        newUnprocessed.append(index)
+                unprocessed = newUnprocessed
+                
+                assert(progressed)
+            
+            # then write precalculated offsets:
+            for offset in relativeBoneOffsets:
+                
+                # compress that offset
+                compOffset = mrw_g2_math.CompBone.compress(offset)
+                
+                try:
+                    # try to use existing compressed bone offset
+                    index = compBoneIndices[compOffset]
+                    frame.boneIndices.append(index)
+                except KeyError:
+                    # if this offset is not yet part of the pool, add it
+                    index = len(self.animation.bonePool.bones)
+                    self.animation.bonePool.bones.append(compOffset)
+                    frame.boneIndices.append(index)
+                    compBoneIndices[compOffset] = index
+            
+            self.animation.frames.append(frame)
+        
+        self.header.numFrames = bpy.context.scene.frame_end - bpy.context.scene.frame_start + 1
+        # enforce 32 bit alignment after 3-byte-indices
+        framesSize = 3 * self.header.numFrames * self.header.numBones
+        if framesSize % 4 != 0:
+            framesSize += 4 - (framesSize % 4)
+        self.header.ofsCompBonePool = self.header.ofsFrames + framesSize
+        self.header.ofsEnd = self.header.ofsCompBonePool + len(self.animation.bonePool.bones) * 14
+        
         return True, ""
     
-    # todo: needs relative path?
     def saveToFile(self, filepath_abs):
         try:
             file = open(filepath_abs, mode="wb")
         except IOError:
             print("Could not open file: ", filepath_abs, sep="")
             return False, "Could not open file!"
-        self.header.saveToFile(file, "foo/bar.gla") #todo: real name!
+        self.header.saveToFile(file)
         self.boneOffsets.saveToFile(file)
-        self.skeleton.saveToFile(file)
-        self.animation.saveToFile(file)
+        self.skeleton.saveToFile(file, self.header)
+        self.animation.saveToFile(file, self.header)
+        assert(file.tell() == self.header.ofsEnd)
         return True, ""
     
     def saveToBlender(self, scene_root, useAnimation, skeletonFixes):

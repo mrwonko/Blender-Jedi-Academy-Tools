@@ -76,9 +76,14 @@ class Scene:
         return True, ""
     
     # "Loads" skeleton & animation from Blender data
-    def loadSkeletonFromBlender(self, gla_filepath_rel):
+    def loadSkeletonFromBlender(self, gla_filepath_rel, gla_reference_rel):
         self.gla = mrw_g2_gla.GLA()
-        success, message = self.gla.loadFromBlender(gla_filepath_rel)
+        gla_reference_abs = ""
+        if gla_reference_rel != "":
+            success, gla_reference_abs = mrw_g2_filesystem.FindFile(gla_reference_rel, self.basepath, ["gla"])
+            if not success:
+                return False, "Could not find reference GLA"
+        success, message = self.gla.loadFromBlender(gla_filepath_rel, gla_reference_abs)
         if not success:
             return False, message
         return True, ""

@@ -194,18 +194,24 @@ class GLAExport(bpy.types.Operator):
         # properties
         filepath = bpy.props.StringProperty(name="File Path", description="The filename to export to", maxlen=1024, default="", subtype='FILE_PATH')
         basepath = bpy.props.StringProperty(name="Base Path", description="The base folder relative to which paths should be interpreted. Leave empty to let the exporter guess (needs /GameData/ in filepath).", default="")
-        basepath = bpy.props.StringProperty(name="gla name", description="The relative path of this gla. Leave empty to let the exporter guess (needs /GameData/ in filepath).", maxlen=64, default="")
+        glapath = bpy.props.StringProperty(name="gla name", description="The relative path of this gla. Leave empty to let the exporter guess (needs /GameData/ in filepath).", maxlen=64, default="")
+        glareference = bpy.props.StringProperty(name="gla reference", description="Copies the bone indices from this skeleton, if any (e.g. for new animations for existing skeleton; path relative to the Base Path)", maxlen=64, default="")
 
         def execute(self, context):
             print("\n== GLA Export ==\n")
             # initialize paths
-            basepath, filepath = GetPaths(self.basepath, self.filepath);
+            basepath, filepath = GetPaths(self.basepath, self.filepath)
+            print("Basepath: {}\tFilename: {}".format(basepath, filepath)) #todo delete!!!!!
+            glapath = filepath
+            if self.glapath != "":
+                glapath = self.glapath
+            glapath = glapath.replace("\\", "/")
             if self.basepath != "" and mrw_g2_filesystem.RemoveExtension(self.filepath) == filepath:
                 self.report({'ERROR'}, "Invalid Base Path")
                 return {'FINISHED'}
             #try to load from Blender's data to my intermediate format
             scene = mrw_g2_scene.Scene(basepath)
-            success, message = scene.loadSkeletonFromBlender(filepath)
+            success, message = scene.loadSkeletonFromBlender(glapath, self.glareference)
             if not success:
                 self.report({'ERROR'}, message)
                 return {'FINISHED'}
