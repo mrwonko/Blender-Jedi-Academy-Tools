@@ -1,11 +1,9 @@
 * model fromBlender
 * model export option: strip texture paths (force .skin)
-* skeleton fromBlender
-* animation compBonePool save
-* animation fromBlender
-* animation export option: gla reference (index & hierarchy)
 * smoothing (optional?)
 * Test
   * "*default" skeleton glm
   * gla override with invalid skeleton
   * in general all kinds of invalid input
+* sort out MdxaHeader.fScale - I need it during import (yet it seems to be ignored by ModView) so I'll have to use it on export, too.
+* fix obvious animation exporting bugs (exported animation is obviously flawed) - probably mostly (completely?) related to scale stuff (?)
