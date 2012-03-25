@@ -594,20 +594,6 @@ class GLA:
         # create a dictionary containing the indices of already added compressed bones - lookup should be faster than a linear search through the existing compressed bones (at the cost of more RAM usage - that's ok)
         compBoneIndices = {}
         
-        #TODO: DELETEME (leftover)
-        if False:
-            scale = self.header.scale
-            if scale == 0:
-                scale = 1
-            else:
-                scale = 1/scale
-            scaleMatrixInv = mathutils.Matrix([
-                [scale, 0, 0, 0],
-                [0, scale, 0, 0],
-                [0, 0, scale, 0],
-                [0, 0, 0, 1]
-                ])
-        
         # for each frame:
         
         for curFrame in range(bpy.context.scene.frame_start, bpy.context.scene.frame_end + 1):
@@ -643,50 +629,15 @@ class GLA:
                     mrw_g2_math.BlenderBoneRotToGLA(basePoseMat)
                     mrw_g2_math.BlenderBoneRotToGLA(poseMat)
                     if bone.parent == -1:
-                        # offset is difference between actual position and base pose
-                        
-                        #initial idea
-                        #relativeBoneOffsets[index] = absoluteBoneOffsets[index] = poseMat * basePoseMat.inverted()
-                        
-                        #paper-version
-                        #relativeBoneOffsets[index] = absoluteBoneOffsets[index] = basePoseMat * poseMat.inverted()
-                        
-                        #paper-version inverted
-                        #relativeBoneOffsets[index] = absoluteBoneOffsets[index] = basePoseMat.inverted() * poseMat
-                        
-                        #empirical blender tests + paper v2
                         relativeBoneOffsets[index] = absoluteBoneOffsets[index] = poseMat * basePoseMat.inverted()
-                        
                         
                         progressed = True
                         
                     elif bone.parent not in unprocessed:
                         assert(absoluteBoneOffsets[bone.parent]) #just what the if checks
                         
-                        #something I had in my head
-                        #theoreticalPosition = absoluteBoneOffsets[bone.parent] * basePoseMat
-                        #relativeBoneOffsets[index] = poseMat * theoreticalPosition.inverted()
-                        
-                        #reversing the import on paper
-                        #relativeBoneOffsets[index] = absoluteBoneOffsets[bone.parent] * poseMat.inverted() * basePoseMat
-                        
-                        #inverse of the paper version above
-                        #relativeBoneOffsets[index] = absoluteBoneOffsets[bone.parent].inverted() * poseMat * basePoseMat.inverted()
-                        
-                        #empirical blender tests + paper v2
-                        #relativeBoneOffsets[index] = absoluteBoneOffsets[bone.parent].inverted() * poseMat * scaleMatrixInv * basePoseMat.inverted()
-                        
-                        #empirical blender tests + paper v2 after test
                         relativeBoneOffsets[index] = absoluteBoneOffsets[bone.parent].inverted() * poseMat * basePoseMat.inverted()
-                        
-                        #first try
-                        #absoluteBoneOffsets[index] = relativeBoneOffsets[index] * absoluteBoneOffsets[bone.parent]
-                        
-                        #empirical blender tests + paper v2
                         absoluteBoneOffsets[index] =  absoluteBoneOffsets[bone.parent] * relativeBoneOffsets[index]
-                        
-                        # test - force identity DELETEME
-                        # relativeBoneOffsets[index] = absoluteBoneOffsets[index] = mathutils.Matrix([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
                         
                         progressed = True
                         
