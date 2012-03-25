@@ -119,10 +119,12 @@ class MdxaBone:
             parent.children.append(self.index)
         
         # save (inverted) base pose matrix
-        self.basePoseMat.fromBlender(editbone.matrix)
-        self.basePoseMatInv.fromBlender(editbone.matrix.inverted())
-        mrw_g2_math.BlenderBoneRotToGLA(self.basePoseMat) # must not be used for blender-internal calculations anymore!
-        mrw_g2_math.BlenderBoneRotToGLA(self.basePoseMatInv) # ^ same
+        mat = editbone.matrix.copy()
+        matInv = editbone.matrix.inverted()
+        mrw_g2_math.BlenderBoneRotToGLA(mat) # must not be used for blender-internal calculations anymore!
+        mrw_g2_math.BlenderBoneRotToGLA(matInv) # ^ same
+        self.basePoseMat.fromBlender(mat)
+        self.basePoseMatInv.fromBlender(matInv)
     
     #blenderBonesSoFar is a dictionary of boneIndex -> BlenderBone
     #allBones is the list of all MdxaBones
@@ -443,6 +445,7 @@ class MdxaAnimation:
                 
                 pose_bone = bones[index]
                 pose_bone.matrix = transformation * scaleMatrix
+                pose_bone.scale = [1, 1, 1] # in the _humanoid face, the scale gets changed. that messes the re-export up.
                 pose_bone.keyframe_insert('location')
                 pose_bone.keyframe_insert('rotation_quaternion')
                 # hackish way to force the matrix to update
@@ -515,6 +518,8 @@ class GLA:
         
         # make skeleton_root the active object
         bpy.context.scene.objects.active = self.skeleton_object
+        self.skeleton_object.select = True
+        self.skeleton_object.hide = False
         
         # if there's a reference GLA (for bone indices), load that
         if gla_reference_abs != "":
@@ -586,16 +591,12 @@ class GLA:
         print("Compressing animation...")
         
         # enter pose mode
-        bpy.context.scene.objects.active = self.skeleton_object # make sure it's the active object so the operator works
-        self.skeleton_object.select = True
-        self.skeleton_object.hide = False
         bpy.ops.object.mode_set(mode='POSE')
         
         # create a dictionary containing the indices of already added compressed bones - lookup should be faster than a linear search through the existing compressed bones (at the cost of more RAM usage - that's ok)
         compBoneIndices = {}
         
-        # for each frame:
-        
+        # for each frame: 
         for curFrame in range(bpy.context.scene.frame_start, bpy.context.scene.frame_end + 1):
             # progress bar-ish thing
             if curFrame % 10 == 0:
@@ -635,6 +636,7 @@ class GLA:
                         
                     elif bone.parent not in unprocessed:
                         assert(absoluteBoneOffsets[bone.parent]) #just what the if checks
+                        assert(absoluteBoneOffsets[index] == None) # each offset should only be calculated once.
                         
                         relativeBoneOffsets[index] = absoluteBoneOffsets[bone.parent].inverted() * poseMat * basePoseMat.inverted()
                         absoluteBoneOffsets[index] =  absoluteBoneOffsets[bone.parent] * relativeBoneOffsets[index]
