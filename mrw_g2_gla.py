@@ -121,8 +121,8 @@ class MdxaBone:
         # save (inverted) base pose matrix
         self.basePoseMat.fromBlender(editbone.matrix)
         self.basePoseMatInv.fromBlender(editbone.matrix.inverted())
-        BlenderBoneRotToGLA(self.basePoseMat) # must not be used for blender-internal calculations anymore!
-        BlenderBoneRotToGLA(self.basePoseMatInv) # ^ same
+        mrw_g2_math.BlenderBoneRotToGLA(self.basePoseMat) # must not be used for blender-internal calculations anymore!
+        mrw_g2_math.BlenderBoneRotToGLA(self.basePoseMatInv) # ^ same
     
     #blenderBonesSoFar is a dictionary of boneIndex -> BlenderBone
     #allBones is the list of all MdxaBones
@@ -415,7 +415,7 @@ class MdxaAnimation:
                 # speed's roughly inversely proportional to the current frame number so I could use that to predict remaining time...
                 timeRemaining = PROGRESS_UPDATE_INTERVAL * framesRemaining / numProcessedFrames
                 
-                print("Frame {}/{} - {:.2%} - time so far: {:.0f}m {:.0f}s - remaining time: ca. {:.0f}m {:.0f}s".format(frameNum, numFrames, frameNum/numFrames, timeTaken // 60, timeTaken % 60, timeRemaining // 60, timeRemaining % 60))
+                print("Frame {}/{} - {:.2%} - remaining time: ca. {:.0f}m {:.0f}s".format(frameNum, numFrames, frameNum/numFrames, timeRemaining // 60, timeRemaining % 60))
                 
                 lastFrameNum = frameNum
                 nextProgressDisplayTime = time.time() + PROGRESS_UPDATE_INTERVAL
@@ -586,58 +586,27 @@ class GLA:
         print("Compressing animation...")
         
         # enter pose mode
+        bpy.context.scene.objects.active = self.skeleton_object # make sure it's the active object so the operator works
+        self.skeleton_object.select = True
+        self.skeleton_object.hide = False
         bpy.ops.object.mode_set(mode='POSE')
-        
-        # this whole caching is just confusing, I may come back to it if I need more performance though
-        # DELETEME
-        if False:
-            # cache pose bones and their inverted base pose matrices ordered by index
-            class BoneInfo:
-                def __init__(self):
-                    self.bone = None #MdxaBone - contains hierarchy data etc.
-                    self.posebone = None #Blender PoseBone
-                    self.basePoseMat = None #Blender Matrix of BasePose
-                    self.basePoseMatInv = None #inverted Blender Matrix of BasePose
-                    #outdated, DELETEME
-                    if False:
-                        self.basePoseMatInvPS = None # as above, but in PS = ParentSpace
-            orderedBoneInfo = []
-            for index, bone in enumerate(self.skeleton.bones):
-                assert(index == bone.index)
-                info = BoneInfo()
-                info.bone = bone
-                info.posebone = (self.skeleton_object.pose.bones[bone.name])
-                info.basePoseMat = bone.basePoseMat.toBlender()
-                info.basePoseMatInv = bone.basePoseMatInv.toBlender()
-                
-                #outdated, DELETEME
-                if False:
-                    # inverted base pose matrix /in parent space!/
-                    if bone.parent == -1:
-                        basePoseMatPS = bone.basePoseMat.toBlender()
-                        #mrw_g2_math.BlenderBoneRotToGLA(basePoseMatPS)
-                        info.basePoseMatInvPS = basePoseMatPS.inverted()
-                        #info.basePoseMatInvPS = bone.basePoseMatInv.toBlender()
-                    else:
-                        parent = self.skeleton.bones[bone.parent]
-                        basePoseMatPS = bone.basePoseMat.toBlender() * parent.basePoseMatInv.toBlender()
-                        #mrw_g2_math.BlenderBoneRotToGLA(basePoseMatPS)
-                        info.basePoseMatInvPS = basePoseMatPS.inverted()
-                orderedBoneInfo.append(info)
         
         # create a dictionary containing the indices of already added compressed bones - lookup should be faster than a linear search through the existing compressed bones (at the cost of more RAM usage - that's ok)
         compBoneIndices = {}
         
-        scale = self.header.scale
-        if scale == 0:
-        #if True:
-            scale = 1
-        scaleMatrix = mathutils.Matrix([
-            [scale, 0, 0, 0],
-            [0, scale, 0, 0],
-            [0, 0, scale, 0],
-            [0, 0, 0, 1]
-            ])
+        #TODO: DELETEME (leftover)
+        if False:
+            scale = self.header.scale
+            if scale == 0:
+                scale = 1
+            else:
+                scale = 1/scale
+            scaleMatrixInv = mathutils.Matrix([
+                [scale, 0, 0, 0],
+                [0, scale, 0, 0],
+                [0, 0, scale, 0],
+                [0, 0, 0, 1]
+                ])
         
         # for each frame:
         
@@ -670,28 +639,52 @@ class GLA:
                     basePoseMat = basebone.matrix_local.copy()
                     poseMat = posebone.matrix.copy()
                     
-                    # TODO: there's some problem related to scaling, I'm not sure how to fix it.
-                    # is this partially right?
-                    if False:
-                        # scale all but trans, or something?
-                        trans = poseMat[3].copy()
-                        poseMat *= scaleMatrix
-                        poseMat[3] = trans
-                    
                     # change rotation axes from blender style to gla style
                     mrw_g2_math.BlenderBoneRotToGLA(basePoseMat)
                     mrw_g2_math.BlenderBoneRotToGLA(poseMat)
                     if bone.parent == -1:
                         # offset is difference between actual position and base pose
+                        
+                        #initial idea
+                        #relativeBoneOffsets[index] = absoluteBoneOffsets[index] = poseMat * basePoseMat.inverted()
+                        
+                        #paper-version
+                        #relativeBoneOffsets[index] = absoluteBoneOffsets[index] = basePoseMat * poseMat.inverted()
+                        
+                        #paper-version inverted
+                        #relativeBoneOffsets[index] = absoluteBoneOffsets[index] = basePoseMat.inverted() * poseMat
+                        
+                        #empirical blender tests + paper v2
                         relativeBoneOffsets[index] = absoluteBoneOffsets[index] = poseMat * basePoseMat.inverted()
+                        
+                        
                         progressed = True
                         
                     elif bone.parent not in unprocessed:
                         assert(absoluteBoneOffsets[bone.parent]) #just what the if checks
                         
-                        theoreticalPosition = absoluteBoneOffsets[bone.parent] * basePoseMat
-                        relativeBoneOffsets[index] = poseMat * theoreticalPosition.inverted()
-                        absoluteBoneOffsets[index] = relativeBoneOffsets[index] * absoluteBoneOffsets[bone.parent]
+                        #something I had in my head
+                        #theoreticalPosition = absoluteBoneOffsets[bone.parent] * basePoseMat
+                        #relativeBoneOffsets[index] = poseMat * theoreticalPosition.inverted()
+                        
+                        #reversing the import on paper
+                        #relativeBoneOffsets[index] = absoluteBoneOffsets[bone.parent] * poseMat.inverted() * basePoseMat
+                        
+                        #inverse of the paper version above
+                        #relativeBoneOffsets[index] = absoluteBoneOffsets[bone.parent].inverted() * poseMat * basePoseMat.inverted()
+                        
+                        #empirical blender tests + paper v2
+                        #relativeBoneOffsets[index] = absoluteBoneOffsets[bone.parent].inverted() * poseMat * scaleMatrixInv * basePoseMat.inverted()
+                        
+                        #empirical blender tests + paper v2 after test
+                        relativeBoneOffsets[index] = absoluteBoneOffsets[bone.parent].inverted() * poseMat * basePoseMat.inverted()
+                        
+                        #first try
+                        #absoluteBoneOffsets[index] = relativeBoneOffsets[index] * absoluteBoneOffsets[bone.parent]
+                        
+                        #empirical blender tests + paper v2
+                        absoluteBoneOffsets[index] =  absoluteBoneOffsets[bone.parent] * relativeBoneOffsets[index]
+                        
                         # test - force identity DELETEME
                         # relativeBoneOffsets[index] = absoluteBoneOffsets[index] = mathutils.Matrix([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
                         
