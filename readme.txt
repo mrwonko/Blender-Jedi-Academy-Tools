@@ -33,6 +33,10 @@ Jedi Academy imposes some further restrictions, for example:
 
 File paths in glm files are basically relative to GameData/Base/ or GameData/YourMod/. Using the "Base Path" option you can define relative to which folder they should be interpreted. Can be left empty if the file's path includes /GameData/.
 
+Notes:
+  * The "off" flag is ignored by modelview - it hides surfaces that end in "_off"
+  * The X-Axis of a tag-surface goes from vertex 2 towards vertex 0, Y from 1 towards 2. In Raven models, the short leg is the X axis, the long one the Y axis, with the origin being at the right angle.
+
 
 === Creating new Jedi Academy Animations ===
 

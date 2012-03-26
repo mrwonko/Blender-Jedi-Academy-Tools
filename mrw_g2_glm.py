@@ -44,6 +44,11 @@ def buildBoneIndexLookupMap(gla_filepath_abs):
         boneIndices[bone.name] = bone.index
     return boneIndices, "all right"
 
+def getName(object):
+    if object.g2_prop_name != "":
+        return object.g2_prop_name
+    return object.name
+
 class GetBoneWeightException(Exception):
     pass
 
@@ -194,9 +199,7 @@ class MdxmSurfaceData:
             self.children.append(struct.unpack("i", file.read(4))[0])
     
     def loadFromBlender(self, object, surfaceIndexMap):
-        self.name = object.g2_prop_name.encode()
-        if self.name == b"":
-            self.name = object.name.encode()
+        self.name = getName(object).encode()
         self.shader = object.g2_prop_shader.encode()
         # set flags
         self.flags = 0
@@ -205,8 +208,8 @@ class MdxmSurfaceData:
         if object.g2_prop_tag:
             self.flags |= mrw_g2_constants.SURFACEFLAG_TAG
         # set parent
-        if object.parent != None and "g2_prop_name" in object.parent and object.parent.g2_prop_name in surfaceIndexMap:
-            self.parentIndex = surfaceIndexMap[object.parent.g2_prop_name]
+        if object.parent != None and getName(object.parent)in surfaceIndexMap:
+            self.parentIndex = surfaceIndexMap[getName(object.parent)]
         # set children
         self.numChildren = 0
         from . import mrw_g2_panels
@@ -214,7 +217,7 @@ class MdxmSurfaceData:
             if child.type == 'MESH': # working around non-mesh garbage in the hierarchy would be too much trouble, everything below that is ignored
                 if not mrw_g2_panels.hasG2MeshProperties(child):
                     return False, "{} has no Ghoul 2 properties set!".format(child.name)
-                childName = child.g2_prop_name
+                childName = getName(child)
                 if childName not in surfaceIndexMap:
                     surfaceIndexMap[childName] = len(surfaceIndexMap)
                 self.children.append(surfaceIndexMap[childName])
@@ -255,9 +258,9 @@ class MdxmSurfaceDataCollection:
                     return False, "{} has no Ghoul 2 properties set! (Also, the exporter should've detected this earlier.)".format(child.name)
                 else:
                     # assign the child an index, if it doesn't have one already
-                    if child.g2_prop_name not in surfaceIndexMap:
-                        surfaceIndexMap[child.g2_prop_name] = len(surfaceIndexMap)
-                    index = surfaceIndexMap[child.g2_prop_name]
+                    if getName(child) not in surfaceIndexMap:
+                        surfaceIndexMap[getName(child)] = len(surfaceIndexMap)
+                    index = surfaceIndexMap[getName(child)]
                     # extend the surface list to include the index, if necessary
                     if index >= len(self.surfaces):
                         self.surfaces.extend([None] * (index + 1 - len(self.surfaces)))
@@ -357,9 +360,9 @@ class MdxmVertex:
     #boneIndices :: { string -> int } (bone name -> index, may be changed)
     def loadFromBlender(self, vertex, uv, boneIndices, meshObject, armatureObject):
         # I'm taking the world matrix in case the object is not at the origin, but I really want the coordinates in scene_root-space, so I'm using that, too.
-        scaleMat = bpy.data.objects["scene_root"].matrix_world.inverted()
-        co = scaleMat * meshObject.matrix_world * vertex.co
-        normal = meshObject.matrix_world.to_quaternion() * vertex.normal
+        rootMat = bpy.data.objects["scene_root"].matrix_world.inverted()
+        co = rootMat * meshObject.matrix_world * vertex.co
+        normal = rootMat.to_quaternion() * meshObject.matrix_world.to_quaternion() * vertex.normal
         for i in range(3):
             self.co.append(co[i])
             self.normal.append(normal[i])
@@ -467,6 +470,10 @@ class MdxmSurface:
         assert(len(self.boneReferences) == 0)
         self.boneReferences.extend(struct.unpack(str(self.numBoneReferences)+"i", file.read(4*self.numBoneReferences)))
         
+        print("surface {self.index}: numBoneReferences: {self.numBoneReferences}".format(self=self))
+        for i, boneRef in enumerate(self.boneReferences):
+            print("bone ref {}: {}".format(i, boneRef))
+        
         if file.tell() != startPos + self.ofsEnd:
             print("Warning: Surface structure unordered (bone references not last) or read error")
             file.seek(startPos + self.ofsEnd)
@@ -518,9 +525,13 @@ class MdxmSurface:
         assert(len(self.triangles) == self.numTriangles)
         
         # fill bone references
-        self.boneReferences = [None] * len(boneIndices)
-        for boneName, index in boneIndices.items():
-            self.boneReferences[index] = boneIndexMap[boneName]
+        global g_defaultSkeleton
+        if g_defaultSkeleton:
+            self.boneReferences = [0]
+        else:
+            self.boneReferences = [None] * len(boneIndices)
+            for boneName, index in boneIndices.items():
+                self.boneReferences[index] = boneIndexMap[boneName]
         
         self._calculateOffsets()
         return True, ""
@@ -710,7 +721,7 @@ class MdxmLOD:
         def addChildren(dict, object):
             for child in object.children:
                 if child.type == 'MESH' and mrw_g2_panels.hasG2MeshProperties(child):
-                    dict[child.g2_prop_name] = child
+                    dict[getName(child)] = child
                 addChildren(dict, child)
         available = {}
         addChildren(available, model_root)
