@@ -19,8 +19,8 @@
 bl_info = {
     "name": "Ghoul 2 format (.glm/.gla)",
     "author": "Willi Schinmeyer",
-    "blender": (2, 6, 0),
-    "api": 41226,
+    "blender": (2, 6, 2),
+    "api": 44136,
     "location": "File > Export",
     "description": "Imports and exports Ghoul 2 models and animations.",
     "warning": "",
