@@ -872,7 +872,7 @@ class GLM:
         return True, ""
     
     def loadFromBlender(self, glm_filepath_rel, gla_filepath_rel, basepath):
-        self.header.name = glm_filepath_rel.encode()
+        self.header.name = glm_filepath_rel.replace("\\", "/").encode()
         self.header.animName = gla_filepath_rel.encode()
         # create BoneName->BoneIndex lookup table based on GLA file (keeping in mind it might be "*default"/"")
         global g_defaultSkeleton
