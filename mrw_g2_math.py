@@ -47,8 +47,7 @@ class Matrix:
     def fromBlender(self, mat):
         mat = mathutils.Matrix(mat)
         mat.transpose() # row major <-> col major
-        if mat.row_size != 4 or mat.col_size != 4:
-            mat.to_4x4()
+        mat.to_4x4()
         self.rows = []
         for row in mat:
             l = []
