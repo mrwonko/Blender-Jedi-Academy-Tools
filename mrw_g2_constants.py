@@ -17,7 +17,7 @@
 # ##### END GPL LICENSE BLOCK #####
 
 # length of file path strings
-MAX_QPATH = 64 # even though I cannot change this: Should I change this I need to replace a lot of hardcoded 64s
+MAX_QPATH = 64 # even though I cannot change this: If I changed this I'd need to replace a lot of hardcoded 64s
 
 # gla format
 GLA_IDENT = b"2LGA"

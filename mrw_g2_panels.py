@@ -2,7 +2,7 @@ import bpy
 
 def hasG2MeshProperties(obj):
     """ Whether a given object has the ghoul 2 mesh-object properties """
-    return ("g2_prop_off" in obj) and ("g2_prop_tag" in obj) and ("g2_prop_name" in obj)
+    return ("g2_prop_off" in obj) and ("g2_prop_tag" in obj) and ("g2_prop_name" in obj) and ("g2_prop_shader" in obj)
 
 def hasG2ArmatureProperties(obj):
     """ Whether a given object has the ghoul 2 armature properties """
@@ -11,6 +11,7 @@ def hasG2ArmatureProperties(obj):
 def initG2Properties():
     """ globally initializes the ghoul 2 custom properties """
     bpy.types.Object.g2_prop_name = bpy.props.StringProperty(name="name", maxlen=64, default="", description="Name (in case it doesn't fit in Blender's Object Name, which is used if this is empty.)")
+    bpy.types.Object.g2_prop_shader = bpy.props.StringProperty(name="shader", maxlen=64, default="", description="Shader to use (the one and only way to set this)")
     bpy.types.Object.g2_prop_tag = bpy.props.BoolProperty(name="Tag", default=False, description="Whether this object represents a tag.")
     bpy.types.Object.g2_prop_off = bpy.props.BoolProperty(name="Off", default=False, description="Whether this object should be initially off (can be overridden in skin).")
     bpy.types.Object.g2_prop_scale = bpy.props.FloatProperty(name="Scale", default=100, min=0, subtype='PERCENTAGE', description="Scale of this skeleton.")
@@ -39,6 +40,9 @@ class G2PropertiesPanel(bpy.types.Panel):
                 
                 row = layout.row()
                 row.prop(obj, "g2_prop_name")
+                
+                row = layout.row()
+                row.prop(obj, "g2_prop_shader")
                 
                 row = layout.row()
                 row.prop(obj, "g2_prop_tag")

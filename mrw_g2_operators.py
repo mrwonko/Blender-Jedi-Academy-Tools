@@ -246,6 +246,8 @@ class ObjectAddG2Properties(bpy.types.Operator):
                 obj.g2_prop_tag = False
             if not "g2_prop_name" in obj:
                 obj.g2_prop_name = ""
+            if not "g2_prop_shader" in obj:
+                obj.g2_prop_shader = ""
         else:
             assert(obj.type == 'ARMATURE')
             if not "g2_prop_scale" in obj:
@@ -268,6 +270,7 @@ class ObjectRemoveG2Properties(bpy.types.Operator):
             bpy.types.Object.__delitem__(obj, "g2_prop_off")
             bpy.types.Object.__delitem__(obj, "g2_prop_tag")
             bpy.types.Object.__delitem__(obj, "g2_prop_name")
+            bpy.types.Object.__delitem__(obj, "g2_prop_shader")
         else:
             assert(obj.type == 'ARMATURE')
             bpy.types.Object.__delitem__(obj, "g2_prop_scale")

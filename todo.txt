@@ -1,8 +1,9 @@
-* model fromBlender (glm export in general)
 * model export option: strip texture paths (force .skin)
-* smoothing (optional?)
+* smoothing? (optional?)
 * better out of bounds error
 * Test
   * "*default" skeleton glm
   * gla override with invalid skeleton
   * in general all kinds of invalid input
+
+* update to 2.63 and its BMeshes - rking (freenode #blender) on that: "Here's what you need to know: import bmesh; b = bmesh.from_edit_mesh(obj.data)" "BTW, the .from_edit_mesh is for when you're in Edit Mode on that mesh (it will update right away for changes, but it will expire when you toggle Edit Mode). For a more durable reference, but not real-time: b = bmesh.new(); b.from_mesh(obj.data)"
