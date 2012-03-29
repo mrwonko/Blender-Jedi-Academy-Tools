@@ -630,6 +630,8 @@ class MdxmSurface:
             
             #  create vertex groups (indices will match)
             for index in self.boneReferences:
+                if index not in data.boneNames:
+                    raise Exception("Bone Index {} not in LookupTable!".format(index))
                 obj.vertex_groups.new(data.boneNames[index])
             
             #set weights
@@ -977,6 +979,8 @@ class GLM:
     # gla: mrw_g2_gla.GLA object - the Skeleton (for weighting purposes)
     # scene_root: "scene_root" object in Blender
     def saveToBlender(self, basepath, gla, scene_root, skin_rel, guessTextures):
+        if gla.header.numBones != self.header.numBones:
+            return False, "Bone number mismatch - gla has {} bones, model uses {}. Maybe you're trying to load a jk2 model with the jk3 skeleton or vice-versa?".format(gla.header.numBones, self.header.numBones)
         print("creating model...")
         profiler = mrw_profiler.SimpleProfiler(True)
         profiler.start("creating surfaces")
