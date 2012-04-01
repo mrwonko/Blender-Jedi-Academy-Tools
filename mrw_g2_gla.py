@@ -135,13 +135,13 @@ class MdxaBone:
         
         # set position
         mat = self.basePoseMat.toBlender()
-        pos = mathutils.Vector(mat[3][:3])
+        pos = mathutils.Vector(mat.translation)
         bone.head = pos
         # head is offset a bit.
-        x_axis = mathutils.Vector(mat[0][0:3]) # X points towards next bone.
+        x_axis = mathutils.Vector(mat.col[0][0:3]) # X points towards next bone.
         bone.tail = pos + x_axis*mrw_g2_constants.BONELENGTH
         # set roll
-        z_axis = mathutils.Vector(mat[2][0:3])
+        z_axis = mathutils.Vector(mat.col[2][0:3])
         bone.align_roll(z_axis)
         
         # set parent, if any, keeping in mind it might be overwritten
@@ -428,6 +428,7 @@ class MdxaAnimation:
             # absolute offset matrices by bone index
             offsets = {}
             for index in hierarchyOrder:
+                bpy.ops.object.mode_set(mode='POSE', toggle=False)
                 mdxaBone = skeleton.bones[index]
                 assert(mdxaBone.index == index)
                 bonePoolIndex = frame.boneIndices[index]
@@ -444,7 +445,8 @@ class MdxaAnimation:
                 mrw_g2_math.GLABoneRotToBlender(transformation)
                 
                 pose_bone = bones[index]
-                pose_bone.matrix = transformation * scaleMatrix
+                #pose_bone.matrix = transformation * scaleMatrix
+                pose_bone.matrix = transformation
                 pose_bone.scale = [1, 1, 1] # in the _humanoid face, the scale gets changed. that messes the re-export up.
                 pose_bone.keyframe_insert('location')
                 pose_bone.keyframe_insert('rotation_quaternion')

@@ -41,12 +41,10 @@ class Matrix:
     
     def toBlender(self):
         mat = mathutils.Matrix([self.rows[0], self.rows[1], self.rows[2], [0, 0, 0, 1]])
-        mat.transpose() # row major <-> col major
         return mat
     
     def fromBlender(self, mat):
         mat = mathutils.Matrix(mat)
-        mat.transpose() # row major <-> col major
         mat.to_4x4()
         self.rows = []
         for row in mat:
@@ -57,22 +55,22 @@ class Matrix:
 
 # changes a GLA bone's rotation matrix (X+ = front) to blender style (Y+ = front)
 def GLABoneRotToBlender(matrix):
-    new_x = -matrix[1].copy()
-    new_y = matrix[0].copy()
-    matrix[0] = new_x
-    matrix[1] = new_y
+    new_x = -matrix.col[1].copy()
+    new_y = matrix.col[0].copy()
+    matrix.col[0] = new_x
+    matrix.col[1] = new_y
     # undo change in last column
-    matrix[0][3], matrix[1][3] = matrix[1][3], -matrix[0][3]
+    matrix[3][0], matrix[3][1] = matrix[3][1], -matrix[3][0]
         
 
 # changes a blender bone's rotation matrix (Y+ = front) to GLA style (X+ = front)
 def BlenderBoneRotToGLA(matrix):
-    new_x = matrix[1].copy()
-    new_y = -matrix[0].copy()
-    matrix[0] = new_x
-    matrix[1] = new_y
+    new_x = matrix.col[1].copy()
+    new_y = -matrix.col[0].copy()
+    matrix.col[0] = new_x
+    matrix.col[1] = new_y
     # undo change in last column
-    matrix[0][3], matrix[1][3] = matrix[1][3], -matrix[0][3]
+    matrix[3][0], matrix[3][1] = matrix[3][1], -matrix[3][0]
 
 # compressed bones as used in GLA files
 #todo
@@ -101,7 +99,7 @@ class CompBone:
         #resize to 4x4 so we can add translation
         self.matrix.resize_4x4()
         #add translation
-        self.matrix[3] = loc
+        self.matrix.col[3] = loc
         assert(self.matrix[3][3] == 1)
         #convert to blender style
         #shouldn't be done until all offsets have been combined.
