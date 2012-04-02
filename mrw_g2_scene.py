@@ -55,6 +55,7 @@ class Scene:
         # create default skeleton if necessary (doing it here is a bit of a hack)
         if gla_filepath_rel == "*default":
             self.gla = mrw_g2_gla.GLA()
+            self.gla.header.numBones = 1
             self.gla.isDefault = True
             return True, ""
         success, gla_filepath_abs = mrw_g2_filesystem.FindFile(gla_filepath_rel, self.basepath, ["gla"])
