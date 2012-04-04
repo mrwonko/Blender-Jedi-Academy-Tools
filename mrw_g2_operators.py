@@ -276,12 +276,82 @@ class ObjectRemoveG2Properties(bpy.types.Operator):
             bpy.types.Object.__delitem__(obj, "g2_prop_scale")
         return{'FINISHED'}
 
+class GLAMetaExport(bpy.types.Operator):
+        '''Export GLA Metadata Operator.'''
+        bl_idname = "export_scene.gla_meta"
+        bl_label = "Export Ghoul 2 Animation metadata (.cfg)"
+        bl_description = "Exports timeline markers labelling the animations to a .cfg file"
+        bl_options = {'REGISTER', 'UNDO'}
+
+        filename_ext = "*.cfg"
+        
+        # properties
+        filepath = bpy.props.StringProperty(name="File Path", description="The filename to export to", maxlen=1024, default="", subtype='FILE_PATH')
+
+        def execute(self, context):
+            print("\n== GLA Metadata Export ==\n")
+            
+            startFrame = context.scene.frame_start
+            endFrame = context.scene.frame_end
+            fps = context.scene.render.fps
+            
+            class Marker:
+                def __init__(self, blenderMarker):
+                    self.name = blenderMarker.name
+                    self.start = blenderMarker.frame - startFrame # frames start at 0
+                    self.len = None #to be determined
+            
+            markers = []
+            maxLen = 23 # maximum name length, default minimum is 24
+            for marker in context.scene.timeline_markers:
+                if marker.frame >= startFrame and marker.frame <= endFrame:
+                    maxLen = max(maxLen, len(marker.name))
+                    markers.append(Marker(marker))
+            
+            if len(markers) == 0:
+                self.report({'No timeline markers found! Add Markers to label animations.'}, message)
+            
+            # sort by frame
+            markers.sort(key = lambda marker : marker.start)
+            
+            # determine length
+            last = None
+            for marker in markers:
+                if last:
+                    last.len = marker.start - last.start
+                last = marker
+            assert(last) # otherwise len(markers) == 0
+            last.len = endFrame - last.start + 1
+            
+            file = open(self.filepath, "w")
+            
+            # name, start, length, loop (always false, cannot be set yet), fps (always scene's fps currently)
+            pattern = "{:<" + str(maxLen) + "} {:<7} {:<7} {:<7} {}\n"
+            
+            file.write("// Animation Data generated from Blender Markers\n")
+            file.write(pattern.format("// name", "start", "length", "loop", "fps"))
+            
+            for marker in markers:
+                file.write(pattern.format(marker.name, marker.start, marker.len, 0, fps))
+            
+            file.close()
+            
+            return {'FINISHED'}
+
+        def invoke(self, context, event):
+            wm= context.window_manager
+            wm.fileselect_add(self)
+            return {'RUNNING_MODAL'}
+
 # menu button callback functions
 def menu_func_export_glm(self, context):
     self.layout.operator(GLMExport.bl_idname, text="Ghoul 2 model (.glm)")
 
 def menu_func_export_gla(self, context):
     self.layout.operator(GLAExport.bl_idname, text="Ghoul 2 skeleton/animation (.gla)")
+
+def menu_func_export_gla_meta(self, context):
+    self.layout.operator(GLAMetaExport.bl_idname, text="Ghoul 2 animation markers (.cfg)")
     
 def menu_func_import_glm(self, context):
     self.layout.operator(GLMImport.bl_idname, text="Ghoul 2 model (.glm)")
@@ -293,6 +363,7 @@ def menu_func_import_gla(self, context):
 def register():
     bpy.types.INFO_MT_file_export.append(menu_func_export_glm)
     bpy.types.INFO_MT_file_export.append(menu_func_export_gla)
+    bpy.types.INFO_MT_file_export.append(menu_func_export_gla_meta)
     bpy.types.INFO_MT_file_import.append(menu_func_import_glm)
     bpy.types.INFO_MT_file_import.append(menu_func_import_gla)
 
