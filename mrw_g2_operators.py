@@ -287,6 +287,7 @@ class GLAMetaExport(bpy.types.Operator):
         
         # properties
         filepath = bpy.props.StringProperty(name="File Path", description="The filename to export to", maxlen=1024, default="", subtype='FILE_PATH')
+        offset = bpy.props.IntProperty(name="Offset", description="Frame offset for the animations, e.g. 21376 if you plan on merging with Jedi Academy's _humanoid.gla", min=0, default=0)
 
         def execute(self, context):
             print("\n== GLA Metadata Export ==\n")
@@ -332,7 +333,7 @@ class GLAMetaExport(bpy.types.Operator):
             file.write(pattern.format("// name", "start", "length", "loop", "fps"))
             
             for marker in markers:
-                file.write(pattern.format(marker.name, marker.start, marker.len, 0, fps))
+                file.write(pattern.format(marker.name, marker.start + self.offset, marker.len, 0, fps))
             
             file.close()
             
