@@ -59,17 +59,22 @@ def GLABoneRotToBlender(matrix):
     new_y = matrix.col[0].copy()
     matrix.col[0] = new_x
     matrix.col[1] = new_y
-    # undo change in last column
+    # undo change in translation
     matrix[3][0], matrix[3][1] = matrix[3][1], -matrix[3][0]
-        
+    
+    # also, roll 90 degrees
+    matrix[0][0], matrix[1][0], matrix[2][0], matrix[0][2], matrix[1][2], matrix[2][2] = -matrix[0][2], -matrix[1][2], -matrix[2][2], matrix[0][0], matrix[1][0], matrix[2][0]
 
 # changes a blender bone's rotation matrix (Y+ = front) to GLA style (X+ = front)
 def BlenderBoneRotToGLA(matrix):
+    # undo roll 90 degrees
+    matrix[0][0], matrix[1][0], matrix[2][0], matrix[0][2], matrix[1][2], matrix[2][2] = matrix[0][2], matrix[1][2], matrix[2][2], -matrix[0][0], -matrix[1][0], -matrix[2][0]
+    
     new_x = matrix.col[1].copy()
     new_y = -matrix.col[0].copy()
     matrix.col[0] = new_x
     matrix.col[1] = new_y
-    # undo change in last column
+    # undo change in translation
     matrix[3][0], matrix[3][1] = matrix[3][1], -matrix[3][0]
 
 # compressed bones as used in GLA files

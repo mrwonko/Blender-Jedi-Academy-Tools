@@ -141,8 +141,8 @@ class MdxaBone:
         x_axis = mathutils.Vector(mat.col[0][0:3]) # X points towards next bone.
         bone.tail = pos + x_axis*mrw_g2_constants.BONELENGTH
         # set roll
-        z_axis = mathutils.Vector(mat.col[2][0:3])
-        bone.align_roll(z_axis)
+        y_axis = -mathutils.Vector(mat.col[1][0:3])
+        bone.align_roll(y_axis)
         
         # set parent, if any, keeping in mind it might be overwritten
         parentIndex = self.parent
