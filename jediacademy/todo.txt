@@ -1,0 +1,1 @@
+For better performance use low-level keyframe functions, see http://www.blender.org/documentation/blender_python_api_2_64_5/info_quickstart.html#animation
