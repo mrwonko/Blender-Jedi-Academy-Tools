@@ -2,7 +2,7 @@
 
 %opening
 \title{Blender Jedi Academy Plugin Suite Manual}
-\author{Willi "mrwonko" Schinmeyer}
+\author{Willi ``mrwonko'' Schinmeyer}
 
 \begin{document}
  
@@ -55,11 +55,11 @@
  \section{Installation}
  
  Open the User Preferences (File/User Preferences or Ctrl+Alt+U), go to the Addons tab and press there
- "Install from File" button. Select the zip archive containing the addon. If you wish to manually install the
+ ``Install from File'' button. Select the zip archive containing the addon. If you wish to manually install the
  addon, refer to the Add-Ons section of the Blender Manual for the correct paths.
  
  Once installed, don't forget to enable the addon. It's located in the Import-Export category and called
- "Import-Export: Jedi Academy Import/Export Tools". Then click Save User Settings so it'll still be activated
+ ``Import-Export: Jedi Academy Import/Export Tools''. Then click Save User Settings so it'll still be activated
  the next time you start Blender.
  
  \section{ASE}
@@ -72,7 +72,7 @@
  
  \subsection{ASE Exporter}
  
- Located in "File/Export/JA ASE (.ase)" or invoked by entering "Export JA ASE (.ase)" in the Search Window
+ Located in ``File/Export/JA ASE (.ase)'' or invoked by entering ``Export JA ASE (.ase)'' in the Search Window
  opened by default with Space.
  
  Things to keep in mind:
@@ -89,7 +89,7 @@
  
  \subsection{ASE Importer}
  
- Located in "File/Import/JA ASE (.ase)" or invoked by entering "Import JA ASE (.ase)" in the Search Window
+ Located in ``File/Import/JA ASE (.ase)'' or invoked by entering ``Import JA ASE (.ase)'' in the Search Window
  opened by default with Space.
  
  Not much to say about this one... Imports meshes with uv coordinates from an .ase file, ignoring pretty much
@@ -107,7 +107,7 @@
  
  \subsection{ROFF Exporter}
  
- Located in "File/Export/JA ROFF (.rof)" or invoked by entering "Export JA ROFF (.rof)" in the Search Window
+ Located in ``File/Export/JA ROFF (.rof)'' or invoked by entering ``Export JA ROFF (.rof)'' in the Search Window
  opened by default with Space.
  
  Features:
@@ -121,7 +121,7 @@
 
  \subsection{ROFF Importer}
  
- Located in "File/Import/JA ROFF (.rof)" or invoked by entering "Import JA ROFF (.rof)" in the Search Window
+ Located in ``File/Import/JA ROFF (.rof)'' or invoked by entering ``Import JA ROFF (.rof)'' in the Search Window
  opened by default with Space.
  
  Features:
@@ -142,7 +142,7 @@
  
  \subsection{MD3 Exporter}
  
- Located in "File/Export/JA MD3 (.md3)" or invoked by entering "Export MD3" in the Search Window
+ Located in ``File/Export/JA MD3 (.md3)'' or invoked by entering ``Export MD3'' in the Search Window
  opened by default with Space.
  
  Acknowledgement: I did not originally write this exporter, I improved upon one I found online which was at
@@ -154,14 +154,14 @@
  \begin{itemize}
   \item Exports \emph{animated} MD3 models. So if you don't want animations, make sure to set the Blender
   End Frame to the same as the Start Frame or your model will turn out needlessly large.
-  \item Looks for a custom property called "md3shader" on the \emph{objects} to determine the texture to use.
+  \item Looks for a custom property called ``md3shader'' on the \emph{objects} to determine the texture to use.
   (Make sure not to put the custom property on the mesh.) 
   \item Exports only selected objects.
   \item Mesh objects get exported as meshes.
   \item Empty objects get exported as tags.
   \item Can be scaled and offset using the corresponding Export settings.
-  \item The "MD3 Name" Export setting should be set to the path of your model including the extension, e.g.\\
-  "models/map\_objects/imperial/field\_post.md3".
+  \item The ``MD3 Name'' Export setting should be set to the path of your model including the extension, e.g.\\
+  ``models/map\_objects/imperial/field\_post.md3''.
   \item Make sure your model does not exceed the [-512; 512) range or you'll get a struct.error on export.
  \end{itemize}
 
@@ -195,7 +195,7 @@
   \item Names must be no longer than 64 characters (bones, objects etc.).
   \item UV coordinates are per-vertex, meaning that any single vertex can only have one UV coordinate. This
   necessitates splitting the mesh at UV seams, which can for example be achieved by also marking seams as
-  "sharp" and using the "Edge Split" modifier to split at those sharp edges.
+  ``sharp'' and using the ``Edge Split'' modifier to split at those sharp edges.
   \item Bones must not be scaled. The file format only saves location and rotation and applying scale anyway
   while lead to (visually) broken animations.
   \item Bone must not move further than 512 units away from their base pose.
@@ -212,10 +212,10 @@
  
  \subsubsection{Hierarchy}
  
- The root object is called "scene\_root" and will likely be an Empty. Its children are the Armature, called
- "skeleton\_root", if any, and the different LODs, name "model\_root\_\emph{[LOD]}", where [LOD] is the Level
+ The root object is called ``scene\_root'' and will likely be an Empty. Its children are the Armature, called
+ ``skeleton\_root'', if any, and the different LODs, name ``model\_root\_\emph{[LOD]}'', where [LOD] is the Level
  of Detail starting at 0 for the most detailled one. The actual hierarchy below that only matters for LOD 0,
- because the others mirror it. "model\_root\_0" should have a single child, which corresponds to the root
+ because the others mirror it. ``model\_root\_0'' should have a single child, which corresponds to the root
  object in the GLM, and below that the hierarchy is up to you, as far as the exporter is concerned (for proper
  dismemberment in Jedi Academy you'll need to adhere to a certain pattern though, look at existing  models
  for reference).
@@ -225,8 +225,8 @@
  To be able to match the objects across LODs they need the same name. This is impossible in Blender, object
  names are unique, so the exporter uses a custom property instead. (In theory a prefix would be possible as
  well, this solution is a leftover from the olden days when names were severly limited in length.) For easier
- management of the custom properties the Plugin adds a new Panel to the Object Properties called "Ghoul 2
- Properties". For an object without the required Custom Properties it consists of a "Add G2 properties" button.
+ management of the custom properties the Plugin adds a new Panel to the Object Properties called ``Ghoul 2
+ Properties''. For an object without the required Custom Properties it consists of a ``Add G2 properties'' button.
  Press it to add the properties.
  
  Note that for all LODs except the first one (LOD 0), only the name is used since the properties are
@@ -255,32 +255,32 @@
  
  \subsection{GLM Import}
  
- Located in "File/Import/JA Ghoul 2 model (.glm)" or invoked by entering "Import JA Ghoul 2 model (.glm)"
+ Located in ``File/Import/JA Ghoul 2 model (.glm)'' or invoked by entering ``Import JA Ghoul 2 model (.glm)''
  in the Search Window opened by default with Space.
  
  \subsubsection*{Settings}
  
  \paragraph*{Skin}
- If you'd like to load the textures from a skin file, enter its name here. If the model is called "model.glm"
- and you'd like to use "model\_blue.skin", just enter "blue".
+ If you'd like to load the textures from a skin file, enter its name here. If the model is called ``model.glm''
+ and you'd like to use ``model\_blue.skin'', just enter ``blue''.
  
  \paragraph*{Guess Textures}
  Since Jedi Academy uses skin files, the actual textures specified in the GLM are ignored. It's probably for
  that reason that their first character is replaced by the end-of-string symbol. Guessing the original first
- character is not so hard if the path is "?odels/players/..." though, so tick this box to make the importer
+ character is not so hard if the path is ``?odels/players/...'' though, so tick this box to make the importer
  try to figure it out. You're advised to just use the Skin setting instead though.
  
  \paragraph*{Base Path}
  The importer tries to load the textures and apply them to the model, as well as the matching .gla. To be able
  to do that, it needs to know where to look. It will try to examine the path of the opened file, looking for
- "GameData" in it. If you're using a non-standard folder layout that may fail, so you can enter a custom path
+ ``GameData'' in it. If you're using a non-standard folder layout that may fail, so you can enter a custom path
  to be prepended to textures when searching.
  
  \paragraph*{.gla override}
  GLM files reference the GLA they're for (for Jedi Academy's playermodels that's
- "models/players/\_humanoid/\_humanoid.gla") and the importer loads the skeleton as well. Here you can set
+ ``models/players/\_humanoid/\_humanoid.gla'') and the importer loads the skeleton as well. Here you can set
  a different GLA to use instead, using Jedi Academy's base-relative notation (e.g.\\
- "models/players/\_humanoid\_kor1/\_humanoid\_kor1.gla"). This will only work if the number of bones matches.
+ ``models/players/\_humanoid\_kor1/\_humanoid\_kor1.gla''). This will only work if the number of bones matches.
  
  \paragraph*{Scale}
  A scale to apply, since using a 1:1 conversion from Jedi Academy units (roughly an inch each) to Blender
@@ -290,11 +290,11 @@
  \paragraph*{Skeleton changes}
  Jedi Academy uses a Skeleton/Armature that's a little strange in places. For example the lower arms are not
  children of the upper arms, making animation quite the pain. The plugin can automatically correct the
- default skeleton in that regard if you select "Jedi Academy \_humanoid" here. Animations will still be
+ default skeleton in that regard if you select ``Jedi Academy \_humanoid'' here. Animations will still be
  properly applied and exporting works with a changed hierarchy, too -- the plugin will do the required math.
  
  \paragraph*{Animations}
- If you want to import animations, make sure not to set this to "None". Importing all frames takes forever
+ If you want to import animations, make sure not to set this to ``None''. Importing all frames takes forever
  though, and Blender can't handle it very well either -- that's because in GLA files every frame is a keyframe
  and there's over 20000 of them in Jedi Academy's \_humanoid.gla. For that reason there's an option to import
  only a range.
@@ -310,8 +310,8 @@
  
  \subsection{GLA Import}
  
- Located in "File/Import/JA Ghoul 2 skeleton/animation (.gla)" or invoked by entering "Import JA Ghoul 2
- skeleton (.glm)" in the Search Window opened by default with Space.
+ Located in ``File/Import/JA Ghoul 2 skeleton/animation (.gla)'' or invoked by entering ``Import JA Ghoul 2
+ skeleton (.glm)'' in the Search Window opened by default with Space.
  
  \subsubsection*{Settings}
  
@@ -320,7 +320,7 @@
  
  \subsection{GLM Export}
  
- Located in "File/Export/JA Ghoul 2 model (.glm)" or invoked by entering "Export JA Ghoul 2 model (.glm)"
+ Located in ``File/Export/JA Ghoul 2 model (.glm)'' or invoked by entering ``Export JA Ghoul 2 model (.glm)''
  in the Search Window opened by default with Space.
  
  \subsubsection*{Settings}
@@ -330,14 +330,14 @@
  
  \paragraph*{.gla name}
  Which skeleton this model uses, since internall no bone names are used, just indices, so the exporter has
- to look them up. Use Jedi Academy's base-relative notation, e.g. "models/players/\_humanoid/\_humanoid.gla".
+ to look them up. Use Jedi Academy's base-relative notation, e.g. ``models/players/\_humanoid/\_humanoid.gla''.
  Some models, like weapons, have no skeleton - leave this empty in that case.
  
  
  \subsection{GLA Export}
  
- Located in "File/Export/JA Ghoul 2 skeleton/animation (.gla)" or invoked by entering "Export JA Ghoul 2 
- Skeleton \& Animation (.gla)" in the Search Window opened by default with Space.
+ Located in ``File/Export/JA Ghoul 2 skeleton/animation (.gla)'' or invoked by entering ``Export JA Ghoul 2 
+ Skeleton \& Animation (.gla)'' in the Search Window opened by default with Space.
  
  \subsubsection*{Settings}
  
@@ -357,8 +357,8 @@
  
  \subsection{animation.cfg Export}
  
- Located in "File/Export/JA Ghoul 2 animation markers (.cfg)" or invoked by entering "Export JA Ghoul 2 
- Animation metadata (.cfg)" in the Search Window opened by default with Space.
+ Located in ``File/Export/JA Ghoul 2 animation markers (.cfg)'' or invoked by entering ``Export JA Ghoul 2 
+ Animation metadata (.cfg)'' in the Search Window opened by default with Space.
  
  GLA files only contain tons of frames. In order for the game to know which ones belong to which animation
  a separate file is used -- the animation.cfg. To automatically create that, add a Time Marker in the Timeline
