@@ -329,7 +329,7 @@ class GLAMetaExport(bpy.types.Operator):
                     last.len = marker.start - last.start
                 last = marker
             assert(last) # otherwise len(markers) == 0
-            last.len = endFrame - last.start + 1
+            last.len = endFrame - last.start
             
             file = open(self.filepath, "w")
             

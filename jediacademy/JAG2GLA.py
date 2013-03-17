@@ -120,7 +120,7 @@ class MdxaBone:
         for child in self.children:
             file.write(struct.pack("i", child))
     
-    def loadFromBlender(self, editbone, boneIndicesByName, bones):
+    def loadFromBlender(self, editbone, boneIndicesByName, bones, objLocalMat):
         # set name
         self.name = editbone.name
         
@@ -135,7 +135,7 @@ class MdxaBone:
             parent.children.append(self.index)
         
         # save (inverted) base pose matrix
-        mat = editbone.matrix.copy()
+        mat = objLocalMat * editbone.matrix
         JAG2Math.BlenderBoneRotToGLA(mat) # must not be used for blender-internal calculations anymore!
         matInv = mat.inverted()
         self.basePoseMat.fromBlender(mat)
@@ -538,6 +538,9 @@ class GLA:
         self.skeleton_object.select = True
         self.skeleton_object.hide = False
         
+        # in case of rescaled/moved skeleton object: get transformation (assuming we're a child of scene_root)
+        localMat = self.skeleton_object.matrix_local
+        
         # if there's a reference GLA (for bone indices), load that
         if gla_reference_abs != "":
             print("Using reference GLA skeleton - warning: there's no check beyond bone names (hierarchy, base pose etc.)")
@@ -563,6 +566,7 @@ class GLA:
         
         # or no reference GLA? build new skeleton then.
         else:
+            
             # enter edit mode so we can access editbones
             bpy.ops.object.mode_set(mode='EDIT')
             
@@ -581,7 +585,7 @@ class GLA:
                         newBone.index = len(self.skeleton.bones)
                         
                         # read the rest from the editbone
-                        newBone.loadFromBlender(bone, self.boneIndexByName, self.skeleton.bones)
+                        newBone.loadFromBlender(bone, self.boneIndexByName, self.skeleton.bones, localMat)
                         
                         # append bone
                         self.skeleton.bones.append(newBone)
@@ -640,8 +644,8 @@ class GLA:
                     basebone = self.skeleton_armature.bones[bone.name]
                     posebone = self.skeleton_object.pose.bones[bone.name]
                     
-                    basePoseMat = basebone.matrix_local.copy()
-                    poseMat = posebone.matrix.copy()
+                    basePoseMat = localMat * basebone.matrix_local
+                    poseMat = localMat * posebone.matrix
                     
                     # change rotation axes from blender style to gla style
                     JAG2Math.BlenderBoneRotToGLA(basePoseMat)
