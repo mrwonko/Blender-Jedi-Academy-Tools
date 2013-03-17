@@ -20,7 +20,7 @@ bl_info = {
     "name": "Jedi Academy Import/Export Tools",
     "author": "mrwonko et al",
     "description": "Various Jedi Knight: Jedi Academy related tools: Importers for ASE, GLA, GLM, ROFF and Exporters for ASE, GLA, GLM, animation.cfg, ROFF and MD3",
-    "version": (0, 1),
+    "version": (0, 2, 1),
     "blender": (2, 6, 3),
     "location": "File > Import/Export",
     "category": "Import-Export"
