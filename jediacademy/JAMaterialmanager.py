@@ -22,7 +22,7 @@ if 'JAFilesystem' in locals():
 else:
     from . import JAFilesystem
 if 'JAStringhelper' in locals():
-    imp.reload( 'JAStringhelper' )
+    imp.reload( JAStringhelper )
 else:
     from . import JAStringhelper
 

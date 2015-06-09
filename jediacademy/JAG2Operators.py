@@ -17,6 +17,7 @@
 # ##### END GPL LICENSE BLOCK #####
 
 import bpy
+import imp
 if 'JAG2Scene' in locals():
     imp.reload( JAG2Scene )
 else:

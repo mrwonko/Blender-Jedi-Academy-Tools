@@ -16,6 +16,7 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
+import imp
 if 'JAStringhelper' in locals():
     imp.reload( JAStringhelper )
 else:

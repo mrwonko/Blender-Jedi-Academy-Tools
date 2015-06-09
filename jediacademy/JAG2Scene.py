@@ -18,6 +18,7 @@
 
 # Main File containing the important definitions
 
+import imp
 if 'JAFilesystem' in locals():
     imp.reload( JAFilesystem )
 else:
