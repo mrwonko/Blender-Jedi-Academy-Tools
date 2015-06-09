@@ -56,16 +56,16 @@ class Operator(bpy.types.Operator):
             
             scn.frame_set(scn.frame_start)
             #init these
-            lastpos = obj.location.copy()
-            lastrot = obj.rotation_euler.copy()
+            lastpos = obj.matrix_world.translation.copy()
+            lastrot = obj.matrix_world.to_euler()
             
             #first frame has no change (roff is relative), hence it is skipped
             for curFrame in range(scn.frame_start + 1, scn.frame_end + 1):
                 scn.frame_set(curFrame)
                 #print("exporting frame {}".format(scn.frame_current))
                 
-                pos = obj.location
-                rot = obj.rotation_euler
+                pos = obj.matrix_world.translation
+                rot = obj.matrix_world.to_euler()
                 
                 #rotation: y z x
                 file.write(struct.pack("6f2i", (pos[0] - lastpos[0])*self.scale, (pos[1] - lastpos[1])*self.scale, (pos[2] - lastpos[2])*self.scale, math.degrees(rot[1] - lastrot[1]), math.degrees(rot[2] - lastrot[2]), math.degrees(rot[0] - lastrot[0]), -1, 0))
