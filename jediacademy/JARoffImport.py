@@ -85,4 +85,4 @@ class Operator(bpy.types.Operator):
 			return
 
 def menu_func(self, context):
-    self.layout.operator(Operator.bl_idname, text="JA ROFF (.rof)")
+	self.layout.operator(Operator.bl_idname, text="JA ROFF (.rof)")
