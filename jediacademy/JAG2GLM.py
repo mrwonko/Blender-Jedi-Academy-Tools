@@ -385,11 +385,11 @@ class MdxmVertex:
 	#vertex :: Blender MeshVertex
 	#uv :: [int, int] (blender style, will be y-flipped)
 	#boneIndices :: { string -> int } (bone name -> index, may be changed)
-	def loadFromBlender(self, vertex, uv, boneIndices, meshObject, armatureObject):
+	def loadFromBlender(self, index, vertex, uv, boneIndices, meshObject, armatureObject):
 		# I'm taking the world matrix in case the object is not at the origin, but I really want the coordinates in scene_root-space, so I'm using that, too.
 		rootMat = bpy.data.objects["scene_root"].matrix_world.inverted()
 		co = rootMat * meshObject.matrix_world * vertex.co
-		normal = rootMat.to_quaternion() * meshObject.matrix_world.to_quaternion() * vertex.normal
+		normal = rootMat.to_quaternion() * meshObject.matrix_world.to_quaternion() * meshObject.data.loops[index].normal
 		for i in range(3):
 			self.co.append(co[i])
 			self.normal.append(normal[i])
@@ -514,42 +514,53 @@ class MdxmSurface:
 			return False, "Object is not of type Mesh!"
 		mesh = object.data
 		
-		self.numVerts = len(mesh.vertices)
+		mesh.calc_normals_split()
+		
+		self.numVerts = len(mesh.loops)
 		self.numTriangles = len(mesh.polygons)
 		
 		if self.numVerts > 1000:
 			print("Warning: {} has over 1000 vertices ({})".format(object.name, self.numVerts))
 		
 		# create UV lookup map
-		UVs = [None] * self.numVerts
+		UVs = [0] * self.numVerts
 		first = True
-		uv_layer = mesh.uv_layers.active
+		uv_layer = mesh.uv_layers.active.data
 		if not uv_layer:
 			return False, "No UV coordinates found!"
-		uv_loops = uv_layer.data[:]
+			
 		for face in mesh.polygons:
 			if len(face.vertices) != 3:
 				return False, "Non-triangle face found!"
-			for vertexIndex, uv in zip(face.vertices, [ uv_loops[face.loop_start + i].uv for i in range( 3 )]):
-				if UVs[vertexIndex]: #already had UV coordinates for this face?
-					if not vectorsAlmostEqual(uv, UVs[vertexIndex]): # better be the same then
+			for loop_index in range(face.loop_start, face.loop_start + face.loop_total):
+				loop = mesh.loops[loop_index]
+				if UVs[loop.vertex_index]:
+					if not vectorsAlmostEqual(uv_layer[loop_index].uv, UVs[loop.vertex_index]): # better be the same then
 						return False, "UV seam found! Split meshes at UV seams."
 				else:
-					UVs[vertexIndex] = uv
+					UVs[loop.vertex_index] = uv_layer[loop_index].uv
 		
 		if UVs.count(None) > 0:
 			return False, "Vertex without UV coordinates found!"
 		
+		
 		# bone name -> index, filled by vertices
 		boneIndices = {}
-		for sourceVertex, uv in zip(mesh.vertices, UVs):
+		for loop in mesh.loops:
+			sourceVertex = mesh.vertices[loop.vertex_index]
+			uv = UVs[loop.vertex_index]
 			vertex = MdxmVertex()
-			success, message = vertex.loadFromBlender(sourceVertex, uv, boneIndices, object, armatureObject)
+			success, message = vertex.loadFromBlender(loop.index, sourceVertex, uv, boneIndices, object, armatureObject)
 			if not success:
 				return False, "Could not load a vertex: {}".format(message)
 			self.vertices.append(vertex)
-		
-		self.triangles = [MdxmTriangle([face.vertices[0], face.vertices[1], face.vertices[2]]) for face in mesh.polygons]
+			
+		self.triangles = []
+		for face in mesh.polygons:
+			v1 = mesh.loops[face.loop_start].index
+			v2 = mesh.loops[face.loop_start + 1].index
+			v3 = mesh.loops[face.loop_start + 2].index
+			self.triangles.append(MdxmTriangle([v1, v2, v3]))
 		
 		assert(len(self.vertices) == self.numVerts)
 		assert(len(self.triangles) == self.numTriangles)
