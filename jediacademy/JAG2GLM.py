@@ -385,11 +385,11 @@ class MdxmVertex:
 	#vertex :: Blender MeshVertex
 	#uv :: [int, int] (blender style, will be y-flipped)
 	#boneIndices :: { string -> int } (bone name -> index, may be changed)
-	def loadFromBlender(self, index, vertex, uv, boneIndices, meshObject, armatureObject):
+	def loadFromBlender(self, vertex, uv, normal, boneIndices, meshObject, armatureObject):
 		# I'm taking the world matrix in case the object is not at the origin, but I really want the coordinates in scene_root-space, so I'm using that, too.
 		rootMat = bpy.data.objects["scene_root"].matrix_world.inverted()
 		co = rootMat * meshObject.matrix_world * vertex.co
-		normal = rootMat.to_quaternion() * meshObject.matrix_world.to_quaternion() * meshObject.data.loops[index].normal
+		normal = rootMat.to_quaternion() * meshObject.matrix_world.to_quaternion() * normal
 		for i in range(3):
 			self.co.append(co[i])
 			self.normal.append(normal[i])
@@ -514,53 +514,54 @@ class MdxmSurface:
 			return False, "Object is not of type Mesh!"
 		mesh = object.data
 		
-		mesh.calc_normals_split()
-		
-		self.numVerts = len(mesh.loops)
-		self.numTriangles = len(mesh.polygons)
-		
-		if self.numVerts > 1000:
-			print("Warning: {} has over 1000 vertices ({})".format(object.name, self.numVerts))
-		
-		# create UV lookup map
-		UVs = [0] * self.numVerts
-		first = True
+		if mesh.has_custom_normals:
+			mesh.calc_normals_split()
+			
+		if object.name.startswith("*"):
+			mesh.flip_normals()
+			
 		uv_layer = mesh.uv_layers.active.data
 		if not uv_layer:
 			return False, "No UV coordinates found!"
 			
+		protoverts = []
+		boneIndices = {}
+		
 		for face in mesh.polygons:
+			triangle = []
 			if len(face.vertices) != 3:
 				return False, "Non-triangle face found!"
-			for loop_index in range(face.loop_start, face.loop_start + face.loop_total):
-				loop = mesh.loops[loop_index]
-				if UVs[loop.vertex_index]:
-					if not vectorsAlmostEqual(uv_layer[loop_index].uv, UVs[loop.vertex_index]): # better be the same then
-						return False, "UV seam found! Split meshes at UV seams."
+			for i in range(3):
+				loop = mesh.loops[face.loop_start + i]
+				v = loop.vertex_index
+				u = uv_layer[loop.index].uv
+				n = loop.normal if mesh.has_custom_normals else mesh.vertices[loop.vertex_index].normal
+				
+				proto_found = -1
+				for j in range(len(protoverts)):
+					proto = protoverts[j]
+					if proto[0] == v and proto[1] == u and proto[2] == n:
+						proto_found = j
+						break
+				
+				if proto_found >= 0:
+					triangle.append(proto_found)
 				else:
-					UVs[loop.vertex_index] = uv_layer[loop_index].uv
+					vertex = MdxmVertex()
+					success, message = vertex.loadFromBlender(mesh.vertices[v], u, n, boneIndices, object, armatureObject)
+					protoverts.append((v, u, n))
+					self.vertices.append(vertex)
+					triangle.append(len(protoverts) - 1)
+			self.triangles.append(MdxmTriangle(triangle))
 		
-		if UVs.count(None) > 0:
-			return False, "Vertex without UV coordinates found!"
+		self.numVerts = len(protoverts)
+		self.numTriangles = len(mesh.polygons)
 		
-		
-		# bone name -> index, filled by vertices
-		boneIndices = {}
-		for loop in mesh.loops:
-			sourceVertex = mesh.vertices[loop.vertex_index]
-			uv = UVs[loop.vertex_index]
-			vertex = MdxmVertex()
-			success, message = vertex.loadFromBlender(loop.index, sourceVertex, uv, boneIndices, object, armatureObject)
-			if not success:
-				return False, "Could not load a vertex: {}".format(message)
-			self.vertices.append(vertex)
+		if self.numVerts > 1000:
+			print("Warning: {} has over 1000 vertices ({})".format(object.name, self.numVerts))
 			
-		self.triangles = []
-		for face in mesh.polygons:
-			v1 = mesh.loops[face.loop_start].index
-			v2 = mesh.loops[face.loop_start + 1].index
-			v3 = mesh.loops[face.loop_start + 2].index
-			self.triangles.append(MdxmTriangle([v1, v2, v3]))
+		if object.name.startswith("*"): #flip these back I guess???
+			mesh.flip_normals()
 		
 		assert(len(self.vertices) == self.numVerts)
 		assert(len(self.triangles) == self.numTriangles)
