@@ -512,7 +512,7 @@ class MdxmSurface:
 	def loadFromBlender(self, object, boneIndexMap, armatureObject):
 		if object.type != 'MESH':
 			return False, "Object is not of type Mesh!"
-		mesh = object.data
+		mesh = object.to_mesh(bpy.context.scene, True, 'RENDER')
 		
 		if mesh.has_custom_normals:
 			mesh.calc_normals_split()
