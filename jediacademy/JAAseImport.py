@@ -223,7 +223,7 @@ class Operator(bpy.types.Operator):
 				mesh.polygons.foreach_set( "loop_total", (3,) * numTris )
 				mesh.loops.foreach_set( "vertex_index", self.faces )
 				
-				mesh.uv_textures.new() #creates a new uv_layer
+				mesh.uv_layers.new() #creates a new uv_layer
 				uv_loops = mesh.uv_layers.active.data[:]
 				for poly, tface in zip(mesh.polygons, self.tfaces):
 					for ofs, tvertIndex in enumerate( tface ):
@@ -245,7 +245,7 @@ class Operator(bpy.types.Operator):
 				# add object
 				
 				obj = bpy.data.objects.new( "ASEObject", mesh )
-				bpy.context.scene.objects.link( obj ) # remember scene.update() later!
+				bpy.context.scene.collection.objects.link( obj ) # remember scene.update() later!
 		
 		objects = []
 		

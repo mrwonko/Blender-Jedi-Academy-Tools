@@ -81,7 +81,7 @@ class MaterialManager():
 		if not success:
 			print("Texture not found: \"", shader, "\"", sep="")
 			# make it pink though
-			mat.diffuse_color = (1, 0, 1)
+			mat.diffuse_color = (1, 0, 1, 1)
 			return mat
 		
 		#load image

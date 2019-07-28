@@ -655,16 +655,10 @@ class MdxmSurface:
 		
 		#create uv coordinates
 		material = data.materialManager.getMaterial(name, surfaceData.shader)
-		image = None
-		if material and material.active_texture:
-			assert(material.active_texture.type == 'IMAGE')
-			image = material.active_texture.image
 		
-		uv_faces = mesh.uv_textures.new().data
+		uv_faces = mesh.uv_layers.new().data
 		uv_loops = mesh.uv_layers.active.data[:]
 		for poly, uv_face in zip( mesh.polygons, uv_faces ):
-			uv_face.image = image
-			
 			indices = [ mesh.loops[ poly.loop_start + i ].vertex_index for i in range( 3 ) ]
 			uvs = [ [ self.vertices[ index ].uv[ 0 ], 1 - self.vertices[ index ].uv[ 1 ] ] for index in indices ]
 			for i, uv in enumerate( uvs ):
@@ -688,7 +682,7 @@ class MdxmSurface:
 			for index in self.boneReferences:
 				if index not in data.boneNames:
 					raise Exception("Bone Index {} not in LookupTable!".format(index))
-				obj.vertex_groups.new(data.boneNames[index])
+				obj.vertex_groups.new(name = data.boneNames[index])
 			
 			#set weights
 			for vertIndex, vert in enumerate(self.vertices):
@@ -696,10 +690,10 @@ class MdxmSurface:
 					obj.vertex_groups[vert.boneIndices[weightIndex]].add([vertIndex], vert.weights[weightIndex], 'ADD')
 		
 		#link object to scene
-		bpy.context.scene.objects.link(obj)
+		bpy.context.scene.collection.objects.link(obj)
 		
 		#make object active - needed for this smoothing operator and possibly for material adding later
-		bpy.context.scene.objects.active = obj
+		bpy.context.view_layer.objects.active = obj
 		#smooth
 		#todo smooth does not work
 		bpy.ops.object.shade_smooth()
@@ -876,7 +870,7 @@ class MdxmLODCollection:
 		for i, LOD in enumerate(self.LODs):
 			root = bpy.data.objects.new("model_root_" + str(i), None)
 			root.parent = data.scene_root
-			bpy.context.scene.objects.link(root)
+			bpy.context.scene.collection.objects.link(root)
 			LOD.saveToBlender(data, root)
 	
 	def getSize(self):

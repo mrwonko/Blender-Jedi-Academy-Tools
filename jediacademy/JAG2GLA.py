@@ -234,10 +234,10 @@ class MdxaSkel:
 		#set parent
 		self.armature_object.parent = scene_root
 		#link object to scene
-		bpy.context.scene.objects.link(self.armature_object)
+		bpy.context.scene.collection.objects.link(self.armature_object)
 		
 		#  Set the armature as active and go to edit mode to add bones
-		bpy.context.scene.objects.active = self.armature_object
+		bpy.context.view_layer.objects.active = self.armature_object
 		bpy.ops.object.mode_set(mode='EDIT')
 		# list of indices of already created bones - only those bones with this as parent will be added
 		createdBonesIndices = [-1]
@@ -534,7 +534,7 @@ class GLA:
 		self.header.scale = self.skeleton_object.g2_prop_scale / 100
 		
 		# make skeleton_root the active object
-		bpy.context.scene.objects.active = self.skeleton_object
+		bpy.context.view_layer.objects.active = self.skeleton_object
 		self.skeleton_object.select = True
 		self.skeleton_object.hide = False
 		
@@ -748,8 +748,8 @@ class GLA:
 				self.skeleton_object.g2_prop_scale = self.header.scale * 100
 			
 			# link the object to the current scene if necessary
-			if not self.skeleton_object.name in bpy.context.scene.objects:
-				bpy.context.scene.objects.link(self.skeleton_object)
+			if not self.skeleton_object.name in bpy.context.scene.collection.objects:
+				bpy.context.scene.collection.objects.link(self.skeleton_object)
 			
 			# set its parent to the scene_root (not strictly speaking necessary but keeps output consistent)
 			self.skeleton_object.parent = scene_root
@@ -758,7 +758,7 @@ class GLA:
 			if useAnimation:
 				profiler.start("applying animations")
 				# go to object mode
-				bpy.context.scene.objects.active = self.skeleton_object
+				bpy.context.view_layer.objects.active = self.skeleton_object
 				bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
 				if PROFILE:
 					import cProfile
@@ -789,7 +789,7 @@ class GLA:
 		if useAnimation:
 			profiler.start("applying animations")
 			# go to object mode
-			bpy.context.scene.objects.active = self.skeleton_object
+			bpy.context.view_layer.objects.active = self.skeleton_object
 			bpy.ops.object.mode_set(mode='OBJECT', toggle=False)			
 			if PROFILE:
 				import cProfile
