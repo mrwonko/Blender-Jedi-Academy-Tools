@@ -18,11 +18,10 @@
 
 bl_info = {
 	"name": "Jedi Academy Import/Export Tools",
-	"author": "mrwonko et al",
+	"author": "mrwonko et al, Cagelight",
 	"description": "Various Jedi Knight: Jedi Academy related tools: Importers for ASE, GLA, GLM, ROFF and Exporters for ASE, GLA, GLM, animation.cfg, ROFF and MD3",
-	"version": (0, 2, 1),
-	"blender": (2, 6, 3),
-	"location": "File > Import/Export",
+	"blender": (2, 80, 0),
+	"location": "File > Import-Export",
 	"category": "Import-Export"
 }
 
@@ -78,32 +77,42 @@ else:
 JAAseExportOp = JAAseExport.Operator
 
 def register():
-	bpy.utils.register_module(__name__)
+	bpy.utils.register_class(JAAseExport.Operator)
+	bpy.utils.register_class(JAPatchExport.Operator)
+	bpy.utils.register_class(JARoffExport.Operator)
+	bpy.utils.register_class(JAMd3Export.Operator)
+	bpy.utils.register_class(JAAseImport.Operator)
+	bpy.utils.register_class(JARoffImport.Operator)
 	
 	JAG2Panels.initG2Properties()
 	JAG2Operators.register();
 	
-	bpy.types.INFO_MT_file_export.append(JAAseExport.menu_func)
-	bpy.types.INFO_MT_file_export.append(JAPatchExport.menu_func)
-	bpy.types.INFO_MT_file_export.append(JARoffExport.menu_func)
-	bpy.types.INFO_MT_file_export.append(JAMd3Export.menu_func)
+	bpy.types.TOPBAR_MT_file_export.append(JAAseExport.menu_func)
+	bpy.types.TOPBAR_MT_file_export.append(JAPatchExport.menu_func)
+	bpy.types.TOPBAR_MT_file_export.append(JARoffExport.menu_func)
+	bpy.types.TOPBAR_MT_file_export.append(JAMd3Export.menu_func)
 	
-	bpy.types.INFO_MT_file_import.append(JAAseImport.menu_func)
-	bpy.types.INFO_MT_file_import.append(JARoffImport.menu_func)
+	bpy.types.TOPBAR_MT_file_import.append(JAAseImport.menu_func)
+	bpy.types.TOPBAR_MT_file_import.append(JARoffImport.menu_func)
 
 
 def unregister():
-	bpy.utils.unregister_module(__name__)
+	bpy.utils.unregister_class(JAAseExport.Operator)
+	bpy.utils.unregister_class(JAPatchExport.Operator)
+	bpy.utils.unregister_class(JARoffExport.Operator)
+	bpy.utils.unregister_class(JAMd3Export.Operator)
+	bpy.utils.unregister_class(JAAseImport.Operator)
+	bpy.utils.unregister_class(JARoffImport.Operator)
 	
 	JAG2Operators.unregister()
 	
-	bpy.types.INFO_MT_file_export.remove(JAAseExport.menu_func)
-	bpy.types.INFO_MT_file_export.remove(JAPatchExport.menu_func)
-	bpy.types.INFO_MT_file_export.remove(JARoffExport.menu_func)
-	bpy.types.INFO_MT_file_export.remove(JAMd3Export.menu_func)
+	bpy.types.TOPBAR_MT_file_export.remove(JAAseExport.menu_func)
+	bpy.types.TOPBAR_MT_file_export.remove(JAPatchExport.menu_func)
+	bpy.types.TOPBAR_MT_file_export.remove(JARoffExport.menu_func)
+	bpy.types.TOPBAR_MT_file_export.remove(JAMd3Export.menu_func)
 	
-	bpy.types.INFO_MT_file_import.remove(JAAseImport.menu_func)
-	bpy.types.INFO_MT_file_import.remove(JARoffImport.menu_func)
+	bpy.types.TOPBAR_MT_file_import.remove(JAAseImport.menu_func)
+	bpy.types.TOPBAR_MT_file_import.remove(JARoffImport.menu_func)
 
 
 if __name__ == "__main__":

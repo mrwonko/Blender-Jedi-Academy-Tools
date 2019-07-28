@@ -369,14 +369,26 @@ def menu_func_import_gla(self, context):
 
 # menu button init/destroy
 def register():
-	bpy.types.INFO_MT_file_export.append(menu_func_export_glm)
-	bpy.types.INFO_MT_file_export.append(menu_func_export_gla)
-	bpy.types.INFO_MT_file_export.append(menu_func_export_gla_meta)
-	bpy.types.INFO_MT_file_import.append(menu_func_import_glm)
-	bpy.types.INFO_MT_file_import.append(menu_func_import_gla)
+	bpy.utils.register_class(GLMExport)
+	bpy.utils.register_class(GLAExport)
+	bpy.utils.register_class(GLAMetaExport)
+	bpy.utils.register_class(GLMImport)
+	bpy.utils.register_class(GLAImport)
+	
+	bpy.types.TOPBAR_MT_file_export.append(menu_func_export_glm)
+	bpy.types.TOPBAR_MT_file_export.append(menu_func_export_gla)
+	bpy.types.TOPBAR_MT_file_export.append(menu_func_export_gla_meta)
+	bpy.types.TOPBAR_MT_file_import.append(menu_func_import_glm)
+	bpy.types.TOPBAR_MT_file_import.append(menu_func_import_gla)
 
 def unregister():
-	bpy.types.INFO_MT_file_export.remove(menu_func_export_glm)
-	bpy.types.INFO_MT_file_export.remove(menu_func_export_gla)
-	bpy.types.INFO_MT_file_import.remove(menu_func_import_glm)
-	bpy.types.INFO_MT_file_import.remove(menu_func_import_gla)
+	bpy.utils.unregister_class(GLMExport)
+	bpy.utils.unregister_class(GLAExport)
+	bpy.utils.unregister_class(GLAMetaExport)
+	bpy.utils.unregister_class(GLMImport)
+	bpy.utils.unregister_class(GLAImport)
+	
+	bpy.types.TOPBAR_MT_file_export.remove(menu_func_export_glm)
+	bpy.types.TOPBAR_MT_file_export.remove(menu_func_export_gla)
+	bpy.types.TOPBAR_MT_file_import.remove(menu_func_import_glm)
+	bpy.types.TOPBAR_MT_file_import.remove(menu_func_import_gla)

@@ -388,8 +388,8 @@ class MdxmVertex:
 	def loadFromBlender(self, vertex, uv, normal, boneIndices, meshObject, armatureObject):
 		# I'm taking the world matrix in case the object is not at the origin, but I really want the coordinates in scene_root-space, so I'm using that, too.
 		rootMat = bpy.data.objects["scene_root"].matrix_world.inverted()
-		co = rootMat * meshObject.matrix_world * vertex.co
-		normal = rootMat.to_quaternion() * meshObject.matrix_world.to_quaternion() * normal
+		co = rootMat @ meshObject.matrix_world @ vertex.co
+		normal = rootMat.to_quaternion() @ meshObject.matrix_world.to_quaternion() @ normal
 		for i in range(3):
 			self.co.append(co[i])
 			self.normal.append(normal[i])
@@ -512,7 +512,7 @@ class MdxmSurface:
 	def loadFromBlender(self, object, boneIndexMap, armatureObject):
 		if object.type != 'MESH':
 			return False, "Object is not of type Mesh!"
-		mesh = object.to_mesh(bpy.context.scene, True, 'RENDER')
+		mesh = object.evaluated_get(bpy.context.evaluated_depsgraph_get()).to_mesh()
 		
 		if mesh.has_custom_normals:
 			mesh.calc_normals_split()
@@ -559,9 +559,6 @@ class MdxmSurface:
 		
 		if self.numVerts > 1000:
 			print("Warning: {} has over 1000 vertices ({})".format(object.name, self.numVerts))
-			
-		if object.name.startswith("*"): #flip these back I guess???
-			mesh.flip_normals()
 		
 		assert(len(self.vertices) == self.numVerts)
 		assert(len(self.triangles) == self.numTriangles)
