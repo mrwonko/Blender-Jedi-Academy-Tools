@@ -8,12 +8,12 @@ import os
 ### The new operator ###
 class Operator(bpy.types.Operator):
 	#everything is scaled down by this factor
-	scale = bpy.props.FloatProperty(name="Scale", description="Movements are scaled by this factor", default=100)
+	scale: bpy.props.FloatProperty(name="Scale", description="Movements are scaled by this factor", default=100)
 	bl_idname = "export_scene.ja_roff"
 	bl_label = "Export JA ROFF (.rof)"
 	
 	#gets set by the file select window - IBM (Internal Blender Magic) or whatever.
-	filepath = bpy.props.StringProperty(name="File Path", description="File path used for the ROFF file", maxlen= 1024, default="")
+	filepath: bpy.props.StringProperty(name="File Path", description="File path used for the ROFF file", maxlen= 1024, default="")
 	
 	def execute(self, context):
 		self.ExportStart(context)

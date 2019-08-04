@@ -42,23 +42,23 @@ class GLMImport(bpy.types.Operator):
 		bl_options = {'REGISTER', 'UNDO'} #register is a must-have when using WindowManager.invoke_props_popup
 
 		# properties
-		filepath = bpy.props.StringProperty(name="File Path", description="The .glm file to import", default="", subtype='FILE_PATH')
-		skin = bpy.props.StringProperty(name="Skin", description="The skin to load (modelname_<skin>.skin), leave empty to load none (use file internal paths)", default="default")
-		guessTextures = bpy.props.BoolProperty(name="Guess Textures", description="Many models try to force you to use the skin. Enable this to try to circumvent that. (Usually works well, but skins should be preferred.)", default=False)
-		basepath = bpy.props.StringProperty(name="Base Path", description="The base folder relative to which paths should be interpreted. Leave empty to let the importer guess (needs /GameData/ in filepath).", default="")
-		glaOverride = bpy.props.StringProperty(name=".gla override", description="Gla file to use, relative to base. Leave empty to use the one referenced in the file.", maxlen=64, default="")
-		scale = bpy.props.FloatProperty(name="Scale", description="Scale to apply to the imported model.", default=10, min=0, max=1000, subtype='PERCENTAGE')
-		skeletonFixes = bpy.props.EnumProperty(name="skeleton changes", description="You can select a preset for automatic skeleton changes which result in a nicer imported skeleton.", default='NONE', items=[
+		filepath: bpy.props.StringProperty(name="File Path", description="The .glm file to import", default="", subtype='FILE_PATH')
+		skin: bpy.props.StringProperty(name="Skin", description="The skin to load (modelname_<skin>.skin), leave empty to load none (use file internal paths)", default="default")
+		guessTextures: bpy.props.BoolProperty(name="Guess Textures", description="Many models try to force you to use the skin. Enable this to try to circumvent that. (Usually works well, but skins should be preferred.)", default=False)
+		basepath: bpy.props.StringProperty(name="Base Path", description="The base folder relative to which paths should be interpreted. Leave empty to let the importer guess (needs /GameData/ in filepath).", default="")
+		glaOverride: bpy.props.StringProperty(name=".gla override", description="Gla file to use, relative to base. Leave empty to use the one referenced in the file.", maxlen=64, default="")
+		scale: bpy.props.FloatProperty(name="Scale", description="Scale to apply to the imported model.", default=10, min=0, max=1000, subtype='PERCENTAGE')
+		skeletonFixes: bpy.props.EnumProperty(name="skeleton changes", description="You can select a preset for automatic skeleton changes which result in a nicer imported skeleton.", default='NONE', items=[
 			('NONE', "None", "Don't change the skeleton in any way.", 0),
 			('JKA_HUMANOID', "Jedi Academy _humanoid", "Fixes for the default humanoid Jedi Academy skeleton", 1)
 		])
-		loadAnimations = bpy.props.EnumProperty(name="animations", description="Whether to import all animations, some animations or only a range from the .gla. (Importing huge animations takes forever.)", default='NONE', items=[
+		loadAnimations: bpy.props.EnumProperty(name="animations", description="Whether to import all animations, some animations or only a range from the .gla. (Importing huge animations takes forever.)", default='NONE', items=[
 			('NONE', "None", "Don't import animations.", 0),
 			('ALL', "All", "Import all animations", 1),
 			('RANGE', "Range", "Import a certain range of frames", 2)
 		])
-		startFrame = bpy.props.IntProperty(name="Start frame", description="If only a range of frames of the animation is to be imported, this is the first.", min=0)
-		numFrames = bpy.props.IntProperty(name="number of frames", description="If only a range of frames of the animation is to be imported, this is the total number of frames to import", min=1)
+		startFrame: bpy.props.IntProperty(name="Start frame", description="If only a range of frames of the animation is to be imported, this is the first.", min=0)
+		numFrames: bpy.props.IntProperty(name="number of frames", description="If only a range of frames of the animation is to be imported, this is the total number of frames to import", min=1)
 
 		def execute(self, context):
 			print("\n== GLM Import ==\n")
@@ -109,20 +109,20 @@ class GLAImport(bpy.types.Operator):
 		filename_ext = "*.gla" # I believe this limits the shown files.
 		
 		# properties
-		filepath = bpy.props.StringProperty(name="File Path", description="The .gla file to import", maxlen=1024, default="", subtype='FILE_PATH')
-		basepath = bpy.props.StringProperty(name="Base Path", description="The base folder relative to which paths should be interpreted. Leave empty to let the importer guess (needs /GameData/ in filepath).", default="")
-		scale = bpy.props.FloatProperty(name="Scale", description="Scale to apply to the imported model.", default=10, min=0, max=1000, subtype='PERCENTAGE')
-		skeletonFixes = bpy.props.EnumProperty(name="skeleton changes", description="You can select a preset for automatic skeleton changes which result in a nicer imported skeleton.", default='NONE', items=[
+		filepath: bpy.props.StringProperty(name="File Path", description="The .gla file to import", maxlen=1024, default="", subtype='FILE_PATH')
+		basepath: bpy.props.StringProperty(name="Base Path", description="The base folder relative to which paths should be interpreted. Leave empty to let the importer guess (needs /GameData/ in filepath).", default="")
+		scale: bpy.props.FloatProperty(name="Scale", description="Scale to apply to the imported model.", default=10, min=0, max=1000, subtype='PERCENTAGE')
+		skeletonFixes: bpy.props.EnumProperty(name="skeleton changes", description="You can select a preset for automatic skeleton changes which result in a nicer imported skeleton.", default='NONE', items=[
 			('NONE', "None", "Don't change the skeleton in any way.", 0),
 			('JKA_HUMANOID', "Jedi Academy _humanoid", "Fixes for the default humanoid Jedi Academy skeleton", 1)
 		])
-		loadAnimations = bpy.props.EnumProperty(name="animations", description="Whether to import all animations, some animations or only a range from the .gla. (Importing huge animations takes forever.)", default='NONE', items=[
+		loadAnimations: bpy.props.EnumProperty(name="animations", description="Whether to import all animations, some animations or only a range from the .gla. (Importing huge animations takes forever.)", default='NONE', items=[
 			('NONE', "None", "Don't import animations.", 0),
 			('ALL', "All", "Import all animations", 1),
 			('RANGE', "Range", "Import a certain range of frames", 2)
 		])
-		startFrame = bpy.props.IntProperty(name="Start frame", description="If only a range of frames of the animation is to be imported, this is the first.", min=0)
-		numFrames = bpy.props.IntProperty(name="number of frames", description="If only a range of frames of the animation is to be imported, this is the total number of frames to import", min=1)
+		startFrame: bpy.props.IntProperty(name="Start frame", description="If only a range of frames of the animation is to be imported, this is the first.", min=0)
+		numFrames: bpy.props.IntProperty(name="number of frames", description="If only a range of frames of the animation is to be imported, this is the total number of frames to import", min=1)
 		
 
 		def execute(self, context):
@@ -161,9 +161,9 @@ class GLMExport(bpy.types.Operator):
 		filename_ext = "*.glm"
 
 		# properties
-		filepath = bpy.props.StringProperty(name="File Path", description="The filename to export to", maxlen=1024, default="", subtype='FILE_PATH')
-		basepath = bpy.props.StringProperty(name="Base Path", description="The base folder relative to which paths should be interpreted. Leave empty to let the exporter guess (needs /GameData/ in filepath).", default="")
-		gla = bpy.props.StringProperty(name=".gla name", description="Name of the skeleton this model uses (must exist!)", default="models/players/_humanoid/_humanoid")
+		filepath: bpy.props.StringProperty(name="File Path", description="The filename to export to", maxlen=1024, default="", subtype='FILE_PATH')
+		basepath: bpy.props.StringProperty(name="Base Path", description="The base folder relative to which paths should be interpreted. Leave empty to let the exporter guess (needs /GameData/ in filepath).", default="")
+		gla: bpy.props.StringProperty(name=".gla name", description="Name of the skeleton this model uses (must exist!)", default="models/players/_humanoid/_humanoid")
 
 		def execute(self, context):
 			print("\n== GLM Export ==\n")
@@ -199,10 +199,10 @@ class GLAExport(bpy.types.Operator):
 		filename_ext = "*.gla"
 		
 		# properties
-		filepath = bpy.props.StringProperty(name="File Path", description="The filename to export to", maxlen=1024, default="", subtype='FILE_PATH')
-		basepath = bpy.props.StringProperty(name="Base Path", description="The base folder relative to which paths should be interpreted. Leave empty to let the exporter guess (needs /GameData/ in filepath).", default="")
-		glapath = bpy.props.StringProperty(name="gla name", description="The relative path of this gla. Leave empty to let the exporter guess (needs /GameData/ in filepath).", maxlen=64, default="")
-		glareference = bpy.props.StringProperty(name="gla reference", description="Copies the bone indices from this skeleton, if any (e.g. for new animations for existing skeleton; path relative to the Base Path)", maxlen=64, default="")
+		filepath: bpy.props.StringProperty(name="File Path", description="The filename to export to", maxlen=1024, default="", subtype='FILE_PATH')
+		basepath: bpy.props.StringProperty(name="Base Path", description="The base folder relative to which paths should be interpreted. Leave empty to let the exporter guess (needs /GameData/ in filepath).", default="")
+		glapath: bpy.props.StringProperty(name="gla name", description="The relative path of this gla. Leave empty to let the exporter guess (needs /GameData/ in filepath).", maxlen=64, default="")
+		glareference: bpy.props.StringProperty(name="gla reference", description="Copies the bone indices from this skeleton, if any (e.g. for new animations for existing skeleton; path relative to the Base Path)", maxlen=64, default="")
 
 		def execute(self, context):
 			print("\n== GLA Export ==\n")
@@ -293,8 +293,8 @@ class GLAMetaExport(bpy.types.Operator):
 		filename_ext = "*.cfg"
 		
 		# properties
-		filepath = bpy.props.StringProperty(name="File Path", description="The filename to export to", maxlen=1024, default="", subtype='FILE_PATH')
-		offset = bpy.props.IntProperty(name="Offset", description="Frame offset for the animations, e.g. 21376 if you plan on merging with Jedi Academy's _humanoid.gla", min=0, default=0)
+		filepath: bpy.props.StringProperty(name="File Path", description="The filename to export to", maxlen=1024, default="", subtype='FILE_PATH')
+		offset: bpy.props.IntProperty(name="Offset", description="Frame offset for the animations, e.g. 21376 if you plan on merging with Jedi Academy's _humanoid.gla", min=0, default=0)
 
 		def execute(self, context):
 			print("\n== GLA Metadata Export ==\n")
@@ -375,6 +375,9 @@ def register():
 	bpy.utils.register_class(GLMImport)
 	bpy.utils.register_class(GLAImport)
 	
+	bpy.utils.register_class(ObjectAddG2Properties)
+	bpy.utils.register_class(ObjectRemoveG2Properties)
+	
 	bpy.types.TOPBAR_MT_file_export.append(menu_func_export_glm)
 	bpy.types.TOPBAR_MT_file_export.append(menu_func_export_gla)
 	bpy.types.TOPBAR_MT_file_export.append(menu_func_export_gla_meta)
@@ -387,6 +390,9 @@ def unregister():
 	bpy.utils.unregister_class(GLAMetaExport)
 	bpy.utils.unregister_class(GLMImport)
 	bpy.utils.unregister_class(GLAImport)
+	
+	bpy.utils.unregister_class(ObjectAddG2Properties)
+	bpy.utils.unregister_class(ObjectRemoveG2Properties)
 	
 	bpy.types.TOPBAR_MT_file_export.remove(menu_func_export_glm)
 	bpy.types.TOPBAR_MT_file_export.remove(menu_func_export_gla)

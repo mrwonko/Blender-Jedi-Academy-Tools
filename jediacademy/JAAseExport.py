@@ -159,7 +159,7 @@ class Operator( bpy.types.Operator ):
 	bl_idname = "export_scene.ja_ase"
 	bl_label = "Export JA ASE (.ase)"
 
-	filepath = bpy.props.StringProperty( subtype='FILE_PATH' )
+	filepath: bpy.props.StringProperty( subtype='FILE_PATH' )
 
 	def execute( self, context ):
 		filepath = bpy.path.ensure_ext( self.filepath, ".ase" )

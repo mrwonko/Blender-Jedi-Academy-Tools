@@ -158,10 +158,10 @@ class Operator( bpy.types.Operator ):
 	bl_label = "Export JA Patch Mesh (.map)"
 	
 	#gets set by the file select window - IBM (Internal Blender Magic) or whatever.
-	filepath = bpy.props.StringProperty(name="File Path", description="File path used for the .map file", maxlen= 1024, default="")
-	scale = bpy.props.FloatProperty(name="Scale", description="Factor by which to scale the object up", min=1, default=1)
-	shader = bpy.props.StringProperty(name="Shader", description="Shader to put on the patches", maxlen=64, default="system/physics_clip")
-	beautiful = bpy.props.BoolProperty(name="Even distribution", description="Whether to evenly distribute the patch handles (if disabled, they'll be at the corners)", default=True)
+	filepath: bpy.props.StringProperty(name="File Path", description="File path used for the .map file", maxlen= 1024, default="")
+	scale: bpy.props.FloatProperty(name="Scale", description="Factor by which to scale the object up", min=1, default=1)
+	shader: bpy.props.StringProperty(name="Shader", description="Shader to put on the patches", maxlen=64, default="system/physics_clip")
+	beautiful: bpy.props.BoolProperty(name="Even distribution", description="Whether to evenly distribute the patch handles (if disabled, they'll be at the corners)", default=True)
 	
 	def execute(self, context):
 		self.ExportStart(context)

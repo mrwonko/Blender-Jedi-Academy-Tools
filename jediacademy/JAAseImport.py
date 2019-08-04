@@ -8,7 +8,7 @@ class Operator(bpy.types.Operator):
 	bl_label = "Import JA ASE (.ase)"
 	
 	#gets set by the file select window - internal Blender Magic or whatever.
-	filepath = bpy.props.StringProperty(name="File Path", description="File path used for importing the ASE file", maxlen= 1024, default="")
+	filepath: bpy.props.StringProperty(name="File Path", description="File path used for importing the ASE file", maxlen= 1024, default="")
 	
 	def execute(self, context):
 		self.ImportStart()

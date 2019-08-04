@@ -83,6 +83,7 @@ def register():
 	bpy.utils.register_class(JAMd3Export.Operator)
 	bpy.utils.register_class(JAAseImport.Operator)
 	bpy.utils.register_class(JARoffImport.Operator)
+	bpy.utils.register_class(JAG2Panels.G2PropertiesPanel)
 	
 	JAG2Panels.initG2Properties()
 	JAG2Operators.register();
@@ -103,6 +104,7 @@ def unregister():
 	bpy.utils.unregister_class(JAMd3Export.Operator)
 	bpy.utils.unregister_class(JAAseImport.Operator)
 	bpy.utils.unregister_class(JARoffImport.Operator)
+	bpy.utils.unregister_class(JAG2Panels.G2PropertiesPanel)
 	
 	JAG2Operators.unregister()
 	
