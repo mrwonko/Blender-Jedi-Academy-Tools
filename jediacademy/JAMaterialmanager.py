@@ -84,14 +84,10 @@ class MaterialManager():
 			mat.diffuse_color = (1, 0, 1, 1)
 			return mat
 		
-		#load image
-		img = bpy.data.images.load(path)
-		#create a texture with it
-		tex = bpy.data.textures.new(shader, type='IMAGE')
-		tex.image = img
-		# create texture slot
-		tex_slot = mat.texture_slots.add()
-		tex_slot.texture_coords = 'UV'
-		tex_slot.texture = tex
+		mat.use_nodes = True
+		bsdf = mat.node_tree.nodes["Principled BSDF"]
+		img = mat.node_tree.nodes.new('ShaderNodeTexImage')
+		img.image = bpy.data.images.load(path)
+		mat.node_tree.links.new(bsdf.inputs['Base Color'], img.outputs['Color'])
 		
 		return mat
