@@ -451,11 +451,11 @@ class MdxaAnimation:
 				offset = self.bonePool.bones[bonePoolIndex].matrix
 				# turn into absolute offset matrix (already is if this is top level bone)
 				if mdxaBone.parent != -1:
-					offset = offsets[mdxaBone.parent] * offset
+					offset = offsets[mdxaBone.parent] @ offset
 				# save this absolute offset for use by children
 				offsets[index] = offset
 				# calculate the actual position
-				transformation = offset * basePoses[index]
+				transformation = offset @ basePoses[index]
 				# flip axes as required for blender bone
 				JAG2Math.GLABoneRotToBlender(transformation)
 				
