@@ -412,7 +412,10 @@ class MdxmVertex:
 				return False, "Could not retrieve vertex bone weights: {}".format(str(e))
 			self.numWeights = len(weights)
 			if self.numWeights == 0:
-				return False, "Unweighted vertex found!"
+				self.weights.append(1.0)
+				self.boneIndices.append(0)
+				self.numWeights = 1
+				return True, ""
 			for boneName, weight in weights.items():
 				self.weights.append(weight)
 				boneIndex = -1
@@ -549,6 +552,8 @@ class MdxmSurface:
 				else:
 					vertex = MdxmVertex()
 					success, message = vertex.loadFromBlender(mesh.vertices[v], u, n, boneIndices, object, armatureObject)
+					if not success:
+						return False, "Surface has invalid vertex: {}".format(message)
 					protoverts.append((v, u, n))
 					self.vertices.append(vertex)
 					triangle.append(len(protoverts) - 1)
