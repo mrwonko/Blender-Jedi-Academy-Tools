@@ -127,6 +127,10 @@ def getBoneWeights(vertex, meshObject, armatureObject, maxBones = -1):
 			except StopIteration:
 				pass
 			del weights[minKey]
+			
+	# if there are still no weights, add 1.0 for the root bone
+	if len(weights) == 0:
+		weights[armatureObject.data.bones[0].name] = 1.0
 	
 	# the combined weight must be normalized to 1
 	sum = 0
@@ -411,11 +415,6 @@ class MdxmVertex:
 			except GetBoneWeightException as e:
 				return False, "Could not retrieve vertex bone weights: {}".format(str(e))
 			self.numWeights = len(weights)
-			if self.numWeights == 0:
-				self.weights.append(1.0)
-				self.boneIndices.append(0)
-				self.numWeights = 1
-				return True, ""
 			for boneName, weight in weights.items():
 				self.weights.append(weight)
 				boneIndex = -1
