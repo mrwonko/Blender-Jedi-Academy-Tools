@@ -25,7 +25,7 @@ class SimpleProfiler:
 	
 	# starts a clock of the given name
 	def start(self, name):
-		self.startTimes[name] = time.clock()
+		self.startTimes[name] = time.perf_counter()
 		if self.printOutput:
 			print("Start: {}".format(name))
 	
@@ -33,7 +33,7 @@ class SimpleProfiler:
 	def stop(self, name):
 		if name not in self.startTimes:
 			return -1
-		timeTaken = time.clock() - self.startTimes[name]
+		timeTaken = time.perf_counter() - self.startTimes[name]
 		del self.startTimes[name]
 		if self.printOutput:
 			print("Done: {} - time taken: {:.3f}s".format(name, timeTaken))
