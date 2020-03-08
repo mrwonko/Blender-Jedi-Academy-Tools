@@ -625,6 +625,12 @@ class MdxmSurface:
 		
 		#  create mesh
 		mesh = bpy.data.meshes.new(blenderName)
+		mesh.from_pydata([v.co for v in self.vertices], [], [triangle.indices for triangle in self.triangles])
+		
+		material = data.materialManager.getMaterial(name, surfaceData.shader)
+		if material == None:
+			material = bpy.data.materials.new(name=JAStringhelper.decode(surfaceData.shader))
+		mesh.materials.append(material)
 		
 		# this is probably actually bullshit, since vertex order is what determines a tag, not index order! I think.
 		"""
@@ -635,30 +641,7 @@ class MdxmSurface:
 			self.triangles[0].indices = [ indexmap[ self.triangles[0][ i ] ] for i in range( 3 ) ]
 		"""
 		
-		#create vertices
-		mesh.vertices.add(self.numVerts)
-		for vert, bvert in zip(self.vertices, mesh.vertices):
-			bvert.co = vert.co
-			bvert.normal = vert.normal
-		
-		# create faces
-		mesh.polygons.add( self.numTriangles )
-		# loops are the per-face-vertex-settings in one long flat list
-		mesh.loops.add( self.numTriangles * 3 )
-		# so we need to set where in that list a face's settings start...
-		mesh.polygons.foreach_set( "loop_start", range( 0, self.numTriangles * 3, 3 ) )
-		# ... and how many there are.
-		mesh.polygons.foreach_set( "loop_total", (3,) * self.numTriangles )
-		
-		# so now let's set the indices
-		flat_triangles = []
-		for v1, v2, v3 in self.triangles:
-			flat_triangles.extend( (v3, v1, v2) if v3 == 0 else (v1, v2, v3) )
-		mesh.loops.foreach_set( "vertex_index", flat_triangles )
-		del flat_triangles
-		
-		#create uv coordinates
-		material = data.materialManager.getMaterial(name, surfaceData.shader)
+		mesh.normals_split_custom_set_from_vertices([v.normal for v in self.vertices])
 		
 		uv_faces = mesh.uv_layers.new().data
 		uv_loops = mesh.uv_layers.active.data[:]
@@ -667,6 +650,8 @@ class MdxmSurface:
 			uvs = [ [ self.vertices[ index ].uv[ 0 ], 1 - self.vertices[ index ].uv[ 1 ] ] for index in indices ]
 			for i, uv in enumerate( uvs ):
 				uv_loops[ poly.loop_start + i ].uv = uv
+		
+		mesh.use_auto_smooth = True
 		
 		mesh.validate()
 		mesh.update()
@@ -698,13 +683,6 @@ class MdxmSurface:
 		
 		#make object active - needed for this smoothing operator and possibly for material adding later
 		bpy.context.view_layer.objects.active = obj
-		#smooth
-		#todo smooth does not work
-		bpy.ops.object.shade_smooth()
-		#set material
-		if material:
-			bpy.ops.object.material_slot_add()
-			obj.material_slots[0].material = material
 			
 		#set ghoul2 specific properties
 		obj.g2_prop_name = name
