@@ -542,7 +542,7 @@ class MdxmSurface:
 				proto_found = -1
 				for j in range(len(protoverts)):
 					proto = protoverts[j]
-					if proto[0] == v and proto[1] == u and proto[2] == n:
+					if proto[0] == v and proto[1] == u and abs(proto[2][0] - n[0]) < 0.01 and abs(proto[2][1] - n[1]) < 0.01 and abs(proto[2][2] - n[2]) < 0.01:
 						proto_found = j
 						break
 				
