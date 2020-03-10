@@ -58,11 +58,6 @@ if "JARoffExport" in locals():
 	imp.reload( JARoffExport )
 else:
 	from . import JARoffExport
-# MD3
-if "JAMd3Export" in locals():
-	imp.reload( JAMd3Export )
-else:
-	from . import JAMd3Export
 # Ghoul 2
 if "JAG2Panels" in locals():
 	imp.reload( JAG2Panels )
@@ -80,7 +75,6 @@ def register():
 	bpy.utils.register_class(JAAseExport.Operator)
 	bpy.utils.register_class(JAPatchExport.Operator)
 	bpy.utils.register_class(JARoffExport.Operator)
-	bpy.utils.register_class(JAMd3Export.Operator)
 	bpy.utils.register_class(JAAseImport.Operator)
 	bpy.utils.register_class(JARoffImport.Operator)
 	bpy.utils.register_class(JAG2Panels.G2PropertiesPanel)
@@ -101,7 +95,6 @@ def unregister():
 	bpy.utils.unregister_class(JAAseExport.Operator)
 	bpy.utils.unregister_class(JAPatchExport.Operator)
 	bpy.utils.unregister_class(JARoffExport.Operator)
-	bpy.utils.unregister_class(JAMd3Export.Operator)
 	bpy.utils.unregister_class(JAAseImport.Operator)
 	bpy.utils.unregister_class(JARoffImport.Operator)
 	bpy.utils.unregister_class(JAG2Panels.G2PropertiesPanel)
@@ -111,7 +104,6 @@ def unregister():
 	bpy.types.TOPBAR_MT_file_export.remove(JAAseExport.menu_func)
 	bpy.types.TOPBAR_MT_file_export.remove(JAPatchExport.menu_func)
 	bpy.types.TOPBAR_MT_file_export.remove(JARoffExport.menu_func)
-	bpy.types.TOPBAR_MT_file_export.remove(JAMd3Export.menu_func)
 	
 	bpy.types.TOPBAR_MT_file_import.remove(JAAseImport.menu_func)
 	bpy.types.TOPBAR_MT_file_import.remove(JARoffImport.menu_func)
