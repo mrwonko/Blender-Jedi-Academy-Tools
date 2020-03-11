@@ -47,6 +47,7 @@ else:
 	from . import JAG2Panels
 
 import bpy
+import mathutils
 
 def buildBoneIndexLookupMap(gla_filepath_abs):
 	print("Loading gla file for bone name -> bone index lookup")
@@ -519,50 +520,67 @@ class MdxmSurface:
 		if mesh.has_custom_normals:
 			mesh.calc_normals_split()
 			
-		if object.name.startswith("*"):
-			mesh.flip_normals()
-			
-		uv_layer = mesh.uv_layers.active.data
-		if not uv_layer:
-			return False, "No UV coordinates found!"
-			
-		protoverts = []
 		boneIndices = {}
-		
-		for face in mesh.polygons:
-			triangle = []
-			if len(face.vertices) != 3:
-				return False, "Non-triangle face found!"
-			for i in range(3):
-				loop = mesh.loops[face.loop_start + i]
-				v = loop.vertex_index
-				u = uv_layer[loop.index].uv
-				n = loop.normal if mesh.has_custom_normals else mesh.vertices[loop.vertex_index].normal
+			
+		# This is a tag, use a simpler export procedure
+		if object.name.startswith("*"):
+			for face in mesh.polygons:
+				if len(face.vertices) != 3:
+					return False, "Non-triangle tag found!"
+			for vi in mesh.vertices:
+				vert = MdxmVertex()
+				success, message = vert.loadFromBlender(vi, [0, 0], mathutils.Vector(), boneIndices, object, armatureObject)
+				if not success:
+					return False, "Surface has invalid vertex: {}".format(message)
+				self.vertices.append(vert)
+			self.triangles = [MdxmTriangle([face.vertices[0], face.vertices[1], face.vertices[2]]) for face in mesh.polygons]
+			
+			self.numVerts = len(mesh.vertices)
+			self.numTriangles = len(mesh.polygons)
+			
+		# This is not a tag, do normal things
+		else:
+			
+			uv_layer = mesh.uv_layers.active.data
+			if not uv_layer:
+				return False, "No UV coordinates found!"
 				
-				proto_found = -1
-				for j in range(len(protoverts)):
-					proto = protoverts[j]
-					if proto[0] == v and proto[1] == u and abs(proto[2][0] - n[0]) < 0.01 and abs(proto[2][1] - n[1]) < 0.01 and abs(proto[2][2] - n[2]) < 0.01:
-						proto_found = j
-						break
-				
-				if proto_found >= 0:
-					triangle.append(proto_found)
-				else:
-					vertex = MdxmVertex()
-					success, message = vertex.loadFromBlender(mesh.vertices[v], u, n, boneIndices, object, armatureObject)
-					if not success:
-						return False, "Surface has invalid vertex: {}".format(message)
-					protoverts.append((v, u, n))
-					self.vertices.append(vertex)
-					triangle.append(len(protoverts) - 1)
-			self.triangles.append(MdxmTriangle(triangle))
-		
-		self.numVerts = len(protoverts)
-		self.numTriangles = len(mesh.polygons)
-		
-		if self.numVerts > 1000:
-			print("Warning: {} has over 1000 vertices ({})".format(object.name, self.numVerts))
+			protoverts = []
+			
+			for face in mesh.polygons:
+				triangle = []
+				if len(face.vertices) != 3:
+					return False, "Non-triangle face found!"
+				for i in range(3):
+					loop = mesh.loops[face.loop_start + i]
+					v = loop.vertex_index
+					u = uv_layer[loop.index].uv
+					n = loop.normal if mesh.has_custom_normals else mesh.vertices[loop.vertex_index].normal
+					
+					proto_found = -1
+					for j in range(len(protoverts)):
+						proto = protoverts[j]
+						if proto[0] == v and proto[1] == u and abs(proto[2][0] - n[0]) < 0.01 and abs(proto[2][1] - n[1]) < 0.01 and abs(proto[2][2] - n[2]) < 0.01:
+							proto_found = j
+							break
+					
+					if proto_found >= 0:
+						triangle.append(proto_found)
+					else:
+						vertex = MdxmVertex()
+						success, message = vertex.loadFromBlender(mesh.vertices[v], u, n, boneIndices, object, armatureObject)
+						if not success:
+							return False, "Surface has invalid vertex: {}".format(message)
+						protoverts.append((v, u, n))
+						self.vertices.append(vertex)
+						triangle.append(len(protoverts) - 1)
+				self.triangles.append(MdxmTriangle(triangle))
+			
+			self.numVerts = len(protoverts)
+			self.numTriangles = len(mesh.polygons)
+			
+			if self.numVerts > 1000:
+				print("Warning: {} has over 1000 vertices ({})".format(object.name, self.numVerts))
 		
 		assert(len(self.vertices) == self.numVerts)
 		assert(len(self.triangles) == self.numTriangles)
