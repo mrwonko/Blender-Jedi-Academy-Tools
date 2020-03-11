@@ -19,7 +19,7 @@
 bl_info = {
 	"name": "Jedi Academy Import/Export Tools",
 	"author": "mrwonko et al, Cagelight",
-	"description": "Various Jedi Knight: Jedi Academy related tools: Importers for ASE, GLA, GLM, ROFF and Exporters for ASE, GLA, GLM, animation.cfg, ROFF and MD3",
+	"description": "Various Jedi Knight: Jedi Academy related tools: Importers for ASE, GLA, GLM, ROFF and Exporters for ASE, GLA, GLM, animation.cfg, ROFF",
 	"blender": (2, 80, 0),
 	"location": "File > Import-Export",
 	"category": "Import-Export"
@@ -85,7 +85,6 @@ def register():
 	bpy.types.TOPBAR_MT_file_export.append(JAAseExport.menu_func)
 	bpy.types.TOPBAR_MT_file_export.append(JAPatchExport.menu_func)
 	bpy.types.TOPBAR_MT_file_export.append(JARoffExport.menu_func)
-	bpy.types.TOPBAR_MT_file_export.append(JAMd3Export.menu_func)
 	
 	bpy.types.TOPBAR_MT_file_import.append(JAAseImport.menu_func)
 	bpy.types.TOPBAR_MT_file_import.append(JARoffImport.menu_func)
