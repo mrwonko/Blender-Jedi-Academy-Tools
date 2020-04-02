@@ -659,6 +659,8 @@ class MdxmSurface:
 			self.triangles[0].indices = [ indexmap[ self.triangles[0][ i ] ] for i in range( 3 ) ]
 		"""
 		
+		mesh.validate()
+		
 		mesh.normals_split_custom_set_from_vertices([v.normal for v in self.vertices])
 		
 		uv_faces = mesh.uv_layers.new().data
@@ -671,7 +673,6 @@ class MdxmSurface:
 		
 		mesh.use_auto_smooth = True
 		
-		mesh.validate()
 		mesh.update()
 		
 		#  create object
