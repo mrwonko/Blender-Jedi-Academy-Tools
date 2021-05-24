@@ -135,7 +135,7 @@ class MdxaBone:
 			parent.children.append(self.index)
 		
 		# save (inverted) base pose matrix
-		mat = objLocalMat * editbone.matrix
+		mat = objLocalMat @ editbone.matrix
 		JAG2Math.BlenderBoneRotToGLA(mat) # must not be used for blender-internal calculations anymore!
 		matInv = mat.inverted()
 		self.basePoseMat.fromBlender(mat)
@@ -535,8 +535,8 @@ class GLA:
 		
 		# make skeleton_root the active object
 		bpy.context.view_layer.objects.active = self.skeleton_object
-		self.skeleton_object.select = True
-		self.skeleton_object.hide = False
+		self.skeleton_object.select_set(True)
+		self.skeleton_object.hide_viewport = False
 		
 		# in case of rescaled/moved skeleton object: get transformation (assuming we're a child of scene_root)
 		localMat = self.skeleton_object.matrix_local
@@ -644,14 +644,14 @@ class GLA:
 					basebone = self.skeleton_armature.bones[bone.name]
 					posebone = self.skeleton_object.pose.bones[bone.name]
 					
-					basePoseMat = localMat * basebone.matrix_local
-					poseMat = localMat * posebone.matrix
+					basePoseMat = localMat @ basebone.matrix_local
+					poseMat = localMat @ posebone.matrix
 					
 					# change rotation axes from blender style to gla style
 					JAG2Math.BlenderBoneRotToGLA(basePoseMat)
 					JAG2Math.BlenderBoneRotToGLA(poseMat)
 					if bone.parent == -1:
-						relativeBoneOffsets[index] = absoluteBoneOffsets[index] = poseMat * basePoseMat.inverted()
+						relativeBoneOffsets[index] = absoluteBoneOffsets[index] = poseMat @ basePoseMat.inverted()
 						
 						progressed = True
 						
@@ -659,8 +659,8 @@ class GLA:
 						assert(absoluteBoneOffsets[bone.parent]) #just what the if checks
 						assert(absoluteBoneOffsets[index] == None) # each offset should only be calculated once.
 						
-						relativeBoneOffsets[index] = absoluteBoneOffsets[bone.parent].inverted() * poseMat * basePoseMat.inverted()
-						absoluteBoneOffsets[index] =  absoluteBoneOffsets[bone.parent] * relativeBoneOffsets[index]
+						relativeBoneOffsets[index] = absoluteBoneOffsets[bone.parent].inverted() @ poseMat @ basePoseMat.inverted()
+						absoluteBoneOffsets[index] =  absoluteBoneOffsets[bone.parent] @ relativeBoneOffsets[index]
 						
 						progressed = True
 						
