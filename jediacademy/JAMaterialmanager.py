@@ -16,7 +16,16 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-from . import mrw_g2_filesystem, mrw_g2_stringhelpers
+import imp
+if 'JAFilesystem' in locals():
+    imp.reload( JAFilesystem )
+else:
+    from . import JAFilesystem
+if 'JAStringhelper' in locals():
+    imp.reload( 'JAStringhelper' )
+else:
+    from . import JAStringhelper
+
 import bpy
 
 class MaterialManager():
@@ -31,7 +40,7 @@ class MaterialManager():
         self.basepath = basepath
         self.guessTextures = guessTextures
         if skin_rel != "":
-            succes, skin_abs = mrw_g2_filesystem.FindFile(skin_rel, self.basepath, ["skin"])
+            succes, skin_abs = JAFilesystem.FindFile(skin_rel, self.basepath, ["skin"])
             try:
                 file = open(skin_abs, mode="r")
             except IOError:
@@ -55,7 +64,7 @@ class MaterialManager():
             #    bsShader = b""
             if bsShader[:7] == b"\0odels/":
                 bsShader = b"models/" + bsShader[7:]
-        shader = mrw_g2_stringhelpers.decode(bsShader)
+        shader = JAStringhelper.decode(bsShader)
         if self.useSkin:
             if name in self.skin:
                 shader = self.skin[name]
@@ -67,7 +76,7 @@ class MaterialManager():
         mat = bpy.data.materials.new(shader)
         self.materials[shader.lower()] = mat
         # try to find the image
-        success, path = mrw_g2_filesystem.FindFile(shader, self.basepath, ["jpg", "png", "tga"])
+        success, path = JAFilesystem.FindFile(shader, self.basepath, ["jpg", "png", "tga"])
         # if it doesn't exist, we're done.
         if not success:
             print("Texture not found: \"", shader, "\"", sep="")

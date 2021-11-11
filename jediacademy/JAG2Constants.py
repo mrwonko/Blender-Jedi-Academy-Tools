@@ -33,7 +33,7 @@ SURFACEFLAG_OFF = 0b10
 BONELENGTH = 4
 
 # 0.999 = cos 2.5, 0.996 = cos 5, 0.990 = cos 8
-# 0.999 is okay for the player model, but the atst is somewhat less exact
+# 0.999 is okay for the player model (_humanoid), but the atst is somewhat less exact
 BONE_ANGLE_ERROR_MARGIN = 0.996 # cosine of allowed angle between bone directions for them to be considered equal
 
 # bones to which the parent (with multiple children) should preferably connect

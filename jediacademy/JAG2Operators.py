@@ -17,20 +17,27 @@
 # ##### END GPL LICENSE BLOCK #####
 
 import bpy
-from . import mrw_g2_scene, mrw_g2_filesystem
+if 'JAG2Scene' in locals():
+    imp.reload( JAG2Scene )
+else:
+    from . import JAG2Scene
+if 'JAFilesystem' in locals():
+    imp.reload( JAFilesystem )
+else:
+    from . import JAFilesystem
 
 def GetPaths(basepath, filepath):
     if basepath == "":
-        basepath, filepath = mrw_g2_filesystem.SplitPrefix(filepath)
-        filepath = mrw_g2_filesystem.RemoveExtension(filepath)
+        basepath, filepath = JAFilesystem.SplitPrefix(filepath)
+        filepath = JAFilesystem.RemoveExtension(filepath)
     else:
-        filepath = mrw_g2_filesystem.RelPathNoExt(filepath, basepath)
+        filepath = JAFilesystem.RelPathNoExt(filepath, basepath)
     return basepath, filepath
 
 class GLMImport(bpy.types.Operator):
         '''Import GLM Operator.'''
         bl_idname = "import_scene.glm"
-        bl_label = "Import Ghoul 2 Model (.glm)"
+        bl_label = "Import JA Ghoul 2 Model (.glm)"
         bl_description = "Imports a Ghoul 2 model (.glm), looking up the skeleton (and optionally the animation) from the referenced (or optionally a different) .gla file."
         bl_options = {'REGISTER', 'UNDO'} #register is a must-have when using WindowManager.invoke_props_popup
 
@@ -57,13 +64,13 @@ class GLMImport(bpy.types.Operator):
             print("\n== GLM Import ==\n")
             # initialize paths
             basepath, filepath = GetPaths(self.basepath, self.filepath);
-            if self.basepath != "" and mrw_g2_filesystem.RemoveExtension(self.filepath) == filepath:
+            if self.basepath != "" and JAFilesystem.RemoveExtension(self.filepath) == filepath:
                 self.report({'ERROR'}, "Invalid Base Path")
                 return {'FINISHED'}
             # de-percentagionise scale
             scale = self.scale / 100
             #load GLM
-            scene = mrw_g2_scene.Scene(basepath)
+            scene = JAG2Scene.Scene(basepath)
             success, message = scene.loadFromGLM(filepath)
             if not success:
                 self.report({'ERROR'}, message)
@@ -95,7 +102,7 @@ class GLMImport(bpy.types.Operator):
 class GLAImport(bpy.types.Operator):
         '''Import GLA Operator.'''
         bl_idname = "import_scene.gla"
-        bl_label = "Import Ghoul 2 Skeleton (.gla)"
+        bl_label = "Import JA Ghoul 2 Skeleton (.gla)"
         bl_description = "Imports a Ghoul 2 skeleton (.gla) and optionally the animation."
         bl_options = {'REGISTER', 'UNDO'}
 
@@ -124,11 +131,11 @@ class GLAImport(bpy.types.Operator):
             scale = self.scale / 100
             # initialize paths
             basepath, filepath = GetPaths(self.basepath, self.filepath);
-            if self.basepath != "" and mrw_g2_filesystem.RemoveExtension(self.filepath) == filepath:
+            if self.basepath != "" and JAFilesystem.RemoveExtension(self.filepath) == filepath:
                 self.report({'ERROR'}, "Invalid Base Path")
                 return {'FINISHED'}
             #load GLA
-            scene = mrw_g2_scene.Scene(basepath)
+            scene = JAG2Scene.Scene(basepath)
             success, message = scene.loadFromGLA(filepath, self.loadAnimations, self.startFrame, self.numFrames)
             if not success:
                 self.report({'ERROR'}, message)
@@ -147,7 +154,7 @@ class GLAImport(bpy.types.Operator):
 class GLMExport(bpy.types.Operator):
         '''Export GLM Operator.'''
         bl_idname = "export_scene.glm"
-        bl_label = "Export Ghoul 2 Model (.glm)"
+        bl_label = "Export JA Ghoul 2 Model (.glm)"
         bl_description = "Exports a Ghoul 2 model (.glm)"
         bl_options = {'REGISTER', 'UNDO'}
         
@@ -162,11 +169,11 @@ class GLMExport(bpy.types.Operator):
             print("\n== GLM Export ==\n")
             # initialize paths
             basepath, filepath = GetPaths(self.basepath, self.filepath);
-            if self.basepath != "" and mrw_g2_filesystem.RemoveExtension(self.filepath) == filepath:
+            if self.basepath != "" and JAFilesystem.RemoveExtension(self.filepath) == filepath:
                 self.report({'ERROR'}, "Invalid Base Path")
                 return {'FINISHED'}
             #try to load from Blender's data to my intermediate format
-            scene = mrw_g2_scene.Scene(basepath)
+            scene = JAG2Scene.Scene(basepath)
             success, message = scene.loadModelFromBlender(filepath, self.gla)
             if not success:
                 self.report({'ERROR'}, message)
@@ -185,7 +192,7 @@ class GLMExport(bpy.types.Operator):
 class GLAExport(bpy.types.Operator):
         '''Export GLA Operator.'''
         bl_idname = "export_scene.gla"
-        bl_label = "Export Ghoul 2 Skeleton & Animation (.gla)"
+        bl_label = "Export JA Ghoul 2 Skeleton & Animation (.gla)"
         bl_description = "Exports a Ghoul 2 Skeleton and its animations (.gla)"
         bl_options = {'REGISTER', 'UNDO'}
 
@@ -206,11 +213,11 @@ class GLAExport(bpy.types.Operator):
             if self.glapath != "":
                 glapath = self.glapath
             glapath = glapath.replace("\\", "/")
-            if self.basepath != "" and mrw_g2_filesystem.RemoveExtension(self.filepath) == filepath:
+            if self.basepath != "" and JAFilesystem.RemoveExtension(self.filepath) == filepath:
                 self.report({'ERROR'}, "Invalid Base Path")
                 return {'FINISHED'}
             #try to load from Blender's data to my intermediate format
-            scene = mrw_g2_scene.Scene(basepath)
+            scene = JAG2Scene.Scene(basepath)
             success, message = scene.loadSkeletonFromBlender(glapath, self.glareference)
             if not success:
                 self.report({'ERROR'}, message)
@@ -279,7 +286,7 @@ class ObjectRemoveG2Properties(bpy.types.Operator):
 class GLAMetaExport(bpy.types.Operator):
         '''Export GLA Metadata Operator.'''
         bl_idname = "export_scene.gla_meta"
-        bl_label = "Export Ghoul 2 Animation metadata (.cfg)"
+        bl_label = "Export JA Ghoul 2 Animation metadata (.cfg)"
         bl_description = "Exports timeline markers labelling the animations to a .cfg file"
         bl_options = {'REGISTER', 'UNDO'}
 
@@ -322,7 +329,7 @@ class GLAMetaExport(bpy.types.Operator):
                     last.len = marker.start - last.start
                 last = marker
             assert(last) # otherwise len(markers) == 0
-            last.len = endFrame - last.start + 1
+            last.len = endFrame - last.start
             
             file = open(self.filepath, "w")
             
@@ -346,19 +353,19 @@ class GLAMetaExport(bpy.types.Operator):
 
 # menu button callback functions
 def menu_func_export_glm(self, context):
-    self.layout.operator(GLMExport.bl_idname, text="Ghoul 2 model (.glm)")
+    self.layout.operator(GLMExport.bl_idname, text="JA Ghoul 2 model (.glm)")
 
 def menu_func_export_gla(self, context):
-    self.layout.operator(GLAExport.bl_idname, text="Ghoul 2 skeleton/animation (.gla)")
+    self.layout.operator(GLAExport.bl_idname, text="JA Ghoul 2 skeleton/animation (.gla)")
 
 def menu_func_export_gla_meta(self, context):
-    self.layout.operator(GLAMetaExport.bl_idname, text="Ghoul 2 animation markers (.cfg)")
+    self.layout.operator(GLAMetaExport.bl_idname, text="JA Ghoul 2 animation markers (.cfg)")
     
 def menu_func_import_glm(self, context):
-    self.layout.operator(GLMImport.bl_idname, text="Ghoul 2 model (.glm)")
+    self.layout.operator(GLMImport.bl_idname, text="JA Ghoul 2 model (.glm)")
 
 def menu_func_import_gla(self, context):
-    self.layout.operator(GLAImport.bl_idname, text="Ghoul 2 skeleton/animation (.gla)")
+    self.layout.operator(GLAImport.bl_idname, text="JA Ghoul 2 skeleton/animation (.gla)")
 
 # menu button init/destroy
 def register():

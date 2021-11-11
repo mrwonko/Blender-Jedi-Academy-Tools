@@ -21,7 +21,7 @@ DIRNAME = "gamedata"
 
 import os
 
-# returns the prefix and the rest, i.e. ".../GameData/..." (where GameData is DIRNAME) and textures/img.jpg
+# returns the prefix and the rest, e.g. ("/foo/bar/JKA/GameData/Base", "textures/img.jpg") (where GameData is DIRNAME)
 def SplitPrefix(fullPath):
     normFullPath = os.path.normpath(fullPath)
     searchme = os.path.normcase(normFullPath)
@@ -36,10 +36,11 @@ def SplitPrefix(fullPath):
         return "", normFullPath
     return [normFullPath[:pos+len(os.path.sep)], normFullPath[pos+len(os.path.sep):]]
 
-# removes a file extension
+# removes a file extension, i.e. /foo/bar.baz -> /foo/bar
 def RemoveExtension(path):
     return os.path.splitext(path)[0]
 
+# removes leading path, i.e. /foo/bar.baz -> bar.baz
 def GetFilename(path):
     return os.path.split(path)[1]
 
@@ -52,17 +53,18 @@ def RelPath(fullpath, prefix):
         return fullpath
     return os.path.relpath(fullpath, prefix).replace(os.path.sep, "/")
 
-# returns the relative pathas used in the game without the extension , given the full path and the prefix (as returned by GetPrefix())
+# returns the relative path as used in the game without the extension, given the full path and the prefix (as returned by GetPrefix())
 def RelPathNoExt(fullpath, prefix):
     return RemoveExtension(RelPath(fullpath, prefix))
 
 # returns the absolute path of a game path, given its prefix
 def AbsPath(relpath, prefix):
     if prefix == "":
-        return relpath # would be prefixed / otherwise
+        return relpath # would be prefixed "/" otherwise
     return os.path.normpath(os.path.normpath(prefix) + os.path.sep + relpath)
 
-# finds a file given its game name and the possible extensions (usually image extensions). Returns success, filename pair.
+# finds a file given its game name and the possible extensions (usually image extensions).
+# Returns (success, filename)
 def FindFile(relpath, prefix, extensions):
     absPath = AbsPath(relpath, prefix)
     if os.path.isfile(absPath):

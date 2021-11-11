@@ -17,36 +17,94 @@
 # ##### END GPL LICENSE BLOCK #####
 
 bl_info = {
-    "name": "Ghoul 2 format (.glm/.gla)",
-    "author": "Willi Schinmeyer",
-    "blender": (2, 6, 2),
-    "api": 44136,
-    "location": "File > Export",
-    "description": "Imports and exports Ghoul 2 models and animations.",
-    "warning": "",
-    #"wiki_url": "",
-    "tracker_url": "https://github.com/mrwonko/Blender-2.6-Ghoul-2-addon/issues",
-    #"support": 'OFFICIAL',
+    "name": "Jedi Academy Import/Export Tools",
+    "author": "mrwonko et al",
+    "description": "Various Jedi Knight: Jedi Academy related tools: Importers for ASE, GLA, GLM, ROFF and Exporters for ASE, GLA, GLM, animation.cfg, ROFF and MD3",
+    "version": (0, 2, 1),
+    "blender": (2, 6, 3),
+    "location": "File > Import/Export",
     "category": "Import-Export"
 }
 
-# reload won't work properly no matter what I do so I might as well ignore it.
-from . import mrw_g2_operators
-from . import mrw_g2_panels
-import bpy
+#  Imports
 
-#called when the plugin is activated
+#  Python
+import imp
+
+#  Blender
+if "bpy" not in locals():
+    import bpy
+
+#  Local
+# ASE
+if "JAAseExport" in locals():
+    imp.reload( JAAseExport )
+else:
+    from . import JAAseExport
+if "JAAseImport" in locals():
+    imp.reload( JAAseImport )
+else:
+    from . import JAAseImport
+# Patch
+if "JAPatchExport" in locals():
+    imp.reload( JAPatchExport )
+else:
+    from . import JAPatchExport
+# ROFF
+if "JARoffImport" in locals():
+    imp.reload( JARoffImport )
+else:
+    from . import JARoffImport
+if "JARoffExport" in locals():
+    imp.reload( JARoffExport )
+else:
+    from . import JARoffExport
+# MD3
+if "JAMd3Export" in locals():
+    imp.reload( JAMd3Export )
+else:
+    from . import JAMd3Export
+# Ghoul 2
+if "JAG2Panels" in locals():
+    imp.reload( JAG2Panels )
+else:
+    from . import JAG2Panels
+if "JAG2Operators" in locals():
+    imp.reload( JAG2Operators )
+else:
+    from . import JAG2Operators
+
+# there must be at least one operator in the locals for Blender to reload correctly.
+JAAseExportOp = JAAseExport.Operator
+
 def register():
-    mrw_g2_panels.initG2Properties()
-    mrw_g2_operators.register()
     bpy.utils.register_module(__name__)
+    
+    JAG2Panels.initG2Properties()
+    JAG2Operators.register();
+    
+    bpy.types.INFO_MT_file_export.append(JAAseExport.menu_func)
+    bpy.types.INFO_MT_file_export.append(JAPatchExport.menu_func)
+    bpy.types.INFO_MT_file_export.append(JARoffExport.menu_func)
+    bpy.types.INFO_MT_file_export.append(JAMd3Export.menu_func)
+    
+    bpy.types.INFO_MT_file_import.append(JAAseImport.menu_func)
+    bpy.types.INFO_MT_file_import.append(JARoffImport.menu_func)
 
-#called when the plugin is deactivated
+
 def unregister():
-    #not removing the custom properties here - the user may not want to lose them just because he disabled the addon.
-    mrw_g2_operators.unregister()
     bpy.utils.unregister_module(__name__)
+    
+    JAG2Operators.unregister()
+    
+    bpy.types.INFO_MT_file_export.remove(JAAseExport.menu_func)
+    bpy.types.INFO_MT_file_export.remove(JAPatchExport.menu_func)
+    bpy.types.INFO_MT_file_export.remove(JARoffExport.menu_func)
+    bpy.types.INFO_MT_file_export.remove(JAMd3Export.menu_func)
+    
+    bpy.types.INFO_MT_file_import.remove(JAAseImport.menu_func)
+    bpy.types.INFO_MT_file_import.remove(JARoffImport.menu_func)
 
-# register it if script is called directly    
+
 if __name__ == "__main__":
     register()

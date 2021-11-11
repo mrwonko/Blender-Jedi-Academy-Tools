@@ -16,8 +16,37 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-from . import mrw_g2_stringhelpers, mrw_g2_filesystem, mrw_g2_constants, mrw_g2_gla, mrw_g2_materialmanager, mrw_profiler
-import struct, bpy
+import imp, struct
+if 'JAStringhelper' in locals():
+    imp.reload( JAStringhelper )
+else:
+    from . import JAStringhelper
+if 'JAFilesystem' in locals():
+    imp.reload( JAFilesystem )
+else:
+    from . import JAFilesystem
+if 'JAG2Constants' in locals():
+    imp.reload( JAG2Constants )
+else:
+    from . import JAG2Constants
+if 'JAG2GLA' in locals():
+    imp.reload( JAG2GLA )
+else:
+    from . import JAG2GLA
+if 'JAMaterialmanager' in locals():
+    imp.reload( JAMaterialmanager )
+else:
+    from . import JAMaterialmanager
+if 'MrwProfiler' in locals():
+    imp.reload( MrwProfiler )
+else:
+    from . import MrwProfiler
+if 'JAG2Panels' in locals():
+    imp.reload( JAG2Panels )
+else:
+    from . import JAG2Panels
+
+import bpy
 
 def buildBoneIndexLookupMap(gla_filepath_abs):
     print("Loading gla file for bone name -> bone index lookup")
@@ -28,15 +57,15 @@ def buildBoneIndexLookupMap(gla_filepath_abs):
         print("Could not open ", gla_filepath_abs, sep="")
         return False, "Could not open gla file for bone index lookup!"
     #read header
-    header = mrw_g2_gla.MdxaHeader()
+    header = JAG2GLA.MdxaHeader()
     success, message = header.loadFromFile(file)
     if not success:
         return False, message
     #read offsets
-    boneOffsets = mrw_g2_gla.MdxaBoneOffsets()
+    boneOffsets = JAG2GLA.MdxaBoneOffsets()
     boneOffsets.loadFromFile(file, header.numBones) #cannot fail (except with exception)
     #read skeleton
-    skeleton = mrw_g2_gla.MdxaSkel()
+    skeleton = JAG2GLA.MdxaSkel()
     skeleton.loadFromFile(file, boneOffsets)
     #build lookup map
     boneIndices = {}
@@ -129,22 +158,22 @@ class MdxmHeader:
     def loadFromFile(self, file):
         #ident check
         ident, = struct.unpack("4s", file.read(4))
-        if ident != mrw_g2_constants.GLM_IDENT:
-            print("File does not start with ", mrw_g2_constants.GLM_IDENT, " but ", ident, " - no GLM!")
+        if ident != JAG2Constants.GLM_IDENT:
+            print("File does not start with ", JAG2Constants.GLM_IDENT, " but ", ident, " - no GLM!")
             return False, "Is no GLM file!"
         #version check
         version, = struct.unpack("i", file.read(4))
-        if version != mrw_g2_constants.GLM_VERSION:
-            return False, "Wrong glm file version! ("+str(version)+" should be "+str(mrw_g2_constants.GLM_VERSION)+")"
+        if version != JAG2Constants.GLM_VERSION:
+            return False, "Wrong glm file version! ("+str(version)+" should be "+str(JAG2Constants.GLM_VERSION)+")"
         # read data
-        self.name, self.animName = struct.unpack("64s64s", file.read(mrw_g2_constants.MAX_QPATH*2))
+        self.name, self.animName = struct.unpack("64s64s", file.read(JAG2Constants.MAX_QPATH*2))
         #4x is 4 ignored bytes - the animIndex which is only used ingame
         self.numBones, self.numLODs, self.ofsLODs, self.numSurfaces, self.ofsSurfHierarchy, self.ofsEnd = struct.unpack("4x6i", file.read(4*7))
         return True, ""
     
     def saveToFile(self, file):
         # 0 is animIndex, only used ingame
-        file.write(struct.pack("4si64s64s7i", mrw_g2_constants.GLM_IDENT, mrw_g2_constants.GLM_VERSION, self.name, self.animName, 0, self.numBones, self.numLODs, self.ofsLODs, self.numSurfaces, self.ofsSurfHierarchy, self.ofsEnd))
+        file.write(struct.pack("4si64s64s7i", JAG2Constants.GLM_IDENT, JAG2Constants.GLM_VERSION, self.name, self.animName, 0, self.numBones, self.numLODs, self.ofsLODs, self.numSurfaces, self.ofsSurfHierarchy, self.ofsEnd))
         return True, ""
     
     def print(self):
@@ -204,18 +233,17 @@ class MdxmSurfaceData:
         # set flags
         self.flags = 0
         if object.g2_prop_off:
-            self.flags |= mrw_g2_constants.SURFACEFLAG_OFF
+            self.flags |= JAG2Constants.SURFACEFLAG_OFF
         if object.g2_prop_tag:
-            self.flags |= mrw_g2_constants.SURFACEFLAG_TAG
+            self.flags |= JAG2Constants.SURFACEFLAG_TAG
         # set parent
         if object.parent != None and getName(object.parent)in surfaceIndexMap:
             self.parentIndex = surfaceIndexMap[getName(object.parent)]
         # set children
         self.numChildren = 0
-        from . import mrw_g2_panels
         for child in object.children:
             if child.type == 'MESH': # working around non-mesh garbage in the hierarchy would be too much trouble, everything below that is ignored
-                if not mrw_g2_panels.hasG2MeshProperties(child):
+                if not JAG2Panels.hasG2MeshProperties(child):
                     return False, "{} has no Ghoul 2 properties set!".format(child.name)
                 childName = getName(child)
                 if childName not in surfaceIndexMap:
@@ -248,13 +276,12 @@ class MdxmSurfaceDataCollection:
             self.surfaces.append(surfaceInfo)
     
     def loadFromBlender(self, rootObject, surfaceIndexMap):
-        from . import mrw_g2_panels
         def addChildren(object):
             for child in object.children:
                 # only meshes supported in hierarchy, I couldn't always use the parent otherwise
                 if child.type != 'MESH':
                     print("Warning: {} is no mesh, neither it nor its children will be exported!".format(child.name))
-                elif not mrw_g2_panels.hasG2MeshProperties(child):
+                elif not JAG2Panels.hasG2MeshProperties(child):
                     return False, "{} has no Ghoul 2 properties set! (Also, the exporter should've detected this earlier.)".format(child.name)
                 else:
                     # assign the child an index, if it doesn't have one already
@@ -425,6 +452,10 @@ class MdxmTriangle:
     def saveToFile(self, file):
         # triangles are flipped because otherwise they'd face the wrong way.
         file.write(struct.pack("3i", self.indices[2], self.indices[1], self.indices[0]))
+    
+    # "for x in triangle" support
+    def __getitem__( self, index ):
+        return self.indices[ index ]
 
 class MdxmSurface:
     def __init__(self):
@@ -484,7 +515,7 @@ class MdxmSurface:
         mesh = object.data
         
         self.numVerts = len(mesh.vertices)
-        self.numTriangles = len(mesh.faces)
+        self.numTriangles = len(mesh.polygons)
         
         if self.numVerts > 1000:
             print("Warning: {} has over 1000 vertices ({})".format(object.name, self.numVerts))
@@ -492,20 +523,19 @@ class MdxmSurface:
         # create UV lookup map
         UVs = [None] * self.numVerts
         first = True
-        for uv_tex in mesh.uv_textures:
-            if uv_tex.active and first: #there shouldn't be multiple active uv textures, but safety first!
-                first = False
-                for face, uvdata in zip(mesh.faces, uv_tex.data):
-                    if len(face.vertices) != 3:
-                        return False, "Non-triangle face found!"
-                    for vertexIndex, uv in zip(face.vertices, [uvdata.uv1, uvdata.uv2, uvdata.uv3]):
-                        if UVs[vertexIndex]: #already had UV coordinates for this face?
-                            if not vectorsAlmostEqual(uv, UVs[vertexIndex]): # better be the same then
-                                return False, "UV seam found! Split meshes at UV seams."
-                        else:
-                            UVs[vertexIndex] = uv
-        if first:
+        uv_layer = mesh.uv_layers.active
+        if not uv_layer:
             return False, "No UV coordinates found!"
+        uv_loops = uv_layer.data[:]
+        for face in mesh.polygons:
+            if len(face.vertices) != 3:
+                return False, "Non-triangle face found!"
+            for vertexIndex, uv in zip(face.vertices, [ uv_loops[face.loop_start + i].uv for i in range( 3 )]):
+                if UVs[vertexIndex]: #already had UV coordinates for this face?
+                    if not vectorsAlmostEqual(uv, UVs[vertexIndex]): # better be the same then
+                        return False, "UV seam found! Split meshes at UV seams."
+                else:
+                    UVs[vertexIndex] = uv
         
         if UVs.count(None) > 0:
             return False, "Vertex without UV coordinates found!"
@@ -519,7 +549,7 @@ class MdxmSurface:
                 return False, "Could not load a vertex: {}".format(message)
             self.vertices.append(vertex)
         
-        self.triangles = [MdxmTriangle([face.vertices[0], face.vertices[1], face.vertices[2]]) for face in mesh.faces]
+        self.triangles = [MdxmTriangle([face.vertices[0], face.vertices[1], face.vertices[2]]) for face in mesh.polygons]
         
         assert(len(self.vertices) == self.numVerts)
         assert(len(self.triangles) == self.numTriangles)
@@ -577,11 +607,20 @@ class MdxmSurface:
         #  retrieve metadata (same across LODs)
         surfaceData = data.surfaceDataCollection.surfaces[self.index]
         # blender won't let us create multiple things with the same name, so we add a LOD-suffix
-        name =  mrw_g2_stringhelpers.decode(surfaceData.name)
+        name =  JAStringhelper.decode(surfaceData.name)
         blenderName = name + "_" + str(lodLevel)
         
         #  create mesh
         mesh = bpy.data.meshes.new(blenderName)
+        
+        # this is probably actually bullshit, since vertex order is what determines a tag, not index order! I think.
+        """
+        # if this is a tag, changing the index order is not such a good idea. So let's change the vertex order, too!
+        if len( self.vertices ) == 3 and len( self.triangles ) == 1 and self.triangles[0].indices[2] == 0:
+            indexmap = { 0 : 2, 1 : 0, 2 : 1 }
+            self.vertices = [ self.vertices[ indexmap[ i ] ] for i in range( 3 ) ]
+            self.triangles[0].indices = [ indexmap[ self.triangles[0][ i ] ] for i in range( 3 ) ]
+        """
         
         #create vertices
         mesh.vertices.add(self.numVerts)
@@ -589,30 +628,38 @@ class MdxmSurface:
             bvert.co = vert.co
             bvert.normal = vert.normal
         
-        #create faces
-        mesh.faces.add(self.numTriangles)
-        for i, face in enumerate(mesh.faces):
-            tri = self.triangles[i]
-            face.vertices = tri.indices
+        # create faces
+        mesh.polygons.add( self.numTriangles )
+        # loops are the per-face-vertex-settings in one long flat list
+        mesh.loops.add( self.numTriangles * 3 )
+        # so we need to set where in that list a face's settings start...
+        mesh.polygons.foreach_set( "loop_start", range( 0, self.numTriangles * 3, 3 ) )
+        # ... and how many there are.
+        mesh.polygons.foreach_set( "loop_total", (3,) * self.numTriangles )
+        
+        # so now let's set the indices
+        flat_triangles = []
+        for v1, v2, v3 in self.triangles:
+            flat_triangles.extend( (v3, v1, v2) if v3 == 0 else (v1, v2, v3) )
+        mesh.loops.foreach_set( "vertex_index", flat_triangles )
+        del flat_triangles
         
         #create uv coordinates
         material = data.materialManager.getMaterial(name, surfaceData.shader)
         image = None
         if material and material.active_texture:
-            #assert(material.active_texture) # loading may fail...
             assert(material.active_texture.type == 'IMAGE')
             image = material.active_texture.image
         
-        mesh.uv_textures.new()
-        for i, uv_face in enumerate(mesh.uv_textures.active.data):
-            tri = self.triangles[i]
-            uv_face.uv1 = self.vertices[tri.indices[0]].uv
-            uv_face.uv1[1] = 1 - uv_face.uv1[1] #flip y
-            uv_face.uv2 = self.vertices[tri.indices[1]].uv
-            uv_face.uv2[1] = 1 - uv_face.uv2[1]
-            uv_face.uv3 = self.vertices[tri.indices[2]].uv
-            uv_face.uv3[1] = 1 - uv_face.uv3[1]
+        uv_faces = mesh.uv_textures.new().data
+        uv_loops = mesh.uv_layers.active.data[:]
+        for poly, uv_face in zip( mesh.polygons, uv_faces ):
             uv_face.image = image
+            
+            indices = [ mesh.loops[ poly.loop_start + i ].vertex_index for i in range( 3 ) ]
+            uvs = [ [ self.vertices[ index ].uv[ 0 ], 1 - self.vertices[ index ].uv[ 1 ] ] for index in indices ]
+            for i, uv in enumerate( uvs ):
+                uv_loops[ poly.loop_start + i ].uv = uv
         
         mesh.validate()
         mesh.update()
@@ -655,8 +702,8 @@ class MdxmSurface:
         #set ghoul2 specific properties
         obj.g2_prop_name = name
         obj.g2_prop_shader = surfaceData.shader.decode()
-        obj.g2_prop_tag = surfaceData.flags & mrw_g2_constants.SURFACEFLAG_TAG
-        obj.g2_prop_off = surfaceData.flags & mrw_g2_constants.SURFACEFLAG_OFF
+        obj.g2_prop_tag = not not (surfaceData.flags & JAG2Constants.SURFACEFLAG_TAG)
+        obj.g2_prop_off = not not (surfaceData.flags & JAG2Constants.SURFACEFLAG_OFF)
         
         # return object so hierarchy etc. can be set
         return obj
@@ -719,10 +766,9 @@ class MdxmLOD:
         # self.level gets set by caller
         
         # create dictionary of available objects
-        from . import mrw_g2_panels
         def addChildren(dict, object):
             for child in object.children:
-                if child.type == 'MESH' and mrw_g2_panels.hasG2MeshProperties(child):
+                if child.type == 'MESH' and JAG2Panels.hasG2MeshProperties(child):
                     dict[getName(child)] = child
                 addChildren(dict, child)
         available = {}
@@ -839,7 +885,7 @@ class GLM:
     
     def loadFromFile(self, filepath_abs):
         print("Loading {}...".format(filepath_abs))
-        profiler = mrw_profiler.SimpleProfiler(True)
+        profiler = MrwProfiler.SimpleProfiler(True)
         # open file
         try:
             file = open(filepath_abs, mode = "rb")
@@ -895,7 +941,7 @@ class GLM:
             skeleton_armature = skeleton_object.data
             
             
-            boneIndexMap, message = buildBoneIndexLookupMap(mrw_g2_filesystem.RemoveExtension(mrw_g2_filesystem.AbsPath(gla_filepath_rel, basepath)) + ".gla")
+            boneIndexMap, message = buildBoneIndexLookupMap(JAFilesystem.RemoveExtension(JAFilesystem.AbsPath(gla_filepath_rel, basepath)) + ".gla")
             if boneIndexMap == False:
                 return False, message
             
@@ -941,7 +987,7 @@ class GLM:
         return True, ""
     
     def saveToFile(self, filepath_abs):
-        if mrw_g2_filesystem.FileExists(filepath_abs):
+        if JAFilesystem.FileExists(filepath_abs):
             print("Warning: File exists! Overwriting.")
         #open file
         try:
@@ -976,13 +1022,13 @@ class GLM:
         self.header.ofsEnd = baseOffset
     
     # basepath: ../GameData/.../
-    # gla: mrw_g2_gla.GLA object - the Skeleton (for weighting purposes)
+    # gla: JAG2GLA.GLA object - the Skeleton (for weighting purposes)
     # scene_root: "scene_root" object in Blender
     def saveToBlender(self, basepath, gla, scene_root, skin_rel, guessTextures):
         if gla.header.numBones != self.header.numBones:
             return False, "Bone number mismatch - gla has {} bones, model uses {}. Maybe you're trying to load a jk2 model with the jk3 skeleton or vice-versa?".format(gla.header.numBones, self.header.numBones)
         print("creating model...")
-        profiler = mrw_profiler.SimpleProfiler(True)
+        profiler = MrwProfiler.SimpleProfiler(True)
         profiler.start("creating surfaces")
         class GeneralData:
             pass
@@ -990,7 +1036,7 @@ class GLM:
         data.gla = gla
         data.scene_root = scene_root
         data.surfaceDataCollection = self.surfaceDataCollection
-        data.materialManager = mrw_g2_materialmanager.MaterialManager()
+        data.materialManager = JAMaterialmanager.MaterialManager()
         data.boneNames = {}
         for bone in gla.skeleton.bones:
             data.boneNames[bone.index] = bone.name
@@ -1004,4 +1050,4 @@ class GLM:
     
     def getRequestedGLA(self):
         #todo
-        return mrw_g2_stringhelpers.decode(self.header.animName)
+        return JAStringhelper.decode(self.header.animName)

@@ -18,7 +18,19 @@
 
 # Main File containing the important definitions
 
-from . import mrw_g2_filesystem, mrw_g2_glm, mrw_g2_gla
+if 'JAFilesystem' in locals():
+    imp.reload( JAFilesystem )
+else:
+    from . import JAFilesystem
+if 'JAG2GLM' in locals():
+    imp.reload( JAG2GLM )
+else:
+    from . import JAG2GLM
+if 'JAG2GLA' in locals():
+    imp.reload( JAG2GLA )
+else:
+    from . import JAG2GLA
+
 import bpy
 
 def findSceneRootObject():
@@ -39,11 +51,11 @@ class Scene:
     
     # Fills scene from on GLM file
     def loadFromGLM(self, glm_filepath_rel):
-        success, glm_filepath_abs = mrw_g2_filesystem.FindFile(glm_filepath_rel, self.basepath, ["glm"])
+        success, glm_filepath_abs = JAFilesystem.FindFile(glm_filepath_rel, self.basepath, ["glm"])
         if not success:
             print("File not found: ", self.basepath + glm_filepath_rel + ".glm", sep="")
             return False, "File not found! (no .glm?)"
-        self.glm = mrw_g2_glm.GLM()
+        self.glm = JAG2GLM.GLM()
         success, message = self.glm.loadFromFile(glm_filepath_abs)
         if not success:
             return False, message
@@ -54,15 +66,15 @@ class Scene:
         self.animations = loadAnimations
         # create default skeleton if necessary (doing it here is a bit of a hack)
         if gla_filepath_rel == "*default":
-            self.gla = mrw_g2_gla.GLA()
+            self.gla = JAG2GLA.GLA()
             self.gla.header.numBones = 1
             self.gla.isDefault = True
             return True, ""
-        success, gla_filepath_abs = mrw_g2_filesystem.FindFile(gla_filepath_rel, self.basepath, ["gla"])
+        success, gla_filepath_abs = JAFilesystem.FindFile(gla_filepath_rel, self.basepath, ["gla"])
         if not success:
             print("File not found: ", self.basepath + gla_filepath_rel + ".gla", sep="")
             return False, "File not found! (no .gla?)"
-        self.gla = mrw_g2_gla.GLA()
+        self.gla = JAG2GLA.GLA()
         success, message = self.gla.loadFromFile(gla_filepath_abs, loadAnimations, startFrame, numFrames)
         if not success:
             return False, message
@@ -70,7 +82,7 @@ class Scene:
     
     # "Loads" model from Blender data
     def loadModelFromBlender(self, glm_filepath_rel, gla_filepath_rel):
-        self.glm = mrw_g2_glm.GLM()
+        self.glm = JAG2GLM.GLM()
         success, message = self.glm.loadFromBlender(glm_filepath_rel, gla_filepath_rel, self.basepath)
         if not success:
             return False, message
@@ -78,10 +90,10 @@ class Scene:
     
     # "Loads" skeleton & animation from Blender data
     def loadSkeletonFromBlender(self, gla_filepath_rel, gla_reference_rel):
-        self.gla = mrw_g2_gla.GLA()
+        self.gla = JAG2GLA.GLA()
         gla_reference_abs = ""
         if gla_reference_rel != "":
-            success, gla_reference_abs = mrw_g2_filesystem.FindFile(gla_reference_rel, self.basepath, ["gla"])
+            success, gla_reference_abs = JAFilesystem.FindFile(gla_reference_rel, self.basepath, ["gla"])
             if not success:
                 return False, "Could not find reference GLA"
         success, message = self.gla.loadFromBlender(gla_filepath_rel, gla_reference_abs)
@@ -91,7 +103,7 @@ class Scene:
     
     #saves the model to a .glm file
     def saveToGLM(self, glm_filepath_rel):
-        glm_filepath_abs = mrw_g2_filesystem.AbsPath(glm_filepath_rel, self.basepath) + ".glm"
+        glm_filepath_abs = JAFilesystem.AbsPath(glm_filepath_rel, self.basepath) + ".glm"
         success, message = self.glm.saveToFile(glm_filepath_abs)
         if not success:
             return False, message
@@ -99,7 +111,7 @@ class Scene:
     
     # saves the skeleton & animations to a .gla file
     def saveToGLA(self, gla_filepath_rel):
-        gla_filepath_abs = mrw_g2_filesystem.AbsPath(gla_filepath_rel, self.basepath) + ".gla"
+        gla_filepath_abs = JAFilesystem.AbsPath(gla_filepath_rel, self.basepath) + ".gla"
         success, message = self.gla.saveToFile(gla_filepath_abs)
         if not success:
             return False, message

@@ -16,14 +16,30 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-from . import mrw_g2_stringhelpers, mrw_g2_constants, mrw_g2_math, mrw_profiler
+if 'JAStringhelper' in locals():
+    imp.reload( JAStringhelper )
+else:
+    from . import JAStringhelper
+if 'JAG2Constants' in locals():
+    imp.reload( JAG2Constants )
+else:
+    from . import JAG2Constants
+if 'JAG2Math' in locals():
+    imp.reload( JAG2Math )
+else:
+    from . import JAG2Math
+if 'MrwProfiler' in locals():
+    imp.reload( MrwProfiler )
+else:
+    from . import MrwProfiler
+
 import struct, bpy, mathutils
 
 PROFILE = False
 PROGRESS_UPDATE_INTERVAL = 30 # show progress & remaining time every 30 seconds.
 
 def readString(file):
-    return mrw_g2_stringhelpers.decode(struct.unpack("64s", file.read(mrw_g2_constants.MAX_QPATH))[0])
+    return JAStringhelper.decode(struct.unpack("64s", file.read(JAG2Constants.MAX_QPATH))[0])
 
 class MdxaHeader:
     
@@ -40,19 +56,19 @@ class MdxaHeader:
     def loadFromFile(self, file):
         # check ident
         ident, = struct.unpack("4s", file.read(4))
-        if ident != mrw_g2_constants.GLA_IDENT:
-            print("File does not start with ", mrw_g2_constants.GLA_IDENT, " but ", ident, " - no GLA!")
+        if ident != JAG2Constants.GLA_IDENT:
+            print("File does not start with ", JAG2Constants.GLA_IDENT, " but ", ident, " - no GLA!")
             return False, "Is no GLA file!"
         version, = struct.unpack("i", file.read(4))
-        if version != mrw_g2_constants.GLA_VERSION:
-            return False, "Wrong gla file version! ("+str(version)+" should be "+str(mrw_g2_constants.GLA_VERSION)+")"
+        if version != JAG2Constants.GLA_VERSION:
+            return False, "Wrong gla file version! ("+str(version)+" should be "+str(JAG2Constants.GLA_VERSION)+")"
         self.name = readString(file)
         self.scale, self.numFrames, self.ofsFrames, self.numBones, self.ofsCompBonePool, self.ofsSkel, self.ofsEnd = struct.unpack("f6i", file.read(7*4))
         print("Scale: {:.3f}".format(self.scale))
         return True, ""
     
     def saveToFile(self, file):
-        file.write(struct.pack("4si64sf6i", mrw_g2_constants.GLA_IDENT, mrw_g2_constants.GLA_VERSION, self.name.encode(), self.scale, self.numFrames, self.ofsFrames, self.numBones, self.ofsCompBonePool, self.ofsSkel, self.ofsEnd))
+        file.write(struct.pack("4si64sf6i", JAG2Constants.GLA_IDENT, JAG2Constants.GLA_VERSION, self.name.encode(), self.scale, self.numFrames, self.ofsFrames, self.numBones, self.ofsCompBonePool, self.ofsSkel, self.ofsEnd))
 
 class MdxaBoneOffsets:
     
@@ -77,8 +93,8 @@ class MdxaBone:
         self.name = ""
         self.flags = 0
         self.parent = -1
-        self.basePoseMat = mrw_g2_math.Matrix()
-        self.basePoseMatInv = mrw_g2_math.Matrix()
+        self.basePoseMat = JAG2Math.Matrix()
+        self.basePoseMatInv = JAG2Math.Matrix()
         self.numChildren = 0
         self.children = []
         self.index = -1 # not saved, filled by loadBonesFromFile() and when loaded from blender
@@ -104,7 +120,7 @@ class MdxaBone:
         for child in self.children:
             file.write(struct.pack("i", child))
     
-    def loadFromBlender(self, editbone, boneIndicesByName, bones):
+    def loadFromBlender(self, editbone, boneIndicesByName, bones, objLocalMat):
         # set name
         self.name = editbone.name
         
@@ -119,10 +135,9 @@ class MdxaBone:
             parent.children.append(self.index)
         
         # save (inverted) base pose matrix
-        mat = editbone.matrix.copy()
-        matInv = editbone.matrix.inverted()
-        mrw_g2_math.BlenderBoneRotToGLA(mat) # must not be used for blender-internal calculations anymore!
-        mrw_g2_math.BlenderBoneRotToGLA(matInv) # ^ same
+        mat = objLocalMat * editbone.matrix
+        JAG2Math.BlenderBoneRotToGLA(mat) # must not be used for blender-internal calculations anymore!
+        matInv = mat.inverted()
         self.basePoseMat.fromBlender(mat)
         self.basePoseMatInv.fromBlender(matInv)
     
@@ -139,14 +154,14 @@ class MdxaBone:
         bone.head = pos
         # head is offset a bit.
         x_axis = mathutils.Vector(mat.col[0][0:3]) # X points towards next bone.
-        bone.tail = pos + x_axis*mrw_g2_constants.BONELENGTH
+        bone.tail = pos + x_axis*JAG2Constants.BONELENGTH
         # set roll
         y_axis = -mathutils.Vector(mat.col[1][0:3])
         bone.align_roll(y_axis)
         
         # set parent, if any, keeping in mind it might be overwritten
         parentIndex = self.parent
-        parentChanges = mrw_g2_constants.PARENT_CHANGES[skeletonFixes]
+        parentChanges = JAG2Constants.PARENT_CHANGES[skeletonFixes]
         if self.index in parentChanges:
             parentIndex = parentChanges[self.index]
         if parentIndex != -1:
@@ -169,7 +184,7 @@ class MdxaBone:
             assert(numParentChildren > 0) #at least this bone is child.
             
             # if this is the only child of its parent or has priority: Connect the parent to this.
-            if numParentChildren == 1 or self.name in mrw_g2_constants.PRIORITY_BONES[skeletonFixes]:
+            if numParentChildren == 1 or self.name in JAG2Constants.PRIORITY_BONES[skeletonFixes]:
                 # but only if that doesn't rotate the bone (much)
                 # so calculate the directions...
                 oldDir = blenderParent.tail - blenderParent.head
@@ -178,7 +193,7 @@ class MdxaBone:
                 newDir.normalize()
                 dotProduct = oldDir.dot(newDir)
                 # ... and compare them using the dot product, which is the cosine of the angle between two unit vectors
-                if dotProduct > mrw_g2_constants.BONE_ANGLE_ERROR_MARGIN:
+                if dotProduct > JAG2Constants.BONE_ANGLE_ERROR_MARGIN:
                     blenderParent.tail = pos
                     bone.use_connect = True
         
@@ -229,7 +244,7 @@ class MdxaSkel:
         # bones yet to be created
         uncreatedBones = []
         uncreatedBones.extend(self.bones)
-        parentChanges = mrw_g2_constants.PARENT_CHANGES[skeletonFixes]
+        parentChanges = JAG2Constants.PARENT_CHANGES[skeletonFixes]
         # Blender EditBones so far by index
         blenderEditBones = {}
         while len(uncreatedBones) > 0:
@@ -283,7 +298,7 @@ class MdxaBonePool:
     
     def loadFromFile(self, file, numCompBones):
         for i in range(numCompBones):
-            compBone = mrw_g2_math.CompBone()
+            compBone = JAG2Math.CompBone()
             compBone.loadFromFile(file)
             self.bones.append(compBone)
     
@@ -442,7 +457,7 @@ class MdxaAnimation:
                 # calculate the actual position
                 transformation = offset * basePoses[index]
                 # flip axes as required for blender bone
-                mrw_g2_math.GLABoneRotToBlender(transformation)
+                JAG2Math.GLABoneRotToBlender(transformation)
                 
                 pose_bone = bones[index]
                 #pose_bone.matrix = transformation * scaleMatrix
@@ -477,7 +492,7 @@ class GLA:
         except IOError:
             print("Could not open file: {}".format(filepath_abs))
             return False, "Could not open file!"
-        profiler = mrw_profiler.SimpleProfiler(True)
+        profiler = MrwProfiler.SimpleProfiler(True)
         # load header
         profiler.start("reading header")
         success, message = self.header.loadFromFile(file)
@@ -523,6 +538,9 @@ class GLA:
         self.skeleton_object.select = True
         self.skeleton_object.hide = False
         
+        # in case of rescaled/moved skeleton object: get transformation (assuming we're a child of scene_root)
+        localMat = self.skeleton_object.matrix_local
+        
         # if there's a reference GLA (for bone indices), load that
         if gla_reference_abs != "":
             print("Using reference GLA skeleton - warning: there's no check beyond bone names (hierarchy, base pose etc.)")
@@ -548,6 +566,7 @@ class GLA:
         
         # or no reference GLA? build new skeleton then.
         else:
+            
             # enter edit mode so we can access editbones
             bpy.ops.object.mode_set(mode='EDIT')
             
@@ -566,7 +585,7 @@ class GLA:
                         newBone.index = len(self.skeleton.bones)
                         
                         # read the rest from the editbone
-                        newBone.loadFromBlender(bone, self.boneIndexByName, self.skeleton.bones)
+                        newBone.loadFromBlender(bone, self.boneIndexByName, self.skeleton.bones, localMat)
                         
                         # append bone
                         self.skeleton.bones.append(newBone)
@@ -625,12 +644,12 @@ class GLA:
                     basebone = self.skeleton_armature.bones[bone.name]
                     posebone = self.skeleton_object.pose.bones[bone.name]
                     
-                    basePoseMat = basebone.matrix_local.copy()
-                    poseMat = posebone.matrix.copy()
+                    basePoseMat = localMat * basebone.matrix_local
+                    poseMat = localMat * posebone.matrix
                     
                     # change rotation axes from blender style to gla style
-                    mrw_g2_math.BlenderBoneRotToGLA(basePoseMat)
-                    mrw_g2_math.BlenderBoneRotToGLA(poseMat)
+                    JAG2Math.BlenderBoneRotToGLA(basePoseMat)
+                    JAG2Math.BlenderBoneRotToGLA(poseMat)
                     if bone.parent == -1:
                         relativeBoneOffsets[index] = absoluteBoneOffsets[index] = poseMat * basePoseMat.inverted()
                         
@@ -655,7 +674,7 @@ class GLA:
             for offset in relativeBoneOffsets:
                 
                 # compress that offset
-                compOffset = mrw_g2_math.CompBone.compress(offset)
+                compOffset = JAG2Math.CompBone.compress(offset)
                 
                 try:
                     # try to use existing compressed bone offset
@@ -695,7 +714,7 @@ class GLA:
     
     def saveToBlender(self, scene_root, useAnimation, skeletonFixes):
         print("Applying skeleton/skeleton to Blender")
-        profiler = mrw_profiler.SimpleProfiler(True)
+        profiler = MrwProfiler.SimpleProfiler(True)
         #default skeleton = no skeleton.
         if self.isDefault:
             return True, ""

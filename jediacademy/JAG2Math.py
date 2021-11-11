@@ -78,7 +78,6 @@ def BlenderBoneRotToGLA(matrix):
     matrix[3][0], matrix[3][1] = matrix[3][1], -matrix[3][0]
 
 # compressed bones as used in GLA files
-#todo
 class CompBone:
     def __init__(self):
         self.matrix = None
