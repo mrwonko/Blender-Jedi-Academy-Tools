@@ -64,6 +64,16 @@
  \begin{itemize}
   \item Fixed roff exporter not exporting calculated transformations (e.g. from constraints) correctly.
  \end{itemize}
+
+ \subsection*{cagelight fork (\date{2018-09-02}--\date{2021-05-24})}
+
+ Cagelight started a fork to further improve the addon, major changes include:
+ \begin{itemize}
+  \item Fixed shading information getting lost by adding support for custom normals
+  \item Migrated to newer Blender Mesh API, removing the need to manually split the mesh at UV seams
+  \item Removed the MD3 exporter, as a superior one is available at https://github.com/SomaZ/Blender_BSP_Importer/
+ \end{itemize}
+
  
  \section{Installation}
  
@@ -144,40 +154,6 @@
   \item Sets Blender's FPS setting in the Render Settings to match the one in the file.
  \end{itemize}
  
- \section{MD3}
- 
- Originally created for Quake 3, the MD3 format is for models, with the possibility of per-vertex-animations
- (which make for huge files). It notably uses fixed-point coordinates for the vertices, resulting in the
- requirement that models need to stay within the [-512; 512) range and only have a precision of 1/64 unit,
- and support so-called Tags to mark locations on the model (e.g. muzzle flash position/rotation on a weapon).
- 
- If you want animated map models, this should be the format of your choice.
- 
- \subsection{MD3 Exporter}
- 
- Located in ``File/Export/JA MD3 (.md3)'' or invoked by entering ``Export MD3'' in the Search Window
- opened by default with Space.
- 
- Acknowledgement: I did not originally write this exporter, I improved upon one I found online which was at
- the time maintained by Xembie, although I believe he did not initially start it. His version has since been
- updated and the current version is available on\\
- http://sourceforge.net/projects/md3exporter/
- 
- Features:
- \begin{itemize}
-  \item Exports \emph{animated} MD3 models. So if you don't want animations, make sure to set the Blender
-  End Frame to the same as the Start Frame or your model will turn out needlessly large.
-  \item Looks for a custom property called ``md3shader'' on the \emph{objects} to determine the texture to use.
-  (Make sure not to put the custom property on the mesh.) 
-  \item Exports only selected objects.
-  \item Mesh objects get exported as meshes.
-  \item Empty objects get exported as tags.
-  \item Can be scaled and offset using the corresponding Export settings.
-  \item The ``MD3 Name'' Export setting should be set to the path of your model including the extension, e.g.\\
-  ``models/map\_objects/imperial/field\_post.md3''.
-  \item Make sure your model does not exceed the [-512; 512) range or you'll get a struct.error on export.
- \end{itemize}
-
  
  \section{Ghoul 2 (GLM/GLA)}
  
@@ -201,14 +177,14 @@
  
  Due to the way data is saved there are some inherent limits for Ghoul 2 files:
  \begin{itemize}
-  \item The Mesh must be triangulated.
+  \item The Mesh must be triangulated. The plugin will attempt automatic triangulation.
   \item Every Vertex has to weighted to the skeleton.
   \item A Mesh can reference no more than 32 bones.
   \item Any single vertex can reference no more than 4 out of those 32 bones.
   \item Names must be no longer than 64 characters (bones, objects etc.).
-  \item UV coordinates are per-vertex, meaning that any single vertex can only have one UV coordinate. This
-  necessitates splitting the mesh at UV seams, which can for example be achieved by also marking seams as
-  ``sharp'' and using the ``Edge Split'' modifier to split at those sharp edges.
+  \item UV coordinates are per-vertex, meaning that any single vertex can only have one UV coordinate.
+  But the importer now takes care of this and automatically splits your mesh where necessary.
+  Note that this increases the number of exported vertices, which count towards the limit.
   \item Bones must not be scaled. The file format only saves location and rotation and applying scale anyway
   while lead to (visually) broken animations.
   \item Bone must not move further than 512 units away from their base pose.
