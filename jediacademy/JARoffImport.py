@@ -10,7 +10,7 @@ class Operator(bpy.types.Operator):
 	bl_label = "Import JA ROFF (.rof)"
 	
 	#gets set by the file select window - internal Blender Magic or whatever.
-	filepath = bpy.props.StringProperty(name="File Path", description="File path used for importing the ROFF file", maxlen= 1024, default="")
+	filepath: bpy.props.StringProperty(name="File Path", description="File path used for importing the ROFF file", maxlen= 1024, default="")
 	
 	def execute(self, context):
 		self.ImportStart()
@@ -85,4 +85,4 @@ class Operator(bpy.types.Operator):
 			return
 
 def menu_func(self, context):
-    self.layout.operator(Operator.bl_idname, text="JA ROFF (.rof)")
+	self.layout.operator(Operator.bl_idname, text="JA ROFF (.rof)")
