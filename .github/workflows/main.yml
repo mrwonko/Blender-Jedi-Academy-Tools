@@ -17,9 +17,16 @@ jobs:
         uses: dante-ev/latex-action@latest
         with:
           root_file: jediacademy_plugins_doc.tex
-      - name: Upload Manual
-        uses: actions/upload-artifact@v2
+      - name: Package plugin
+        uses: TheDoctor0/zip-release@0.6.0
         with:
-          name: manual
-          path: jediacademy_plugins_doc.pdf
-      # TODO: create release, see e.g. https://github.com/elgohr/Github-Release-Action, but I only want to publish certain files in a certain way (zipped plugin plus pdf manual)
+          filename: jediacademy.zip
+          path: ./jediacademy/
+          type: zip
+      - name: Release nightly
+        uses: softprops/action-gh-release@v1
+        with:
+          name: nightly
+          files: |
+            jediacademy_plugins_doc.pdf
+            jediacademy.zip
