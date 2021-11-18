@@ -29,6 +29,16 @@ jobs:
           name: nightly
           tag_name: nightly
           prerelease: true
+          body: |
+            Automatic pre-release build.
+            
+            The jediacademy.zip file can be installed using the button in Blender's add-on preferences.
+            
+            Please consult jediacademy_plugins_doc.pdf for instructions on how to use the plugin.
+            
+            Latest changes:
+            
+            ${{join(github.events.commits.*.message, "\n\n")}}
           files: |
             jediacademy_plugins_doc.pdf
             jediacademy.zip
