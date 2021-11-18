@@ -13,8 +13,13 @@ jobs:
     steps:
       - name: Set up Git repository
         uses: actions/checkout@v2
-      - name: Compile LaTeX document
+      - name: Compile Manual
         uses: dante-ev/latex-action@latest
         with:
           root_file: jediacademy_plugins_doc.tex
+      - name: Upload Manual
+        uses: actions/upload-artifact@v2
+        with:
+          name: manual
+          path: jediacademy_plugins_doc.pdf
       # TODO: create release, see e.g. https://github.com/elgohr/Github-Release-Action, but I only want to publish certain files in a certain way (zipped plugin plus pdf manual)
