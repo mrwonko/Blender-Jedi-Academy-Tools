@@ -38,7 +38,7 @@ jobs:
             
             Latest change:
             
-            ${{github.events.commits[0].message}}
+            ${{github.event.commits[0].message}}
           files: |
             jediacademy_plugins_doc.pdf
             jediacademy.zip
