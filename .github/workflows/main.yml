@@ -36,9 +36,9 @@ jobs:
             
             Please consult jediacademy_plugins_doc.pdf for instructions on how to use the plugin.
             
-            Latest changes:
+            Latest change:
             
-            ${{join(github.events.commits.*.message, "\n\n")}}
+            ${{github.events.commits[0].message}}
           files: |
             jediacademy_plugins_doc.pdf
             jediacademy.zip
