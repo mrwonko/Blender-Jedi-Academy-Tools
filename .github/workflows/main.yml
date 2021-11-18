@@ -1,0 +1,20 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Git repository
+        uses: actions/checkout@v2
+      - name: Compile LaTeX document
+        uses: dante-ev/latex-action@latest
+        with:
+          root_file: jediacademy_plugins_doc.tex
+      # TODO: create release, see e.g. https://github.com/elgohr/Github-Release-Action, but I only want to publish certain files in a certain way (zipped plugin plus pdf manual)
