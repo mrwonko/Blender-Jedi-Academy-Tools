@@ -16,13 +16,13 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import imp
+import importlib
 if 'JAFilesystem' in locals():
-	imp.reload( JAFilesystem )
+	importlib.reload( JAFilesystem )
 else:
 	from . import JAFilesystem
 if 'JAStringhelper' in locals():
-	imp.reload( 'JAStringhelper' )
+	importlib.reload( 'JAStringhelper' )
 else:
 	from . import JAStringhelper
 

@@ -3,10 +3,10 @@ __author__ = ["Xembie","PhaethonH","Bob Holcomb","Damien McGinnes","Robert (Tr3B
 __version__ = '1.4'
 __url__ = ["www.blender.org","http://xreal.sourceforge.net","http://www.katsbits.com"]
 
-import math, time, os, imp, mathutils
+import math, time, os, importlib, mathutils
 if "JAMd3Encode" in locals():
-    import imp
-    imp.reload( JAMd3Encode )
+    import importlib
+    importlib.reload( JAMd3Encode )
 else:
     from . import JAMd3Encode
 

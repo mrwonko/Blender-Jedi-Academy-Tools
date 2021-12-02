@@ -18,16 +18,18 @@
 
 # Main File containing the important definitions
 
+import importlib
+
 if 'JAFilesystem' in locals():
-	imp.reload( JAFilesystem )
+	importlib.reload( JAFilesystem )
 else:
 	from . import JAFilesystem
 if 'JAG2GLM' in locals():
-	imp.reload( JAG2GLM )
+	importlib.reload( JAG2GLM )
 else:
 	from . import JAG2GLM
 if 'JAG2GLA' in locals():
-	imp.reload( JAG2GLA )
+	importlib.reload( JAG2GLA )
 else:
 	from . import JAG2GLA
 

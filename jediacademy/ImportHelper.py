@@ -1,4 +1,4 @@
-import imp, importlib
+import importlib
 
 # Provides an easy interface to import an unloaded module, or reload it if it has been previously imported
 # Always local, i.e. from . import X
@@ -10,7 +10,7 @@ class Importer:
 	def loadOrReload( self, moduleName ):
 		if not self.loadOnce( moduleName):
 			print( "Reloading module {}".format( moduleName ) )
-			imp.reload( self.locals[ moduleName ] )
+			importlib.reload( self.locals[ moduleName ] )
 	
 	# Imports the given module only if it hasn't been imported yet
 	def loadOnce( self, moduleName ):

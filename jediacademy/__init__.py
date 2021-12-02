@@ -28,7 +28,7 @@ bl_info = {
 #  Imports
 
 #  Python
-import imp
+import importlib
 
 #  Blender
 if "bpy" not in locals():
@@ -37,34 +37,34 @@ if "bpy" not in locals():
 #  Local
 # ASE
 if "JAAseExport" in locals():
-	imp.reload( JAAseExport )
+	importlib.reload( JAAseExport )
 else:
 	from . import JAAseExport
 if "JAAseImport" in locals():
-	imp.reload( JAAseImport )
+	importlib.reload( JAAseImport )
 else:
 	from . import JAAseImport
 # Patch
 if "JAPatchExport" in locals():
-	imp.reload( JAPatchExport )
+	importlib.reload( JAPatchExport )
 else:
 	from . import JAPatchExport
 # ROFF
 if "JARoffImport" in locals():
-	imp.reload( JARoffImport )
+	importlib.reload( JARoffImport )
 else:
 	from . import JARoffImport
 if "JARoffExport" in locals():
-	imp.reload( JARoffExport )
+	importlib.reload( JARoffExport )
 else:
 	from . import JARoffExport
 # Ghoul 2
 if "JAG2Panels" in locals():
-	imp.reload( JAG2Panels )
+	importlib.reload( JAG2Panels )
 else:
 	from . import JAG2Panels
 if "JAG2Operators" in locals():
-	imp.reload( JAG2Operators )
+	importlib.reload( JAG2Operators )
 else:
 	from . import JAG2Operators
 

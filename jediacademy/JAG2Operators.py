@@ -16,13 +16,14 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
+import importlib
 import bpy
 if 'JAG2Scene' in locals():
-	imp.reload( JAG2Scene )
+	importlib.reload( JAG2Scene )
 else:
 	from . import JAG2Scene
 if 'JAFilesystem' in locals():
-	imp.reload( JAFilesystem )
+	importlib.reload( JAFilesystem )
 else:
 	from . import JAFilesystem
 

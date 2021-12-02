@@ -16,33 +16,33 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import imp, struct
+import importlib, struct
 if 'JAStringhelper' in locals():
-	imp.reload( JAStringhelper )
+	importlib.reload( JAStringhelper )
 else:
 	from . import JAStringhelper
 if 'JAFilesystem' in locals():
-	imp.reload( JAFilesystem )
+	importlib.reload( JAFilesystem )
 else:
 	from . import JAFilesystem
 if 'JAG2Constants' in locals():
-	imp.reload( JAG2Constants )
+	importlib.reload( JAG2Constants )
 else:
 	from . import JAG2Constants
 if 'JAG2GLA' in locals():
-	imp.reload( JAG2GLA )
+	importlib.reload( JAG2GLA )
 else:
 	from . import JAG2GLA
 if 'JAMaterialmanager' in locals():
-	imp.reload( JAMaterialmanager )
+	importlib.reload( JAMaterialmanager )
 else:
 	from . import JAMaterialmanager
 if 'MrwProfiler' in locals():
-	imp.reload( MrwProfiler )
+	importlib.reload( MrwProfiler )
 else:
 	from . import MrwProfiler
 if 'JAG2Panels' in locals():
-	imp.reload( JAG2Panels )
+	importlib.reload( JAG2Panels )
 else:
 	from . import JAG2Panels
 

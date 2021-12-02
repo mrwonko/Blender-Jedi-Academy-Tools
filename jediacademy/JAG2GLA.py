@@ -16,20 +16,22 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
+import importlib
+
 if 'JAStringhelper' in locals():
-	imp.reload( JAStringhelper )
+	importlib.reload( JAStringhelper )
 else:
 	from . import JAStringhelper
 if 'JAG2Constants' in locals():
-	imp.reload( JAG2Constants )
+	importlib.reload( JAG2Constants )
 else:
 	from . import JAG2Constants
 if 'JAG2Math' in locals():
-	imp.reload( JAG2Math )
+	importlib.reload( JAG2Math )
 else:
 	from . import JAG2Math
 if 'MrwProfiler' in locals():
-	imp.reload( MrwProfiler )
+	importlib.reload( MrwProfiler )
 else:
 	from . import MrwProfiler
 
