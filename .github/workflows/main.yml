@@ -21,7 +21,7 @@ jobs:
         uses: TheDoctor0/zip-release@0.6.0
         with:
           filename: jediacademy.zip
-          path: ./jediacademy/
+          exclusions: '.git .github jediacademy_plugins_doc.pdf jediacademy_plugins_doc.tex notes.txt README.md todo.txt jediacademy.zip'
           type: zip
       - name: Release nightly
         uses: softprops/action-gh-release@v1
