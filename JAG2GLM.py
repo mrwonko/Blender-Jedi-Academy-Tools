@@ -290,9 +290,12 @@ class MdxmSurfaceDataCollection:
 					return False, "{} has no Ghoul 2 properties set! (Also, the exporter should've detected this earlier.)".format(child.name)
 				else:
 					# assign the child an index, if it doesn't have one already
-					if getName(child) not in surfaceIndexMap:
-						surfaceIndexMap[getName(child)] = len(surfaceIndexMap)
-					index = surfaceIndexMap[getName(child)]
+					name = getName(child)
+					if name in surfaceIndexMap:
+						# ideally, we should return the name of the other object, too... but we don't have it
+						return False, f"multiple objects illegally share G2 name \"{name}\", including \"{child.name}\""
+					surfaceIndexMap[name] = len(surfaceIndexMap)
+					index = surfaceIndexMap[name]
 					# extend the surface list to include the index, if necessary
 					if index >= len(self.surfaces):
 						self.surfaces.extend([None] * (index + 1 - len(self.surfaces)))
@@ -773,6 +776,9 @@ class MdxmLOD:
 		def addChildren(dict, object):
 			for child in object.children:
 				if child.type == 'MESH' and JAG2Panels.hasG2MeshProperties(child):
+					name = getName(child)
+					if name in dict:
+						return False, f"Objects \"{child.name}\" and \"{dict[name].name}\" must not both have G2 name \"{name}\""
 					dict[getName(child)] = child
 				addChildren(dict, child)
 		available = {}
