@@ -24,7 +24,7 @@ jobs:
         uses: TheDoctor0/zip-release@0.7.1
         with:
           filename: build/jediacademy.zip
-          exclusions: '.git/* .github/* build/* *.tex *.pdf *.zip notes.txt README.md todo.txt'
+          exclusions: './.git/ ./.github/ ./build/ *.tex *.pdf *.zip notes.txt README.md todo.txt'
           type: zip
       - name: Release nightly
         uses: softprops/action-gh-release@v1
