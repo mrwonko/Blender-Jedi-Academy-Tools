@@ -21,7 +21,7 @@ jobs:
           working_directory: build
           root_file: ../jediacademy_plugins_doc.tex
       - name: Package plugin
-        uses: TheDoctor0/zip-release@0.6.0
+        uses: TheDoctor0/zip-release@0.7.1
         with:
           filename: build/jediacademy.zip
           exclusions: '.git/* .github/* build/* *.tex *.pdf *.zip notes.txt README.md todo.txt'
