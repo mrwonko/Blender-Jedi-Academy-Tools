@@ -23,9 +23,7 @@ jobs:
       - name: Package plugin
         uses: TheDoctor0/zip-release@0.6.0
         with:
-          directory: build
-          path: ..
-          filename: jediacademy.zip
+          filename: build/jediacademy.zip
           exclusions: '.git/* .github/* build/* *.tex *.pdf *.zip notes.txt README.md todo.txt'
           type: zip
       - name: Release nightly
