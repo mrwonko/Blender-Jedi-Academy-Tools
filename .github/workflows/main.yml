@@ -13,15 +13,20 @@ jobs:
     steps:
       - name: Set up Git repository
         uses: actions/checkout@v2
+      - name: Create build dir
+        run: mkdir build
       - name: Compile Manual
         uses: dante-ev/latex-action@latest
         with:
-          root_file: jediacademy_plugins_doc.tex
+          working_directory: build
+          root_file: ../jediacademy_plugins_doc.tex
       - name: Package plugin
         uses: TheDoctor0/zip-release@0.6.0
         with:
+          directory: build
+          path: ..
           filename: jediacademy.zip
-          exclusions: '.git .github jediacademy_plugins_doc.pdf jediacademy_plugins_doc.tex notes.txt README.md todo.txt jediacademy.zip'
+          exclusions: '.git/* .github/* build/* *.tex *.pdf *.zip notes.txt README.md todo.txt'
           type: zip
       - name: Release nightly
         uses: softprops/action-gh-release@v1
@@ -40,5 +45,5 @@ jobs:
             
             ${{github.event.commits[0].message}}
           files: |
-            jediacademy_plugins_doc.pdf
-            jediacademy.zip
+            build/jediacademy_plugins_doc.pdf
+            build/jediacademy.zip
