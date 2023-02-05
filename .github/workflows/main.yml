@@ -16,16 +16,14 @@ jobs:
       - name: Create build dir
         run: mkdir build
       - name: Compile Manual
+        # TODO: run `make build/jediacademy_plugins_doc.pdf` instead,
+        # but that requires pdflatex to be installed
         uses: dante-ev/latex-action@latest
         with:
           working_directory: build
           root_file: ../jediacademy_plugins_doc.tex
       - name: Package plugin
-        uses: TheDoctor0/zip-release@0.7.1
-        with:
-          filename: build/jediacademy.zip
-          path: '*.py jediacademy_plugins_readme.txt'
-          type: zip
+        run: make build/jediacademy.zip
       - name: Release nightly
         uses: softprops/action-gh-release@v1
         with:
