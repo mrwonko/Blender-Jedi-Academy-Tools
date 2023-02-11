@@ -17,6 +17,7 @@
 # ##### END GPL LICENSE BLOCK #####
 
 import importlib, struct
+from typing import Dict, Tuple
 if 'JAStringhelper' in locals():
 	importlib.reload( JAStringhelper )
 else:
@@ -280,7 +281,8 @@ class MdxmSurfaceDataCollection:
 			surfaceInfo.index = i
 			self.surfaces.append(surfaceInfo)
 	
-	def loadFromBlender(self, rootObject, surfaceIndexMap):
+	def loadFromBlender(self, rootObject: bpy.types.Object, surfaceIndexMap: Dict[str, int]) -> Tuple[bool, str]:
+		visitedChildren: Dict[str, bpy.types.Object] = {}
 		def addChildren(object):
 			for child in object.children:
 				# only meshes supported in hierarchy, I couldn't always use the parent otherwise
@@ -290,20 +292,25 @@ class MdxmSurfaceDataCollection:
 					return False, "{} has no Ghoul 2 properties set! (Also, the exporter should've detected this earlier.)".format(child.name)
 				else:
 					# assign the child an index, if it doesn't have one already
-					if getName(child) not in surfaceIndexMap:
-						surfaceIndexMap[getName(child)] = len(surfaceIndexMap)
-					index = surfaceIndexMap[getName(child)]
-					# extend the surface list to include the index, if necessary
-					if index >= len(self.surfaces):
-						self.surfaces.extend([None] * (index + 1 - len(self.surfaces)))
+					name = getName(child)
+					if (dupe := visitedChildren.get(name)) is not None:
+						return False, f"Objects \"{child.name}\" and \"{dupe.name}\" share G2 name \"{name}\""
+					visitedChildren[name] = child
+
+					if (index := surfaceIndexMap.get(name)) is None:
+						index = len(surfaceIndexMap)
+						surfaceIndexMap[name] = index
+
 					# create the surface
 					surface = MdxmSurfaceData()
 					surface.index = index
-					
 					success, message = surface.loadFromBlender(child, surfaceIndexMap)
 					if not success:
 						return False, message
 					
+					# extend the surface list to include the index, if necessary
+					if index >= len(self.surfaces):
+						self.surfaces.extend([None] * (index + 1 - len(self.surfaces)))
 					self.surfaces[index] = surface
 					
 					success, message = addChildren(child)
