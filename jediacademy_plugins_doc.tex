@@ -1,6 +1,7 @@
 \documentclass[a4paper,10pt]{article}
 
 \usepackage{hyperref}
+\usepackage{mathtools}
 
 %opening
 \title{Blender Jedi Academy Plugin Suite Manual}
@@ -76,6 +77,12 @@
   \item Removed the MD3 exporter, as a superior one is available at \url{https://github.com/SomaZ/Blender_BSP_Importer/}
  \end{itemize}
 
+ \subsection*{nightly (preview)}
+ These changes have not yet been given a new version number.
+ \begin{itemize}
+  \item Detect duplicate G2 names in LOD 0 on GLM export. Previously, this led to broken exports, with ModView showing
+  "Model has \(N\) surfaces, but only \(M\) of them are connected up through the heirarchy, the rest will never be recursed into." (\(M>N\))
+ \end{itemize}
  
  \section{Installation}
  
