@@ -14,4 +14,5 @@ build/jediacademy.zip: $(ZIP_CONTENTS)
 	(cd build; zip -r jediacademy.zip jediacademy)
 
 build/jediacademy_plugins_doc.pdf: jediacademy_plugins_doc.tex
+	mkdir -p build
 	pdflatex --output-directory=build jediacademy_plugins_doc.tex
