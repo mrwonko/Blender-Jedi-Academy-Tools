@@ -31,15 +31,10 @@ jobs:
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
-            octokit.rest.git.deleteRef({
+            octokit.rest.git.updateRef({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              ref: "tags/nightly"
-            })
-            octokit.rest.git.createRef({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              ref: "refs/tags/nightly",
+              ref: "tags/nightly",
               sha: context.sha
             })
       - name: Release nightly
