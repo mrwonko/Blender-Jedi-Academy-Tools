@@ -212,7 +212,7 @@ class MdxmSurfaceDataOffsets:
 			offset += surfaceData.getSize()
 	
 	# returns the size of this in bytes (when written to file)
-	def getSize():
+	def getSize(self):
 		return 4 * len(self.offsets)
 
 # originally called mdxmSurfaceHierarchy_t, I think that name is misleading (but mine's not too good, either)
