@@ -689,7 +689,7 @@ class MdxmSurface:
 		if not data.gla.isDefault:
 			
 			#  create armature modifier
-			armatureModifier = obj.modifiers.new("skin", 'ARMATURE')
+			armatureModifier = obj.modifiers.new("armature", 'ARMATURE')
 			armatureModifier.object = data.gla.skeleton_object
 			armatureModifier.use_bone_envelopes = False #only use vertex groups by default
 			
