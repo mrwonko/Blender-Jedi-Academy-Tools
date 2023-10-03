@@ -28,7 +28,6 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           name: nightly
-          tag_name: nightly
           prerelease: true
           body: |
             Automatic pre-release build.
