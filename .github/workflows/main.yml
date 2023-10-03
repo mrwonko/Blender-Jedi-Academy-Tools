@@ -24,10 +24,29 @@ jobs:
           root_file: ../jediacademy_plugins_doc.tex
       - name: Package plugin
         run: make build/jediacademy.zip
+        # we must move the nightly tag so the right source code gets attached to the release
+        # (in case users accidentally download that instead of the packaged add-on)
+      - name: Update nightly tag
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            github.git.deleteRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: "tags/nightly"
+            })
+            github.git.createRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: "refs/tags/nightly",
+              sha: context.sha
+            })
       - name: Release nightly
         uses: softprops/action-gh-release@v1
         with:
           name: nightly
+          tag_name: nightly
           prerelease: true
           body: |
             Automatic pre-release build.
