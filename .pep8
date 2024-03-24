@@ -1,0 +1,3 @@
+[pycodestyle]
+# disable wrapping of long lines, our `# pyright: ignore` line comments can get long
+ignore = E501

@@ -92,5 +92,5 @@ def FindFile(relpath, prefix, extensions):
     return False, ""
 
 
-def FileExists(path):
+def FileExists(path: str) -> bool:
     return os.path.isfile(path)

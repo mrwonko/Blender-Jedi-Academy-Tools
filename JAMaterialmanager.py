@@ -17,10 +17,13 @@
 # ##### END GPL LICENSE BLOCK #####
 
 from .mod_reload import reload_modules
-reload_modules(locals(), __package__, ["JAFilesystem", "JAStringhelper"], [])  # nopep8
+reload_modules(locals(), __package__, ["JAFilesystem", "JAStringhelper"], [".casts", ".error_types"])  # nopep8
 
+from typing import Tuple
 from . import JAFilesystem
 from . import JAStringhelper
+from .casts import downcast
+from .error_types import ErrorMessage, NoError
 
 import bpy
 
@@ -33,7 +36,7 @@ class MaterialManager():
         self.useSkin = False
         self.initialized = False
 
-    def init(self, basepath, skin_rel, guessTextures):
+    def init(self, basepath: str, skin_rel: str, guessTextures: bool) -> Tuple[bool, ErrorMessage]:
         self.basepath = basepath
         self.guessTextures = guessTextures
         if skin_rel != "":
@@ -43,15 +46,15 @@ class MaterialManager():
                 file = open(skin_abs, mode="r")
             except IOError:
                 print("Could not open file: ", skin_rel, sep="")
-                return False, "Could not open skin!"
+                return False, ErrorMessage("Could not open skin!")
             self.skin = {}
             for line in file:
                 pos = line.find(',')
                 if pos != -1:
-                    self.skin[line[:pos].strip()] = line[pos+1:].strip()
+                    self.skin[line[:pos].strip()] = line[pos + 1:].strip()
             self.useSkin = True
         self.initialized = True
-        return True, ""
+        return True, NoError
 
     def getMaterial(self, name, bsShader):
         assert (self.initialized)
@@ -85,7 +88,7 @@ class MaterialManager():
 
         mat.use_nodes = True
         bsdf = mat.node_tree.nodes["Principled BSDF"]
-        img = mat.node_tree.nodes.new('ShaderNodeTexImage')
+        img = downcast(bpy.types.ShaderNodeTexImage, mat.node_tree.nodes.new('ShaderNodeTexImage'))
         img.image = bpy.data.images.load(path)
         mat.node_tree.links.new(
             bsdf.inputs['Base Color'], img.outputs['Color'])

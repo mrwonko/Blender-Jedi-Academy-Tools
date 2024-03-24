@@ -17,6 +17,10 @@
 # ##### END GPL LICENSE BLOCK #####
 
 # length of file path strings
+from enum import Enum
+from typing import Dict, List
+
+
 MAX_QPATH = 64  # cannot be changed without adjusting file format & engine
 
 # gla format
@@ -37,10 +41,16 @@ BONELENGTH = 4
 # cosine of allowed angle between bone directions for them to be considered equal
 BONE_ANGLE_ERROR_MARGIN = 0.996
 
+
+class SkeletonFixes(Enum):
+    NONE = 'NONE'
+    JKA_HUMANOID = 'JKA_HUMANOID'
+
+
 # bones to which the parent (with multiple children) should preferably connect
-PRIORITY_BONES = {
-    'NONE': [],
-    'JKA_HUMANOID': [
+PRIORITY_BONES: Dict[SkeletonFixes, List[str]] = {
+    SkeletonFixes.NONE: [],
+    SkeletonFixes.JKA_HUMANOID: [
         # legs - ignore [lr]femurX
         "rtibia",
         "ltibia",
@@ -59,9 +69,9 @@ PRIORITY_BONES = {
 
 # bones that get different parents
 # bone index -> new parent index
-PARENT_CHANGES = {
-    'NONE': {},
-    'JKA_HUMANOID': {
+PARENT_CHANGES: Dict[SkeletonFixes, Dict[int, int]] = {
+    SkeletonFixes.NONE: {},
+    SkeletonFixes.JKA_HUMANOID: {
         #  shoulder fixes
         25: 24,  # rhumerus gets parent rclavical
         38: 37,  # lhumerus gets parent lclavical

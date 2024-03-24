@@ -18,46 +18,24 @@
 
 #  Imports
 
-#  Python
-import importlib  # TODO #43
+from .mod_reload import reload_modules
+reload_modules(locals(), __package__, ["JAAseExport", "JAAseImport", "JAPatchExport", "JARoffImport", "JARoffExport", "JAG2Panels", "JAG2Operators"], [])  # nopep8
 
 #  Blender
-if "bpy" not in locals():
-    import bpy
+import bpy
 
 #  Local
 # ASE
-if "JAAseExport" in locals():
-    importlib.reload(JAAseExport)
-else:
-    from . import JAAseExport
-if "JAAseImport" in locals():
-    importlib.reload(JAAseImport)
-else:
-    from . import JAAseImport
+from . import JAAseExport
+from . import JAAseImport
 # Patch
-if "JAPatchExport" in locals():
-    importlib.reload(JAPatchExport)
-else:
-    from . import JAPatchExport
+from . import JAPatchExport
 # ROFF
-if "JARoffImport" in locals():
-    importlib.reload(JARoffImport)
-else:
-    from . import JARoffImport
-if "JARoffExport" in locals():
-    importlib.reload(JARoffExport)
-else:
-    from . import JARoffExport
+from . import JARoffImport
+from . import JARoffExport
 # Ghoul 2
-if "JAG2Panels" in locals():
-    importlib.reload(JAG2Panels)
-else:
-    from . import JAG2Panels
-if "JAG2Operators" in locals():
-    importlib.reload(JAG2Operators)
-else:
-    from . import JAG2Operators
+from . import JAG2Panels
+from . import JAG2Operators
 
 bl_info = {
     "name": "Jedi Academy Import/Export Tools",

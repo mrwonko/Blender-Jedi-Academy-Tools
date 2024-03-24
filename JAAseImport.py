@@ -1,3 +1,10 @@
+
+from .mod_reload import reload_modules
+reload_modules(locals(), __package__, [], [".casts"])  # nopep8
+
+from .casts import bpy_generic_cast
+
+from typing import List
 import bpy
 
 ### The new operator ###
@@ -11,11 +18,11 @@ class Operator(bpy.types.Operator):
     filepath: bpy.props.StringProperty(
         name="File Path", description="File path used for importing the ASE file", maxlen=1024, default="")  # type: ignore
 
-    def execute(self, context):
+    def execute(self, context):  # pyright: ignore [reportIncompatibleMethodOverride]
         self.ImportStart()
         return {'FINISHED'}
 
-    def invoke(self, context, event):
+    def invoke(self, context, event):  # pyright: ignore [reportIncompatibleMethodOverride]
         windowMan = context.window_manager
         # sets self.properties.filename and runs self.execute()
         windowMan.fileselect_add(self)
@@ -204,7 +211,7 @@ class Operator(bpy.types.Operator):
                 self.tfaces = []  # list of tvertex index triples
                 self.index = index  # index of this object's GEOMOBJECT entry
 
-            def toBlender(self, materials):
+            def toBlender(self, materials: List[bpy.types.Material]):
                 # create mesh
 
                 mesh = bpy.data.meshes.new("ASEMesh")
@@ -234,8 +241,10 @@ class Operator(bpy.types.Operator):
                 mesh.loops.foreach_set("vertex_index", self.faces)
 
                 mesh.uv_layers.new()  # creates a new uv_layer
+                # FIXME "Argument of type "slice" cannot be assigned to parameter "key" of type" -> I should probably drop the [:]?
                 uv_loops = mesh.uv_layers.active.data[:]
                 for poly, tface in zip(mesh.polygons, self.tfaces):
+                    poly = bpy_generic_cast(bpy.types.MeshPolygon, poly)
                     for ofs, tvertIndex in enumerate(tface):
                         tvert = None
                         try:
@@ -260,7 +269,7 @@ class Operator(bpy.types.Operator):
                 bpy.context.scene.collection.objects.link(
                     obj)  # remember scene.update() later!
 
-        objects = []
+        objects: List[Object] = []
 
         # if the last index is 0, blender assumes that to be the end...
         # or does it? Maybe it does, but changing the order screws UV up and that

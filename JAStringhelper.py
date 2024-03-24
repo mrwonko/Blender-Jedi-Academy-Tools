@@ -17,7 +17,7 @@
 # ##### END GPL LICENSE BLOCK #####
 
 # converts a NULL-terminated binary string to an ordinary string.
-def decode(bs):
+def decode(bs: bytes) -> str:
     end = bs.find(b"\0")  # find null termination
     if end == -1:  # if none exists, there is no end.
         return bs.decode()

@@ -18,8 +18,10 @@
 
 
 from .mod_reload import reload_modules
-reload_modules(locals(), __package__, ["JAStringhelper", "JAFilesystem", "JAG2Constants", "JAG2GLA", "JAMaterialmanager", "MrwProfiler", "JAG2Panels"], [])  # nopep8
+reload_modules(locals(), __package__, ["JAStringhelper", "JAFilesystem", "JAG2Constants", "JAG2GLA", "JAMaterialmanager", "MrwProfiler", "JAG2Panels"], [".casts", ".error_types"])  # nopep8
 
+from dataclasses import dataclass
+from typing import BinaryIO, Dict, List, Optional, Sequence, Tuple, cast
 import struct
 from . import JAStringhelper
 from . import JAFilesystem
@@ -28,24 +30,29 @@ from . import JAG2GLA
 from . import JAMaterialmanager
 from . import MrwProfiler
 from . import JAG2Panels
+from .casts import optional_cast, downcast, bpy_generic_cast, unpack_cast, matrix_getter_cast, vector_getter_cast, vector_overload_cast
+from .error_types import ErrorMessage, NoError
 
 import bpy
 import mathutils
 
 
-def buildBoneIndexLookupMap(gla_filepath_abs):
+BoneIndexMap = Dict[str, int]
+
+
+def buildBoneIndexLookupMap(gla_filepath_abs: str) -> Tuple[Optional[BoneIndexMap], ErrorMessage]:
     print("Loading gla file for bone name -> bone index lookup")
     # open file
     try:
         file = open(gla_filepath_abs, mode="rb")
     except IOError:
         print("Could not open ", gla_filepath_abs, sep="")
-        return False, "Could not open gla file for bone index lookup!"
+        return None, ErrorMessage("Could not open gla file for bone index lookup!")
     # read header
     header = JAG2GLA.MdxaHeader()
     success, message = header.loadFromFile(file)
     if not success:
-        return False, message
+        return None, message
     # read offsets
     boneOffsets = JAG2GLA.MdxaBoneOffsets()
     # cannot fail (except with exception)
@@ -54,13 +61,13 @@ def buildBoneIndexLookupMap(gla_filepath_abs):
     skeleton = JAG2GLA.MdxaSkel()
     skeleton.loadFromFile(file, boneOffsets)
     # build lookup map
-    boneIndices = {}
+    boneIndices: Dict[str, int] = {}
     for bone in skeleton.bones:
         boneIndices[bone.name] = bone.index
-    return boneIndices, "all right"
+    return boneIndices, NoError
 
 
-def getName(object):
+def getName(object: bpy.types.Object) -> str:
     if object.g2_prop_name != "":
         return object.g2_prop_name
     return object.name
@@ -70,37 +77,40 @@ class GetBoneWeightException(Exception):
     pass
 
 
-def getBoneWeights(vertex, meshObject, armatureObject, maxBones=-1):
+def getBoneWeights(vertex: bpy.types.MeshVertex, meshObject: bpy.types.Object, armatureObject: bpy.types.Object, maxBones: int = -1):
     # find the armature modifier
     modifier = None
     for mod in meshObject.modifiers:
         if mod.type == 'ARMATURE':
             if modifier != None:
                 raise GetBoneWeightException(
-                    "Multiple armature modifiers on {}!".format(meshObject.name))
+                    f"Multiple armature modifiers on {meshObject.name}!")
             modifier = mod
     if modifier == None:
         raise GetBoneWeightException(
-            "{} has no armature modifier!".format(meshObject.name))
+            f"{meshObject.name} has no armature modifier!")
+    armature = downcast(bpy.types.Armature, armatureObject.data)
 
     # this will eventually contain the weights per bone (by name) if not 0
-    weights = {}
+    weights: Dict[str, float] = {}
 
     # vertex groups take priority
     if modifier.use_vertex_groups:
         for group in vertex.groups:
+            group = bpy_generic_cast(bpy.types.VertexGroupElement, group)
             weight = group.weight
             index = group.group
             name = meshObject.vertex_groups[index].name
-            if weight > 0 and name in armatureObject.data.bones:
+            if weight > 0 and name in armature.bones:
                 weights[name] = weight
 
     # if there are vertex group weights, envelopes are ignored
     if len(weights) == 0 and modifier.use_bone_envelopes:
-        co_meshspace = vertex.co
-        co_worldspace = meshObject.matrix_world * co_meshspace
-        co_armaspace = armatureObject.matrix_world.inverted() * co_worldspace
-        for bone in armatureObject.data.bones:
+        co_meshspace = vector_getter_cast(vertex.co)
+        co_worldspace = vector_overload_cast(matrix_getter_cast(meshObject.matrix_world) @ co_meshspace)
+        co_armaspace = vector_overload_cast(matrix_getter_cast(armatureObject.matrix_world).inverted() @ co_worldspace)
+        for bone in armature.bones:
+            bone = bpy_generic_cast(bpy.types.Bone, bone)
             weight = bone.evaluate_envelope(co_armaspace)
             if weight > 0:
                 weights[bone.name] = weight
@@ -113,7 +123,7 @@ def getBoneWeights(vertex, meshObject, armatureObject, maxBones=-1):
 
     # if there are still no weights, add 1.0 for the root bone
     if len(weights) == 0:
-        weights[armatureObject.data.bones[0].name] = 1.0
+        weights[downcast(bpy.types.Armature, armatureObject.data).bones[0].name] = 1.0
 
     # the combined weight must be normalized to 1
     sum = 0
@@ -126,59 +136,52 @@ def getBoneWeights(vertex, meshObject, armatureObject, maxBones=-1):
     return weights
 
 
-# returns whether two 2D vector are pretty much equal, taking floating point inaccuracies in account
-EPSILON = 0.001
-
-
-def vectorsAlmostEqual(v1, v2):
-    return (abs(v1.x - v2.x) < EPSILON) and (abs(v1.y - v2.y) < EPSILON)
-
-
 class MdxmHeader:
 
     def __init__(self):
         self.name = ""
-        self.animName = ""
-        self.numBones = -1
-        self.numLODs = -1
-        self.ofsLODs = -1
-        self.numSurfaces = -1
-        self.ofsSurfHierarchy = -1
-        self.ofsEnd = -1
+        self.animName = b""
+        self.numBones: int = -1
+        self.numLODs: int = -1
+        self.ofsLODs: int = -1
+        self.numSurfaces: int = -1
+        self.ofsSurfHierarchy: int = -1
+        self.ofsEnd: int = -1
 
-    def loadFromFile(self, file):
+    def loadFromFile(self, file: BinaryIO) -> Tuple[bool, ErrorMessage]:
         # ident check
-        ident, = struct.unpack("4s", file.read(4))
+        ident, = unpack_cast(Tuple[bytes], struct.unpack("4s", file.read(4)))
         if ident != JAG2Constants.GLM_IDENT:
             print("File does not start with ", JAG2Constants.GLM_IDENT,
                   " but ", ident, " - no GLM!")
-            return False, "Is no GLM file!"
+            return False, ErrorMessage("Is no GLM file!")
         # version check
-        version, = struct.unpack("i", file.read(4))
+        version, = unpack_cast(Tuple[int], struct.unpack("i", file.read(4)))
         if version != JAG2Constants.GLM_VERSION:
-            return False, "Wrong glm file version! ("+str(version)+" should be "+str(JAG2Constants.GLM_VERSION)+")"
+            return False, ErrorMessage(f"Wrong glm file version! ({version} should be {JAG2Constants.GLM_VERSION})")
         # read data
-        self.name, self.animName = struct.unpack(
-            "64s64s", file.read(JAG2Constants.MAX_QPATH*2))
+        self.name, self.animName = unpack_cast(
+            Tuple[bytes, bytes],
+            struct.unpack("64s64s", file.read(JAG2Constants.MAX_QPATH * 2)))
         # 4x is 4 ignored bytes - the animIndex which is only used ingame
-        self.numBones, self.numLODs, self.ofsLODs, self.numSurfaces, self.ofsSurfHierarchy, self.ofsEnd = struct.unpack(
-            "4x6i", file.read(4*7))
-        return True, ""
+        self.numBones, self.numLODs, self.ofsLODs, self.numSurfaces, self.ofsSurfHierarchy, self.ofsEnd = unpack_cast(
+            Tuple[int, int, int, int, int, int],
+            struct.unpack("4x6i", file.read(4 * 7)))
+        return True, NoError
 
-    def saveToFile(self, file):
+    def saveToFile(self, file: BinaryIO) -> None:
         # 0 is animIndex, only used ingame
         file.write(struct.pack("4si64s64s7i", JAG2Constants.GLM_IDENT, JAG2Constants.GLM_VERSION, self.name, self.animName,
                    0, self.numBones, self.numLODs, self.ofsLODs, self.numSurfaces, self.ofsSurfHierarchy, self.ofsEnd))
-        return True, ""
 
-    def print(self):
+    def print(self) -> None:
         print("== GLM Header ==\nname: {self.name}\nanimName: {self.animName}\nnumBones: {self.numBones}\nnumLODs: {self.numLODs}\nnumSurfaces: {self.numSurfaces}".format(
             self=self))
 
     @staticmethod
-    def getSize():
+    def getSize() -> int:
         # 2 ints, 2 string, 7 ints
-        return 2*4 + 2*64 + 7*4
+        return 2 * 4 + 2 * 64 + 7 * 4
 
 # offsets of the surface data
 
@@ -186,25 +189,25 @@ class MdxmHeader:
 class MdxmSurfaceDataOffsets:
     def __init__(self):
         self.baseOffset = MdxmHeader.getSize()  # always directly after the header
-        self.offsets = []
+        self.offsets: List[int] = []
 
-    def loadFromFile(self, file, numSurfaces):
+    def loadFromFile(self, file: BinaryIO, numSurfaces: int) -> None:
         assert (self.baseOffset == file.tell())
         for i in range(numSurfaces):
             self.offsets.append(struct.unpack("i", file.read(4))[0])
 
-    def saveToFile(self, file):
+    def saveToFile(self, file: BinaryIO) -> None:
         for offset in self.offsets:
             file.write(struct.pack("i", offset))
 
-    def calculateOffsets(self, surfaceDataCollection):
+    def calculateOffsets(self, surfaceDataCollection: "MdxmSurfaceDataCollection") -> None:
         offset = 4 * len(surfaceDataCollection.surfaces)
         for surfaceData in surfaceDataCollection.surfaces:
             self.offsets.append(offset)
             offset += surfaceData.getSize()
 
     # returns the size of this in bytes (when written to file)
-    def getSize(self):
+    def getSize(self) -> int:
         return 4 * len(self.offsets)
 
 # originally called mdxmSurfaceHierarchy_t, I think that name is misleading (but mine's not too good, either)
@@ -212,26 +215,30 @@ class MdxmSurfaceDataOffsets:
 
 class MdxmSurfaceData:
     def __init__(self):
-        self.name = ""
+        self.name = b""
         self.flags = -1
-        self.shader = ""
+        self.shader = b""
         self.parentIndex = -1
         self.numChildren = -1
-        self.children = []
+        self.children: List[int] = []
         self.index = -1  # filled by MdxmSurfaceHierarchy.loadFromFile, not saved
 
-    def loadFromFile(self, file):
-        self.name, self.flags, self.shader = struct.unpack(
-            "64sI64s", file.read(64+4+64))
+    def loadFromFile(self, file: BinaryIO) -> None:
+        self.name, self.flags, self.shader = unpack_cast(
+            Tuple[bytes, int, bytes],
+            struct.unpack(
+                "64sI64s", file.read(64 + 4 + 64)))
         # ignoring shaderIndex which is only used ingame
-        self.parentIndex, self.numChildren = struct.unpack(
-            "4x2i", file.read(3*4))
+        self.parentIndex, self.numChildren = unpack_cast(
+            Tuple[int, int],
+            struct.unpack(
+                "4x2i", file.read(3 * 4)))
         for i in range(self.numChildren):
             self.children.append(struct.unpack("i", file.read(4))[0])
 
-    def loadFromBlender(self, object, surfaceIndexMap):
-        self.name = getName(object).encode()
-        self.shader = object.g2_prop_shader.encode()
+    def loadFromBlender(self, object: bpy.types.Object, surfaceIndexMap: Dict[str, int]) -> Tuple[bool, ErrorMessage]:
+        self.name: bytes = getName(object).encode()
+        self.shader: bytes = object.g2_prop_shader.encode()
         # set flags
         self.flags = 0
         if object.g2_prop_off:
@@ -246,33 +253,33 @@ class MdxmSurfaceData:
         for child in object.children:
             if child.type == 'MESH':  # working around non-mesh garbage in the hierarchy would be too much trouble, everything below that is ignored
                 if not JAG2Panels.hasG2MeshProperties(child):
-                    return False, "{} has no Ghoul 2 properties set!".format(child.name)
+                    return False, ErrorMessage(f"{child.name} has no Ghoul 2 properties set!")
                 childName = getName(child)
                 if childName not in surfaceIndexMap:
                     surfaceIndexMap[childName] = len(surfaceIndexMap)
                 self.children.append(surfaceIndexMap[childName])
                 self.numChildren += 1
-        return True, ""
+        return True, NoError
 
-    def saveToFile(self, file):
+    def saveToFile(self, file: BinaryIO) -> None:
         # 0 is the shader index, only used ingame
         file.write(struct.pack("64sI64s3i", self.name, self.flags,
                    self.shader, 0, self.parentIndex, self.numChildren))
         for i in range(self.numChildren):
             file.write(struct.pack("i", self.children[i]))
 
-    def getSize(self):
+    def getSize(self) -> int:
         # string, int, string, 4 ints
-        return 64 + 4 + 64 + 3*4 + 4*self.numChildren
+        return 64 + 4 + 64 + 3 * 4 + 4 * self.numChildren
 
 # all the surface hierarchy/shader/name/flag/... information entries (MdxmSurfaceInfo)
 
 
 class MdxmSurfaceDataCollection:
     def __init__(self):
-        self.surfaces = []
+        self.surfaces: List[MdxmSurfaceData] = []
 
-    def loadFromFile(self, file, surfaceInfoOffsets):
+    def loadFromFile(self, file: BinaryIO, surfaceInfoOffsets: MdxmSurfaceDataOffsets) -> None:
         for i, offset in enumerate(surfaceInfoOffsets.offsets):
             file.seek(surfaceInfoOffsets.baseOffset + offset)
             surfaceInfo = MdxmSurfaceData()
@@ -280,22 +287,23 @@ class MdxmSurfaceDataCollection:
             surfaceInfo.index = i
             self.surfaces.append(surfaceInfo)
 
-    def loadFromBlender(self, rootObject: bpy.types.Object, surfaceIndexMap: Dict[str, int]) -> Tuple[bool, str]:
+    def loadFromBlender(self, rootObject: bpy.types.Object, surfaceIndexMap: Dict[str, int]) -> Tuple[bool, ErrorMessage]:
         visitedChildren: Dict[str, bpy.types.Object] = {}
+        surfaces: List[Optional[MdxmSurfaceData]] = []
 
-        def addChildren(object):
+        def addChildren(object: bpy.types.Object) -> Tuple[bool, ErrorMessage]:
             for child in object.children:
                 # only meshes supported in hierarchy, I couldn't always use the parent otherwise
                 if child.type != 'MESH':
-                    print("Warning: {} is no mesh, neither it nor its children will be exported!".format(
-                        child.name))
+                    print(
+                        f"Warning: {child.name} is no mesh, neither it nor its children will be exported!")
                 elif not JAG2Panels.hasG2MeshProperties(child):
-                    return False, "{} has no Ghoul 2 properties set! (Also, the exporter should've detected this earlier.)".format(child.name)
+                    return False, ErrorMessage(f"{child.name} has no Ghoul 2 properties set! (Also, the exporter should've detected this earlier.)")
                 else:
                     # assign the child an index, if it doesn't have one already
                     name = getName(child)
                     if (dupe := visitedChildren.get(name)) is not None:
-                        return False, f"Objects \"{child.name}\" and \"{dupe.name}\" share G2 name \"{name}\""
+                        return False, ErrorMessage(f"Objects \"{child.name}\" and \"{dupe.name}\" share G2 name \"{name}\"")
                     visitedChildren[name] = child
 
                     if (index := surfaceIndexMap.get(name)) is None:
@@ -312,73 +320,86 @@ class MdxmSurfaceDataCollection:
 
                     # extend the surface list to include the index, if necessary
                     if index >= len(self.surfaces):
-                        self.surfaces.extend(
-                            [None] * (index + 1 - len(self.surfaces)))
-                    self.surfaces[index] = surface
+                        surfaces.extend(
+                            [None] * (index + 1 - len(surfaces)))
+                    surfaces[index] = surface
 
                     success, message = addChildren(child)
                     if not success:
                         return False, message
-            return True, ""
+            return True, NoError
         success, message = addChildren(rootObject)
         if not success:
             return False, message
-        for index, surface in enumerate(self.surfaces):
+        for index, surface in enumerate(surfaces):
             if surface == None:  # a surface that was referenced did not get created
-                return False, "Internal error during hierarchy creation!({}/{})".format(index, len(self.surfaces))
-        return True, ""
+                return False, ErrorMessage(f"Internal error during hierarchy creation! (Surface {index}/{len(surfaces)} referenced but not created)")
+        self.surfaces = optional_cast(List[MdxmSurfaceData], surfaces)
+        return True, NoError
 
-    def saveToFile(self, file):
+    def saveToFile(self, file: BinaryIO) -> None:
         for surfaceInfo in self.surfaces:
             surfaceInfo.saveToFile(file)
 
-    def getSize(self):
+    def getSize(self) -> int:
         size = 0
         for surface in self.surfaces:
             size += surface.getSize()
         return size
 
 
+@dataclass
+class ImportMetadata:
+    gla: JAG2GLA.GLA
+    scene_root: bpy.types.Object
+    surfaceDataCollection: MdxmSurfaceDataCollection
+    materialManager: JAMaterialmanager.MaterialManager
+    boneNames: Dict[int, str]
+
+
 class MdxmVertex:
     def __init__(self):
-        self.co = []
-        self.normal = []
-        self.uv = []
+        self.co: List[float] = []
+        self.normal: List[float] = []
+        self.uv: List[float] = []
         self.numWeights = 1
-        self.weights = []
-        self.boneIndices = []
+        self.weights: List[float] = []
+        self.boneIndices: List[int] = []
 
     # doesn't load UV since that comes later
     def loadFromFile(self, file):
-        self.normal.extend(struct.unpack("3f", file.read(3*4)))
-        self.co.extend(struct.unpack("3f", file.read(3*4)))
+        self.normal.extend(struct.unpack("3f", file.read(3 * 4)))
+        self.co.extend(struct.unpack("3f", file.read(3 * 4)))
         # this is a packed structure that contains all kinds of things...
-        packedStuff, = struct.unpack("I", file.read(4))
+        packedStuff, = unpack_cast(
+            Tuple[int],
+            struct.unpack("I", file.read(4)))
         # this is not the complete weights, parts of it are in the packed stuff
-        weights = []
+        weights: List[int] = []
         weights.extend(struct.unpack("4B", file.read(4)))
         # packedStuff bits 31 & 30: weight count
-        self.numWeights = (packedStuff >> 30)+1
+        self.numWeights = (packedStuff >> 30) + 1
         # packedStuff bits 29 & 28: nothing
         # packedStuff bits 20f, 22f, 24f, 26f: weight overflow
         totalWeight = 0
         for i in range(self.numWeights):
             # add overflow bits to the weight (MSBs!)
-            weights[i] = weights[i] | (((packedStuff >> (20+2*i)) & 0b11) << 8)
+            recomposed_weight = weights[i] | (
+                ((packedStuff >> (20 + 2 * i)) & 0b11) << 8)
             # convert to float (0..1023 -> 0.0..1.0)
-            weights[i] = weights[i] / 1023
-            if i+1 < self.numWeights:
-                totalWeight += weights[i]
-                self.weights.append(weights[i])
+            normalized_weight = recomposed_weight / 1023
+            if i + 1 < self.numWeights:
+                totalWeight += normalized_weight
+                self.weights.append(normalized_weight)
             else:  # i+1 == self.numWeights:
                 self.weights.append(1 - totalWeight)
         # packedStuff 0-19: bone indices, 5 bit each
         for i in range(self.numWeights):
-            self.boneIndices.append((packedStuff >> (5*i)) & 0b11111)
+            self.boneIndices.append((packedStuff >> (5 * i)) & 0b11111)
 
     # index: this surface's index
     # does not save UV (comes later)
-    def saveToFile(self, file):
+    def saveToFile(self, file: BinaryIO) -> None:
         assert (len(self.weights) == self.numWeights)
         #  pack the stuff that needs packing
         # num weights
@@ -391,10 +412,10 @@ class MdxmVertex:
             weights[index] = weight & 0xff
             # higher 2 bits
             hiWeight = (weight & 0x300) >> 8
-            packedStuff |= hiWeight << (20 + 2*index)
+            packedStuff |= hiWeight << (20 + 2 * index)
             # bone index - 5 bits
             boneIndex = (self.boneIndices[index]) & 0b11111
-            packedStuff |= boneIndex << (5*index)
+            packedStuff |= boneIndex << (5 * index)
         assert (packedStuff < 1 << 32)
         file.write(struct.pack("6fI4B", self.normal[0], self.normal[1], self.normal[2], self.co[0],
                    self.co[1], self.co[2], packedStuff, weights[0], weights[1], weights[2], weights[3]))
@@ -402,16 +423,16 @@ class MdxmVertex:
     # vertex :: Blender MeshVertex
     # uv :: [int, int] (blender style, will be y-flipped)
     # boneIndices :: { string -> int } (bone name -> index, may be changed)
-    def loadFromBlender(self, vertex, uv, normal, boneIndices, meshObject, armatureObject):
+    def loadFromBlender(self, vertex: bpy.types.MeshVertex, uv: List[float], normal: mathutils.Vector, boneIndices: Dict[str, int], meshObject: bpy.types.Object, armatureObject: bpy.types.Object) -> Tuple[bool, ErrorMessage]:
         # I'm taking the world matrix in case the object is not at the origin, but I really want the coordinates in scene_root-space, so I'm using that, too.
-        rootMat = bpy.data.objects["scene_root"].matrix_world.inverted()
-        co = rootMat @ meshObject.matrix_world @ vertex.co
-        normal = rootMat.to_quaternion() @ meshObject.matrix_world.to_quaternion() @ normal
+        rootMat = matrix_getter_cast(bpy_generic_cast(bpy.types.Object, bpy.data.objects["scene_root"]).matrix_world).inverted()
+        co = vector_overload_cast(rootMat @ vector_overload_cast(matrix_getter_cast(meshObject.matrix_world) @ vector_getter_cast(vertex.co)))
+        normal = vector_overload_cast(rootMat.to_quaternion() @ vector_overload_cast(matrix_getter_cast(meshObject.matrix_world).to_quaternion() @ normal))
         for i in range(3):
             self.co.append(co[i])
             self.normal.append(normal[i])
 
-        self.uv = [uv[0], 1-uv[1]]  # flip Y
+        self.uv = [uv[0], 1 - uv[1]]  # flip Y
 
         # weight/bone indices
 
@@ -426,11 +447,10 @@ class MdxmVertex:
             try:
                 weights = getBoneWeights(vertex, meshObject, armatureObject, 4)
             except GetBoneWeightException as e:
-                return False, "Could not retrieve vertex bone weights: {}".format(str(e))
+                return False, ErrorMessage(f"Could not retrieve vertex bone weights: {e}")
             self.numWeights = len(weights)
             for boneName, weight in weights.items():
                 self.weights.append(weight)
-                boneIndex = -1
                 if boneName in boneIndices:
                     self.boneIndices.append(boneIndices[boneName])
                 else:
@@ -438,39 +458,33 @@ class MdxmVertex:
                     boneIndices[boneName] = index
                     self.boneIndices.append(index)
                     if len(boneIndices) > 32:
-                        return False, "More than 32 bones!"
+                        return False, ErrorMessage(f"More than 32 bones! ({len(boneIndices)})")
 
         assert (len(self.weights) == self.numWeights)
 
-        return True, ""
+        return True, NoError
 
 
 class MdxmTriangle:
-    def __init__(self, indices=None):
-        self.indices = indices
-        if self.indices == None:
-            self.indices = []  # order gets reversed during load/save
+    def __init__(self, indices: Optional[List[int]] = None):
+        # order gets reversed during load/save
+        self.indices = [] if indices is None else indices
 
-    def loadFromFile(self, file):
-        self.indices.extend(struct.unpack("3i", file.read(3*4)))
+    def loadFromFile(self, file: BinaryIO) -> None:
+        self.indices.extend(struct.unpack("3i", file.read(3 * 4)))
         # flip CW/CCW
-        temp = self.indices[0]
-        self.indices[0] = self.indices[2]
-        self.indices[2] = temp
+        self.indices[0], self.indices[2] = self.indices[2], self.indices[0]
         # make sure last index is not 0, eeekadoodle or something...
         if self.indices[2] == 0:
-            temp = self.indices[0]
-            self.indices[0] = self.indices[2]
-            self.indices[2] = self.indices[1]
-            self.indices[1] = temp
+            self.indices[0], self.indices[1], self.indices[2] = self.indices[2], self.indices[0], self.indices[1]
 
-    def saveToFile(self, file):
+    def saveToFile(self, file: BinaryIO) -> None:
         # triangles are flipped because otherwise they'd face the wrong way.
         file.write(struct.pack(
             "3i", self.indices[2], self.indices[1], self.indices[0]))
 
     # "for x in triangle" support
-    def __getitem__(self, index):
+    def __getitem__(self, index: int) -> int:
         return self.indices[index]
 
 
@@ -484,17 +498,19 @@ class MdxmSurface:
         self.numBoneReferences = -1
         self.ofsBoneReferences = -1
         self.ofsEnd = -1  # = size
-        self.vertices = []
-        self.triangles = []
+        self.vertices: List[MdxmVertex] = []
+        self.triangles: List[MdxmTriangle] = []
         # integers: bone indices. maximum of 32, thus can be stored in 5 bit in vertices, saves space.
-        self.boneReferences = []
+        self.boneReferences: List[int] = []
 
-    def loadFromFile(self, file):
+    def loadFromFile(self, file) -> None:
         startPos = file.tell()
         #  load surface header
         # in the beginning I ignore the ident, which is usually 0 and shouldn't matter
-        self.index, ofsHeader, self.numVerts, self.ofsVerts, self.numTriangles, self.ofsTriangles, self.numBoneReferences, self.ofsBoneReferences, self.ofsEnd = struct.unpack(
-            "4x9i", file.read(10*4))
+        self.index, ofsHeader, self.numVerts, self.ofsVerts, self.numTriangles, self.ofsTriangles, self.numBoneReferences, self.ofsBoneReferences, self.ofsEnd = unpack_cast(
+            Tuple[int, int, int, int, int, int, int, int, int],
+            struct.unpack(
+                "4x9i", file.read(10 * 4)))
         assert (ofsHeader == -startPos)
 
         #  load vertices
@@ -506,7 +522,7 @@ class MdxmSurface:
 
         # uv textures come later
         for vert in self.vertices:
-            vert.uv.extend(struct.unpack("2f", file.read(2*4)))
+            vert.uv.extend(struct.unpack("2f", file.read(2 * 4)))
 
         #  load triangles
         file.seek(startPos + self.ofsTriangles)
@@ -519,40 +535,40 @@ class MdxmSurface:
         file.seek(startPos + self.ofsBoneReferences)
         assert (len(self.boneReferences) == 0)
         self.boneReferences.extend(struct.unpack(
-            str(self.numBoneReferences)+"i", file.read(4*self.numBoneReferences)))
+            str(self.numBoneReferences) + "i", file.read(4 * self.numBoneReferences)))
 
-        print("surface {self.index}: numBoneReferences: {self.numBoneReferences}".format(
-            self=self))
+        print(
+            f"surface {self.index}: numBoneReferences: {self.numBoneReferences}")
         for i, boneRef in enumerate(self.boneReferences):
-            print("bone ref {}: {}".format(i, boneRef))
+            print(f"bone ref {i}: {boneRef}")
 
         if file.tell() != startPos + self.ofsEnd:
             print(
                 "Warning: Surface structure unordered (bone references not last) or read error")
             file.seek(startPos + self.ofsEnd)
 
-    def loadFromBlender(self, object, boneIndexMap, armatureObject):
+    def loadFromBlender(self, object: bpy.types.Object, boneIndexMap: Dict[str, int], armatureObject: bpy.types.Object) -> Tuple[bool, ErrorMessage]:
         if object.type != 'MESH':
-            return False, "Object is not of type Mesh!"
-        mesh = object.evaluated_get(
-            bpy.context.evaluated_depsgraph_get()).to_mesh()
+            return False, ErrorMessage(f"Object {object.name} is not of type Mesh!")
+        mesh: bpy.types.Mesh = downcast(bpy.types.Object, object.evaluated_get(
+            bpy.context.evaluated_depsgraph_get())).to_mesh()
 
         if mesh.has_custom_normals:
             mesh.calc_normals_split()
 
-        boneIndices = {}
+        boneIndices: Dict[str, int] = {}
 
         # This is a tag, use a simpler export procedure
         if object.name.startswith("*"):
             for face in mesh.polygons:
                 if len(face.vertices) != 3:
-                    return False, "Non-triangle tag found!"
+                    return False, ErrorMessage(f"Non-triangle tag found: {object.name}!")
             for vi in mesh.vertices:
                 vert = MdxmVertex()
                 success, message = vert.loadFromBlender(
                     vi, [0, 0], mathutils.Vector(), boneIndices, object, armatureObject)
                 if not success:
-                    return False, "Surface has invalid vertex: {}".format(message)
+                    return False, ErrorMessage(f"Mesh {mesh.name} has invalid vertex: {message}")
                 self.vertices.append(vert)
             self.triangles = [MdxmTriangle(
                 [face.vertices[0], face.vertices[1], face.vertices[2]]) for face in mesh.polygons]
@@ -565,14 +581,14 @@ class MdxmSurface:
 
             uv_layer = mesh.uv_layers.active.data
             if not uv_layer:
-                return False, "No UV coordinates found!"
+                return False, ErrorMessage("No UV coordinates found!")
 
             protoverts = []
 
             for face in mesh.polygons:
                 triangle = []
                 if len(face.vertices) != 3:
-                    return False, "Non-triangle face found!"
+                    return False, ErrorMessage("Non-triangle face found!")
                 for i in range(3):
                     loop = mesh.loops[face.loop_start + i]
                     v = loop.vertex_index
@@ -594,7 +610,7 @@ class MdxmSurface:
                         success, message = vertex.loadFromBlender(
                             mesh.vertices[v], u, n, boneIndices, object, armatureObject)
                         if not success:
-                            return False, "Surface has invalid vertex: {}".format(message)
+                            return False, ErrorMessage(f"Surface has invalid vertex: {message}")
                         protoverts.append((v, u, n))
                         self.vertices.append(vertex)
                         triangle.append(len(protoverts) - 1)
@@ -604,8 +620,7 @@ class MdxmSurface:
             self.numTriangles = len(mesh.polygons)
 
             if self.numVerts > 1000:
-                print("Warning: {} has over 1000 vertices ({})".format(
-                    object.name, self.numVerts))
+                print(f"Warning: {object.name} has over 1000 vertices ({self.numVerts})")
 
         assert (len(self.vertices) == self.numVerts)
         assert (len(self.triangles) == self.numTriangles)
@@ -615,12 +630,13 @@ class MdxmSurface:
         if g_defaultSkeleton:
             self.boneReferences = [0]
         else:
-            self.boneReferences = [None] * len(boneIndices)
+            boneReferences: List[Optional[int]] = [None] * len(boneIndices)
             for boneName, index in boneIndices.items():
-                self.boneReferences[index] = boneIndexMap[boneName]
+                boneReferences[index] = boneIndexMap[boneName]
+            self.boneReferences = optional_cast(List[int], boneReferences)
 
         self._calculateOffsets()
-        return True, ""
+        return True, NoError
 
     # if a surface does not exist on a lower LOD, an empty one gets created
     def makeEmpty(self):
@@ -660,7 +676,7 @@ class MdxmSurface:
         assert (file.tell() == startPos + self.ofsEnd)
 
     # returns the created object
-    def saveToBlender(self, data, lodLevel):
+    def saveToBlender(self, data: ImportMetadata, lodLevel: int):
         #  retrieve metadata (same across LODs)
         surfaceData = data.surfaceDataCollection.surfaces[self.index]
         # blender won't let us create multiple things with the same name, so we add a LOD-suffix
@@ -692,9 +708,9 @@ class MdxmSurface:
         mesh.normals_split_custom_set_from_vertices(
             [v.normal for v in self.vertices])
 
-        uv_faces = mesh.uv_layers.new().data
-        uv_loops = mesh.uv_layers.active.data[:]
-        for poly, uv_face in zip(mesh.polygons, uv_faces):
+        uv_layer = mesh.uv_layers.new()
+        uv_loops = uv_layer.data[:]
+        for poly in mesh.polygons:
             indices = [mesh.loops[poly.loop_start +
                                   i].vertex_index for i in range(3)]
             uvs = [[self.vertices[index].uv[0], 1 - self.vertices[index].uv[1]]
@@ -713,8 +729,8 @@ class MdxmSurface:
         if not data.gla.isDefault:
 
             #  create armature modifier
-            armatureModifier = obj.modifiers.new("armature", 'ARMATURE')
-            armatureModifier.object = data.gla.skeleton_object
+            armatureModifier = downcast(bpy.types.ArmatureModifier, obj.modifiers.new("armature", 'ARMATURE'))
+            armatureModifier.object = optional_cast(bpy.types.Object, data.gla.skeleton_object)
             armatureModifier.use_bone_envelopes = False  # only use vertex groups by default
 
             #  create vertex groups (indices will match)
@@ -749,19 +765,19 @@ class MdxmSurface:
 
     # fill offset and number variables
     def _calculateOffsets(self):
-        offset = 10*4  # header: 4 ints
+        offset = 10 * 4  # header: 4 ints
         # triangles
         self.ofsTriangles = offset
         self.numTriangles = len(self.triangles)
-        offset += 3*4*self.numTriangles  # 3 ints
+        offset += 3 * 4 * self.numTriangles  # 3 ints
         # vertices
         self.ofsVerts = offset
         self.numVerts = len(self.vertices)
-        offset += 10*4*self.numVerts  # 6 floats co/normal, 8 bytes packed, 2 floats UV
+        offset += 10 * 4 * self.numVerts  # 6 floats co/normal, 8 bytes packed, 2 floats UV
         # bone references
         self.ofsBoneReferences = offset
         self.numBoneReferences = len(self.boneReferences)
-        offset += 4*self.numBoneReferences  # 1 int each
+        offset += 4 * self.numBoneReferences  # 1 int each
         # that's all the content, so we've got total size now.
         self.ofsEnd = offset
 
@@ -770,7 +786,7 @@ class MdxmLOD:
     def __init__(self):
         self.surfaceOffsets = []
         self.level = -1
-        self.surfaces = []
+        self.surfaces: List[Optional[MdxmSurface]] = []
         self.ofsEnd = -1  # = size
 
     def loadFromFile(self, file, header):
@@ -789,7 +805,7 @@ class MdxmLOD:
             self.surfaces.append(surface)
         assert (file.tell() == startPos + self.ofsEnd)
 
-    def saveToFile(self, file):
+    def saveToFile(self, file: BinaryIO) -> None:
         startPos = file.tell()
         # write ofsEnd
         file.write(struct.pack("i", self.ofsEnd))
@@ -797,12 +813,12 @@ class MdxmLOD:
         for offset in self.surfaceOffsets:
             file.write(struct.pack("i", offset))
         # write surfaces
-        for surface in self.surfaces:
+        for surface in optional_cast(List[MdxmSurface], self.surfaces):
             surface.saveToFile(file)
         # that's it, should've reached end.
         assert (file.tell() == startPos + self.ofsEnd)
 
-    def loadFromBlender(self, model_root, surfaceIndexMap, boneIndexMap, armatureObject):
+    def loadFromBlender(self, model_root, surfaceIndexMap, boneIndexMap, armatureObject) -> Tuple[bool, ErrorMessage]:
         # self.level gets set by caller
 
         # create dictionary of available objects
@@ -827,21 +843,22 @@ class MdxmLOD:
                 success, message = surf.loadFromBlender(
                     available[name], boneIndexMap, armatureObject)
                 if not success:
-                    return False, "Could not load surface {} (LOD {}) from Blender: {}".format(name, self.level, message)
+                    return False, ErrorMessage(f"Could not load surface {name} (LOD {self.level}) from Blender: {message}")
             # not available?
             else:
                 # create empty one
                 surf.makeEmpty()
             # add surface to list
             self.surfaces[index] = surf
-        return True, ""
+        return True, NoError
 
-    def saveToBlender(self, data, root):
+    def saveToBlender(self, data: ImportMetadata, root: bpy.types.Object):
         # 1st pass: create objects
         objects = []
         for surface in self.surfaces:
-            obj = surface.saveToBlender(data, self.level)
-            objects.append(obj)
+            if surface is not None:
+                obj = surface.saveToBlender(data, self.level)
+                objects.append(obj)
         # 2nd pass: set parent relations
         for i, obj in enumerate(objects):
             parentIndex = data.surfaceDataCollection.surfaces[i].parentIndex
@@ -855,9 +872,8 @@ class MdxmLOD:
         self.surfaceOffsets = []
         # ofsEnd is in front of offsets, but they are relative to their start
         offset = 4 * len(self.surfaces)
-        for surface in self.surfaces:
+        for surface in optional_cast(List[MdxmSurface], self.surfaces):
             self.surfaceOffsets.append(offset)
-            surface.ofsHeader = - offset - myOffset
             offset += surface.ofsEnd  # = size
         # memory required for ofsEnd
         self.ofsEnd = offset + 4
@@ -865,16 +881,16 @@ class MdxmLOD:
     def getSize(self):
         # ofsEnd + surface offsets
         size = 4 + 4 * len(self.surfaces)
-        for surface in self.surfaces:
+        for surface in optional_cast(List[MdxmSurface], self.surfaces):
             size += surface.ofsEnd
         return size
 
 
 class MdxmLODCollection:
     def __init__(self):
-        self.LODs = []
+        self.LODs: List[MdxmLOD] = []
 
-    def loadFromFile(self, file, header):
+    def loadFromFile(self, file: BinaryIO, header: MdxmHeader) -> None:
         for i in range(header.numLODs):
             startPos = file.tell()
             curLOD = MdxmLOD()
@@ -885,7 +901,7 @@ class MdxmLODCollection:
                 file.seek(startPos + curLOD.ofsEnd)
             self.LODs.append(curLOD)
 
-    def loadFromBlender(self, rootObjects, surfaceIndexMap, boneIndexMap, armatureObject):
+    def loadFromBlender(self, rootObjects, surfaceIndexMap, boneIndexMap, armatureObject) -> Tuple[bool, ErrorMessage]:
         for lodLevel, model_root in enumerate(rootObjects):
             LOD = MdxmLOD()
             LOD.level = lodLevel
@@ -894,7 +910,7 @@ class MdxmLODCollection:
             if not success:
                 return False, message
             self.LODs.append(LOD)
-        return True, ""
+        return True, NoError
 
     def calculateOffsets(self, ofsLODs):
         offset = ofsLODs
@@ -902,11 +918,11 @@ class MdxmLODCollection:
             lod.calculateOffsets(offset)
             offset += lod.getSize()
 
-    def saveToFile(self, file):
+    def saveToFile(self, file: BinaryIO) -> None:
         for LOD in self.LODs:
             LOD.saveToFile(file)
 
-    def saveToBlender(self, data):
+    def saveToBlender(self, data: ImportMetadata):
         for i, LOD in enumerate(self.LODs):
             root = bpy.data.objects.new("model_root_" + str(i), None)
             root.parent = data.scene_root
@@ -927,15 +943,15 @@ class GLM:
         self.surfaceDataCollection = MdxmSurfaceDataCollection()
         self.LODCollection = MdxmLODCollection()
 
-    def loadFromFile(self, filepath_abs):
-        print("Loading {}...".format(filepath_abs))
+    def loadFromFile(self, filepath_abs: str) -> Tuple[bool, ErrorMessage]:
+        print(f"Loading {filepath_abs}...")
         profiler = MrwProfiler.SimpleProfiler(True)
         # open file
         try:
             file = open(filepath_abs, mode="rb")
-        except IOError:
-            print("Could not open file: ", filepath_abs, sep="")
-            return False, "Could not open file"
+        except IOError as e:
+            print(f"Could not open file: {filepath_abs}")
+            return False, ErrorMessage(f"Could not open file: {e}")
         profiler.start("reading header")
         success, message = self.header.loadFromFile(file)
         if not success:
@@ -961,33 +977,35 @@ class GLM:
         # should be at the end now, if the structures are in the expected order.
         if file.tell() != self.header.ofsEnd:
             print("Warning: File not completely read or LODs not last structure in file. The former would be a problem, the latter wouldn't.")
-        return True, ""
+        return True, NoError
 
-    def loadFromBlender(self, glm_filepath_rel, gla_filepath_rel, basepath):
+    def loadFromBlender(self, glm_filepath_rel: str, gla_filepath_rel: str, basepath: str) -> Tuple[bool, ErrorMessage]:
         self.header.name = glm_filepath_rel.replace("\\", "/").encode()
         self.header.animName = gla_filepath_rel.encode()
         # create BoneName->BoneIndex lookup table based on GLA file (keeping in mind it might be "*default"/"")
+        # TODO pass this global as an argument instead
         global g_defaultSkeleton
-        g_defaultSkeleton = (gla_filepath_rel ==
-                             "" or gla_filepath_rel == "*default")
-        skeleton_object = None
-        skeleton_armature = None
-        boneIndexMap = None
+        g_defaultSkeleton: bool = (gla_filepath_rel ==
+                                   "" or gla_filepath_rel == "*default")
+        skeleton_object: Optional[bpy.types.Object] = None
+        boneIndexMap: Optional[BoneIndexMap] = None
         if g_defaultSkeleton:
+            # no skeleton available, generate default/unit skeleton instead
             self.header.numBones = 1
             self.header.animName = b"*default"
         else:
             # retrieve skeleton
             if not "skeleton_root" in bpy.data.objects:
-                return False, "No skeleton_root found!"
-            skeleton_object = bpy.data.objects["skeleton_root"]
-            if skeleton_object.type != 'ARMATURE':
-                return False, "skeleton_root is no Armature!"
-            skeleton_armature = skeleton_object.data
+                return False, ErrorMessage("No skeleton_root Object found!")
+            obj = cast(bpy.types.Object, bpy.data.objects["skeleton_root"])
+            skeleton_object = obj
+            if obj.type != 'ARMATURE':
+                return False, ErrorMessage("skeleton_root is no Armature!")
+            skeleton_armature = downcast(bpy.types.Armature, obj.data)
 
             boneIndexMap, message = buildBoneIndexLookupMap(JAFilesystem.RemoveExtension(
                 JAFilesystem.AbsPath(gla_filepath_rel, basepath)) + ".gla")
-            if boneIndexMap == False:
+            if boneIndexMap is None:
                 return False, message
 
             self.header.numBones = len(boneIndexMap)
@@ -995,24 +1013,25 @@ class GLM:
             # check if skeleton matches the specified one
             for bone in skeleton_armature.bones:
                 if bone.name not in boneIndexMap:
-                    return False, "skeleton_root does not match specified gla"
+                    return False, ErrorMessage(f"skeleton_root does not match specified gla, could not find bone {bone.name}")
 
         #   load from Blender
 
         # find all available LODs
         self.header.numLODs = 0
-        rootObjects = []
-        while "model_root_{}".format(self.header.numLODs) in bpy.data.objects:
+        rootObjects: List[bpy.types.Object] = []
+        while f"model_root_{self.header.numLODs}" in bpy.data.objects:
             rootObjects.append(
-                bpy.data.objects["model_root_{}".format(self.header.numLODs)])
+                bpy.data.objects[f"model_root_{self.header.numLODs}"])
             self.header.numLODs += 1
-        print("Found {} model_roots, i.e. LOD levels".format(self.header.numLODs))
+        print(
+            f"Found {self.header.numLODs} model_root objects, i.e. LOD levels")
 
         if self.header.numLODs == 0:
-            return False, "Could not find model_root_0"
+            return False, ErrorMessage("Could not find model_root_0 object")
 
         # build hierarchy from first LOD
-        surfaceIndexMap = {}  # surface name -> index
+        surfaceIndexMap: Dict[str, int] = {}  # surface name -> index
         success, message = self.surfaceDataCollection.loadFromBlender(
             rootObjects[0], surfaceIndexMap)
         if not success:
@@ -1020,7 +1039,7 @@ class GLM:
         self.surfaceDataOffsets.calculateOffsets(self.surfaceDataCollection)
 
         self.header.numSurfaces = len(self.surfaceDataCollection.surfaces)
-        print("{} surfaces found".format(self.header.numSurfaces))
+        print(f"{self.header.numSurfaces} surfaces found")
 
         # load all LODs
         success, message = self.LODCollection.loadFromBlender(
@@ -1032,9 +1051,9 @@ class GLM:
 
         #   calculate offsets etc.4
         self._calculateHeaderOffsets()
-        return True, ""
+        return True, NoError
 
-    def saveToFile(self, filepath_abs):
+    def saveToFile(self, filepath_abs: str) -> Tuple[bool, ErrorMessage]:
         if JAFilesystem.FileExists(filepath_abs):
             print("Warning: File exists! Overwriting.")
         # open file
@@ -1042,7 +1061,7 @@ class GLM:
             file = open(filepath_abs, "wb")
         except IOError:
             print("Failed to open file for writing: ", filepath_abs, sep="")
-            return False, "Could not open file!"
+            return False, ErrorMessage("Could not open file!")
         # save header
         self.header.saveToFile(file)
         # save surface data offsets
@@ -1051,7 +1070,7 @@ class GLM:
         self.surfaceDataCollection.saveToFile(file)
         # save LODs to file
         self.LODCollection.saveToFile(file)
-        return True, ""
+        return True, NoError
 
     # calculates the offsets & counts saved in the header based on the rest
     def _calculateHeaderOffsets(self):
@@ -1072,23 +1091,20 @@ class GLM:
     # basepath: ../GameData/.../
     # gla: JAG2GLA.GLA object - the Skeleton (for weighting purposes)
     # scene_root: "scene_root" object in Blender
-    def saveToBlender(self, basepath, gla, scene_root, skin_rel, guessTextures):
+    def saveToBlender(self, basepath: str, gla: JAG2GLA.GLA, scene_root: bpy.types.Object, skin_rel: str, guessTextures: bool) -> Tuple[bool, ErrorMessage]:
         if gla.header.numBones != self.header.numBones:
-            return False, "Bone number mismatch - gla has {} bones, model uses {}. Maybe you're trying to load a jk2 model with the jk3 skeleton or vice-versa?".format(gla.header.numBones, self.header.numBones)
+            return False, ErrorMessage(f"Bone number mismatch - gla has {gla.header.numBones} bones, model uses {self.header.numBones}. Maybe you're trying to load a jk2 model with the jk3 skeleton or vice-versa?")
         print("creating model...")
         profiler = MrwProfiler.SimpleProfiler(True)
         profiler.start("creating surfaces")
 
-        class GeneralData:
-            pass
-        data = GeneralData()
-        data.gla = gla
-        data.scene_root = scene_root
-        data.surfaceDataCollection = self.surfaceDataCollection
-        data.materialManager = JAMaterialmanager.MaterialManager()
-        data.boneNames = {}
-        for bone in gla.skeleton.bones:
-            data.boneNames[bone.index] = bone.name
+        data = ImportMetadata(
+            gla=gla,
+            scene_root=scene_root,
+            surfaceDataCollection=self.surfaceDataCollection,
+            materialManager=JAMaterialmanager.MaterialManager(),
+            boneNames={bone.index: bone.name for bone in gla.skeleton.bones}
+        )
         success, message = data.materialManager.init(
             basepath, skin_rel, guessTextures)
         if not success:
@@ -1098,6 +1114,6 @@ class GLM:
         profiler.stop("creating surfaces")
         return True, ""
 
-    def getRequestedGLA(self):
+    def getRequestedGLA(self) -> str:
         # todo
         return JAStringhelper.decode(self.header.animName)

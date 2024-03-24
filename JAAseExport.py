@@ -1,7 +1,6 @@
 # ASE Export Functionality
 
-if "bpy" not in locals():
-    import bpy
+import bpy
 
 
 class Vertex:
@@ -179,7 +178,7 @@ class Operator(bpy.types.Operator):
 
     filepath: bpy.props.StringProperty(subtype='FILE_PATH')  # type: ignore
 
-    def execute(self, context):
+    def execute(self, context):  # pyright: ignore [reportIncompatibleMethodOverride]
         filepath = bpy.path.ensure_ext(self.filepath, ".ase")
 
         def report_error(msg):
@@ -189,7 +188,7 @@ class Operator(bpy.types.Operator):
         exporter.export(filepath)
         return {"FINISHED"}
 
-    def invoke(self, context, event):
+    def invoke(self, context, event):  # pyright: ignore [reportIncompatibleMethodOverride]
         if not self.filepath:
             self.filepath = bpy.path.ensure_ext(bpy.data.filepath, ".ase")
         WindowManager = context.window_manager

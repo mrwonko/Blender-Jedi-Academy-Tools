@@ -1,17 +1,17 @@
 import bpy
 
 
-def hasG2MeshProperties(obj):
+def hasG2MeshProperties(obj: bpy.types.Object) -> bool:
     """ Whether a given object has the ghoul 2 mesh-object properties """
     return ("g2_prop_off" in obj) and ("g2_prop_tag" in obj) and ("g2_prop_name" in obj) and ("g2_prop_shader" in obj)
 
 
-def hasG2ArmatureProperties(obj):
+def hasG2ArmatureProperties(obj: bpy.types.Object) -> bool:
     """ Whether a given object has the ghoul 2 armature properties """
     return "g2_prop_scale" in obj
 
 
-def initG2Properties():
+def initG2Properties() -> None:
     """ globally initializes the ghoul 2 custom properties """
     bpy.types.Object.g2_prop_name = bpy.props.StringProperty(
         name="name", maxlen=64, default="", description="Name (in case it doesn't fit in Blender's Object Name, which is used if this is empty.)")
@@ -34,8 +34,7 @@ class G2PropertiesPanel(bpy.types.Panel):
 
     @classmethod
     def poll(self, context):
-        if context.active_object:
-            return context.active_object.type in ['MESH', 'ARMATURE']
+        return context.active_object and context.active_object.type in ['MESH', 'ARMATURE'] or False
 
     def draw(self, context):
         layout = self.layout

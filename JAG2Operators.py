@@ -17,14 +17,17 @@
 # ##### END GPL LICENSE BLOCK #####
 
 from .mod_reload import reload_modules
-reload_modules(locals(), __package__, ["JAG2Scene", "JAFilesystem"], [])  # nopep8
+reload_modules(locals(), __package__, ["JAG2Scene", "JAG2GLA", "JAFilesystem"], [".JAG2Constants"])  # nopep8
 
 import bpy
+from typing import Tuple, cast
 from . import JAG2Scene
+from . import JAG2GLA
 from . import JAFilesystem
+from .JAG2Constants import SkeletonFixes
 
 
-def GetPaths(basepath, filepath):
+def GetPaths(basepath, filepath) -> Tuple[str, str]:
     if basepath == "":
         basepath, filepath = JAFilesystem.SplitPrefix(filepath)
         filepath = JAFilesystem.RemoveExtension(filepath)
@@ -55,21 +58,21 @@ class GLMImport(bpy.types.Operator):
     scale: bpy.props.FloatProperty(
         name="Scale", description="Scale to apply to the imported model.", default=10, min=0, max=1000, subtype='PERCENTAGE')  # type: ignore
     skeletonFixes: bpy.props.EnumProperty(name="skeleton changes", description="You can select a preset for automatic skeleton changes which result in a nicer imported skeleton.", default='NONE', items=[
-        ('NONE', "None", "Don't change the skeleton in any way.", 0),
-        ('JKA_HUMANOID', "Jedi Academy _humanoid",
+        (SkeletonFixes.NONE, "None", "Don't change the skeleton in any way.", 0),
+        (SkeletonFixes.JKA_HUMANOID, "Jedi Academy _humanoid",
          "Fixes for the default humanoid Jedi Academy skeleton", 1)
     ])  # type: ignore
     loadAnimations: bpy.props.EnumProperty(name="animations", description="Whether to import all animations, some animations or only a range from the .gla. (Importing huge animations takes forever.)", default='NONE', items=[
-        ('NONE', "None", "Don't import animations.", 0),
-        ('ALL', "All", "Import all animations", 1),
-        ('RANGE', "Range", "Import a certain range of frames", 2)
+        (JAG2GLA.AnimationLoadMode.NONE, "None", "Don't import animations.", 0),
+        (JAG2GLA.AnimationLoadMode.ALL, "All", "Import all animations", 1),
+        (JAG2GLA.AnimationLoadMode.RANGE, "Range", "Import a certain range of frames", 2)
     ])  # type: ignore
     startFrame: bpy.props.IntProperty(
         name="Start frame", description="If only a range of frames of the animation is to be imported, this is the first.", min=0)  # type: ignore
     numFrames: bpy.props.IntProperty(
         name="number of frames", description="If only a range of frames of the animation is to be imported, this is the total number of frames to import", min=1)  # type: ignore
 
-    def execute(self, context):
+    def execute(self, context):  # pyright: ignore [reportIncompatibleMethodOverride]
         print("\n== GLM Import ==\n")
         # initialize paths
         basepath, filepath = GetPaths(self.basepath, self.filepath)
@@ -88,23 +91,24 @@ class GLMImport(bpy.types.Operator):
         if self.glaOverride == "":
             glafile = scene.getRequestedGLA()
         else:
-            glafile = self.glaOverride
+            glafile = cast(str, self.glaOverride)
+        loadAnimations = cast(JAG2GLA.AnimationLoadMode, self.loadAnimations)
         success, message = scene.loadFromGLA(
-            glafile, self.loadAnimations, self.startFrame, self.numFrames)
+            glafile, loadAnimations, cast(int, self.startFrame), cast(int, self.numFrames))
         if not success:
             self.report({'ERROR'}, message)
             return {'FINISHED'}
         # output to blender
         skin = ""
         if self.skin != "":
-            skin = filepath+"_"+self.skin
+            skin = filepath + "_" + self.skin
         success, message = scene.saveToBlender(
-            scale, skin, self.guessTextures, self.skeletonFixes)
+            scale, skin, self.guessTextures, loadAnimations != JAG2GLA.AnimationLoadMode.NONE, self.skeletonFixes)
         if not success:
             self.report({'ERROR'}, message)
         return {'FINISHED'}
 
-    def invoke(self, context, event):
+    def invoke(self, context, event):  # pyright: ignore [reportIncompatibleMethodOverride]
         # show file selection window
         wm = context.window_manager
         wm.fileselect_add(self)
@@ -153,14 +157,15 @@ class GLAImport(bpy.types.Operator):
             return {'FINISHED'}
         # load GLA
         scene = JAG2Scene.Scene(basepath)
+        loadAnimations = cast(JAG2GLA.AnimationLoadMode, self.loadAnimations)
         success, message = scene.loadFromGLA(
-            filepath, self.loadAnimations, self.startFrame, self.numFrames)
+            filepath, loadAnimations, self.startFrame, self.numFrames)
         if not success:
             self.report({'ERROR'}, message)
             return {'FINISHED'}
         # output to blender
         success, message = scene.saveToBlender(
-            scale, "", False, self.skeletonFixes)
+            scale, "", False, loadAnimations != JAG2GLA.AnimationLoadMode.NONE, self.skeletonFixes)
         if not success:
             self.report({'ERROR'}, message)
         return {'FINISHED'}
@@ -271,8 +276,7 @@ class ObjectAddG2Properties(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        if context.active_object:
-            return context.active_object.type in ['MESH', 'ARMATURE']
+        return context.active_object and context.active_object.type in ['MESH', 'ARMATURE'] or False
 
     def execute(self, context):
         obj = context.active_object
@@ -300,8 +304,7 @@ class ObjectRemoveG2Properties(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        if context.active_object:
-            return context.active_object.type in ['MESH', 'ARMATURE']
+        return context.active_object and context.active_object.type in ['MESH', 'ARMATURE'] or False
 
     def execute(self, context):
         obj = context.active_object

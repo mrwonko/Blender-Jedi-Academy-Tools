@@ -1,0 +1,6 @@
+{
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.autopep8",
+    },
+    "python.analysis.typeCheckingMode": "standard",
+}

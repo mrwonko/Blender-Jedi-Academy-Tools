@@ -14,10 +14,10 @@ def reload_modules(locals: Dict[str, Any], package: str, module_names: List[str]
         import importlib
         # not sure if this is necessary
         importlib.invalidate_caches()
-    for mod in loaded_modules:
-        print(f"reloading {mod.__name__}")
-        importlib.reload(mod)
-    for mod_name in forced_module_names:
-        print(f"reloading {mod_name}")
-        mod = importlib.import_module(mod_name, package=package)
-        importlib.reload(mod)
+        for mod in loaded_modules:
+            print(f"reloading {mod.__name__}")
+            importlib.reload(mod)
+        for mod_name in forced_module_names:
+            print(f"reloading {mod_name}")
+            mod = importlib.import_module(mod_name, package=package)
+            importlib.reload(mod)
