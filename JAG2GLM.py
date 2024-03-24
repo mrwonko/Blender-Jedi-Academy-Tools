@@ -108,15 +108,7 @@ def getBoneWeights(vertex, meshObject, armatureObject, maxBones=-1):
     # remove smallest weight while there are more than allowed
     if maxBones != -1:
         while len(weights) > maxBones:
-            iter = weights.items().__iter__()
-            minKey, minVal = next(iter)
-            try:
-                key, val = next(iter)
-                if val < minVal:
-                    minKey = key
-                    minVal = val
-            except StopIteration:
-                pass
+            minKey, _ = min(weights.items(), key=lambda i: i[1])
             del weights[minKey]
 
     # if there are still no weights, add 1.0 for the root bone
