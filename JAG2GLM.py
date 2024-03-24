@@ -16,37 +16,18 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import importlib
-import struct  # TODO #43
-from typing import Dict, Tuple
-if 'JAStringhelper' in locals():
-    importlib.reload(JAStringhelper)
-else:
-    from . import JAStringhelper
-if 'JAFilesystem' in locals():
-    importlib.reload(JAFilesystem)
-else:
-    from . import JAFilesystem
-if 'JAG2Constants' in locals():
-    importlib.reload(JAG2Constants)
-else:
-    from . import JAG2Constants
-if 'JAG2GLA' in locals():
-    importlib.reload(JAG2GLA)
-else:
-    from . import JAG2GLA
-if 'JAMaterialmanager' in locals():
-    importlib.reload(JAMaterialmanager)
-else:
-    from . import JAMaterialmanager
-if 'MrwProfiler' in locals():
-    importlib.reload(MrwProfiler)
-else:
-    from . import MrwProfiler
-if 'JAG2Panels' in locals():
-    importlib.reload(JAG2Panels)
-else:
-    from . import JAG2Panels
+
+from .mod_reload import reload_modules
+reload_modules(locals(), __package__, ["JAStringhelper", "JAFilesystem", "JAG2Constants", "JAG2GLA", "JAMaterialmanager", "MrwProfiler", "JAG2Panels"], [])  # nopep8
+
+import struct
+from . import JAStringhelper
+from . import JAFilesystem
+from . import JAG2Constants
+from . import JAG2GLA
+from . import JAMaterialmanager
+from . import MrwProfiler
+from . import JAG2Panels
 
 import bpy
 import mathutils

@@ -1,15 +1,13 @@
+from .mod_reload import reload_modules
+reload_modules(locals(), __package__, ["JAMd3Encode"], [])  # nopep8
+
 import bpy
 from bpy.props import *
 import math
 import time
 import os
-import importlib  # TODO #43
 import mathutils
-if "JAMd3Encode" in locals():
-    import importlib
-    importlib.reload(JAMd3Encode)
-else:
-    from . import JAMd3Encode
+from . import JAMd3Encode
 
 __author__ = ["Xembie", "PhaethonH", "Bob Holcomb",
               "Damien McGinnes", "Robert (Tr3B) Beckebans"]

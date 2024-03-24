@@ -16,15 +16,11 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import importlib  # TODO #43
-if 'JAFilesystem' in locals():
-    importlib.reload(JAFilesystem)
-else:
-    from . import JAFilesystem
-if 'JAStringhelper' in locals():
-    importlib.reload('JAStringhelper')
-else:
-    from . import JAStringhelper
+from .mod_reload import reload_modules
+reload_modules(locals(), __package__, ["JAFilesystem", "JAStringhelper"], [])  # nopep8
+
+from . import JAFilesystem
+from . import JAStringhelper
 
 import bpy
 

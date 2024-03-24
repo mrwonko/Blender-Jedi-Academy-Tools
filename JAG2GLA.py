@@ -16,24 +16,13 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import importlib  # TODO #43
+from .mod_reload import reload_modules
+reload_modules(locals(), __package__, ["JAStringhelper", "JAG2Constants", "JAG2Math", "MrwProfiler"], [])  # nopep8
 
-if 'JAStringhelper' in locals():
-    importlib.reload(JAStringhelper)
-else:
-    from . import JAStringhelper
-if 'JAG2Constants' in locals():
-    importlib.reload(JAG2Constants)
-else:
-    from . import JAG2Constants
-if 'JAG2Math' in locals():
-    importlib.reload(JAG2Math)
-else:
-    from . import JAG2Math
-if 'MrwProfiler' in locals():
-    importlib.reload(MrwProfiler)
-else:
-    from . import MrwProfiler
+from . import JAStringhelper
+from . import JAG2Constants
+from . import JAG2Math
+from . import MrwProfiler
 
 import struct
 import bpy

@@ -18,20 +18,12 @@
 
 # Main File containing the important definitions
 
-import importlib  # TODO 43
+from .mod_reload import reload_modules
+reload_modules(locals(), __package__, ["JAFilesystem", "JAG2GLM", "JAG2GLA"], [])  # nopep8
 
-if 'JAFilesystem' in locals():
-    importlib.reload(JAFilesystem)
-else:
-    from . import JAFilesystem
-if 'JAG2GLM' in locals():
-    importlib.reload(JAG2GLM)
-else:
-    from . import JAG2GLM
-if 'JAG2GLA' in locals():
-    importlib.reload(JAG2GLA)
-else:
-    from . import JAG2GLA
+from . import JAFilesystem
+from . import JAG2GLM
+from . import JAG2GLA
 
 import bpy
 

@@ -16,16 +16,12 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import importlib  # TODO #43
+from .mod_reload import reload_modules
+reload_modules(locals(), __package__, ["JAG2Scene", "JAFilesystem"], [])  # nopep8
+
 import bpy
-if 'JAG2Scene' in locals():
-    importlib.reload(JAG2Scene)
-else:
-    from . import JAG2Scene
-if 'JAFilesystem' in locals():
-    importlib.reload(JAFilesystem)
-else:
-    from . import JAFilesystem
+from . import JAG2Scene
+from . import JAFilesystem
 
 
 def GetPaths(basepath, filepath):
