@@ -423,7 +423,7 @@ class MdxmVertex:
     # vertex :: Blender MeshVertex
     # uv :: [int, int] (blender style, will be y-flipped)
     # boneIndices :: { string -> int } (bone name -> index, may be changed)
-    def loadFromBlender(self, vertex: bpy.types.MeshVertex, uv: List[float], normal: mathutils.Vector, boneIndices: Dict[str, int], meshObject: bpy.types.Object, armatureObject: bpy.types.Object) -> Tuple[bool, ErrorMessage]:
+    def loadFromBlender(self, vertex: bpy.types.MeshVertex, uv: List[float], normal: mathutils.Vector, boneIndices: Dict[str, int], meshObject: bpy.types.Object, armatureObject: Optional[bpy.types.Object]) -> Tuple[bool, ErrorMessage]:
         # I'm taking the world matrix in case the object is not at the origin, but I really want the coordinates in scene_root-space, so I'm using that, too.
         rootMat = matrix_getter_cast(bpy_generic_cast(bpy.types.Object, bpy.data.objects["scene_root"]).matrix_world).inverted()
         co = vector_overload_cast(rootMat @ vector_overload_cast(matrix_getter_cast(meshObject.matrix_world) @ vector_getter_cast(vertex.co)))
@@ -437,8 +437,7 @@ class MdxmVertex:
         # weight/bone indices
 
         assert (len(self.weights) == 0)
-        global g_defaultSkeleton
-        if g_defaultSkeleton:
+        if armatureObject == None:  # default skeleton
             self.weights.append(1.0)
             self.boneIndices.append(0)
             self.numWeights = 1
@@ -547,7 +546,7 @@ class MdxmSurface:
                 "Warning: Surface structure unordered (bone references not last) or read error")
             file.seek(startPos + self.ofsEnd)
 
-    def loadFromBlender(self, object: bpy.types.Object, boneIndexMap: Dict[str, int], armatureObject: bpy.types.Object) -> Tuple[bool, ErrorMessage]:
+    def loadFromBlender(self, object: bpy.types.Object, boneIndexMap: Optional[BoneIndexMap], armatureObject: Optional[bpy.types.Object]) -> Tuple[bool, ErrorMessage]:
         if object.type != 'MESH':
             return False, ErrorMessage(f"Object {object.name} is not of type Mesh!")
         mesh: bpy.types.Mesh = downcast(bpy.types.Object, object.evaluated_get(
@@ -626,8 +625,7 @@ class MdxmSurface:
         assert (len(self.triangles) == self.numTriangles)
 
         # fill bone references
-        global g_defaultSkeleton
-        if g_defaultSkeleton:
+        if boneIndexMap is None:  # default skeleton
             self.boneReferences = [0]
         else:
             boneReferences: List[Optional[int]] = [None] * len(boneIndices)
@@ -983,13 +981,11 @@ class GLM:
         self.header.name = glm_filepath_rel.replace("\\", "/").encode()
         self.header.animName = gla_filepath_rel.encode()
         # create BoneName->BoneIndex lookup table based on GLA file (keeping in mind it might be "*default"/"")
-        # TODO pass this global as an argument instead
-        global g_defaultSkeleton
-        g_defaultSkeleton: bool = (gla_filepath_rel ==
-                                   "" or gla_filepath_rel == "*default")
+        defaultSkeleton: bool = (gla_filepath_rel ==
+                                 "" or gla_filepath_rel == "*default")
         skeleton_object: Optional[bpy.types.Object] = None
         boneIndexMap: Optional[BoneIndexMap] = None
-        if g_defaultSkeleton:
+        if defaultSkeleton:
             # no skeleton available, generate default/unit skeleton instead
             self.header.numBones = 1
             self.header.animName = b"*default"
