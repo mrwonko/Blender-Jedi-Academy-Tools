@@ -546,7 +546,7 @@ class MdxmSurface:
                 "Warning: Surface structure unordered (bone references not last) or read error")
             file.seek(startPos + self.ofsEnd)
 
-    def loadFromBlender(self, object: bpy.types.Object, boneIndexMap: Optional[BoneIndexMap], armatureObject: Optional[bpy.types.Object]) -> Tuple[bool, ErrorMessage]:
+    def loadFromBlender(self, object: bpy.types.Object, surfaceData: MdxmSurfaceData, boneIndexMap: Optional[BoneIndexMap], armatureObject: Optional[bpy.types.Object]) -> Tuple[bool, ErrorMessage]:
         if object.type != 'MESH':
             return False, ErrorMessage(f"Object {object.name} is not of type Mesh!")
         mesh: bpy.types.Mesh = downcast(bpy.types.Object, object.evaluated_get(
@@ -558,11 +558,13 @@ class MdxmSurface:
         boneIndices: Dict[str, int] = {}
 
         # This is a tag, use a simpler export procedure
-        if object.name.startswith("*"):
+        if surfaceData.flags & JAG2Constants.SURFACEFLAG_TAG:
+            print(f"{object.name} is a tag")
             for face in mesh.polygons:
                 if len(face.vertices) != 3:
                     return False, ErrorMessage(f"Non-triangle tag found: {object.name}!")
             for vi in mesh.vertices:
+                vi = bpy_generic_cast(bpy.types.MeshVertex, vi)
                 vert = MdxmVertex()
                 success, message = vert.loadFromBlender(
                     vi, [0, 0], mathutils.Vector(), boneIndices, object, armatureObject)
@@ -825,7 +827,7 @@ class MdxmLOD:
         assert (file.tell() == startPos + self.ofsEnd)
 
     @staticmethod
-    def loadFromBlender(level: int, model_root: bpy.types.Object, surfaceIndexMap: Dict[str, int], boneIndexMap: Optional[BoneIndexMap], armatureObject: Optional[bpy.types.Object]) -> Tuple[Optional["MdxmLOD"], ErrorMessage]:
+    def loadFromBlender(level: int, model_root: bpy.types.Object, surfaceIndexMap: Dict[str, int], surfaceDataCollection: MdxmSurfaceDataCollection, boneIndexMap: Optional[BoneIndexMap], armatureObject: Optional[bpy.types.Object]) -> Tuple[Optional["MdxmLOD"], ErrorMessage]:
         # self.level gets set by caller
 
         # create dictionary of available objects
@@ -846,9 +848,10 @@ class MdxmLOD:
             surf.index = index
             # if it is available:
             if name in available:
+                surfaceData = surfaceDataCollection.surfaces[index]
                 # load from blender
                 success, message = surf.loadFromBlender(
-                    available[name], boneIndexMap, armatureObject)
+                    available[name], surfaceData, boneIndexMap, armatureObject)
                 if not success:
                     return None, ErrorMessage(f"could not load surface {name}: {message}")
             # not available?
@@ -914,10 +917,10 @@ class MdxmLODCollection:
                 file.seek(startPos + curLOD.ofsEnd)
             self.LODs.append(curLOD)
 
-    def loadFromBlender(self, rootObjects: List[bpy.types.Object], surfaceIndexMap: Dict[str, int], boneIndexMap: Optional[BoneIndexMap], armatureObject: Optional[bpy.types.Object]) -> Tuple[bool, ErrorMessage]:
+    def loadFromBlender(self, rootObjects: List[bpy.types.Object], surfaceIndexMap: Dict[str, int], surfaceDataCollection: MdxmSurfaceDataCollection, boneIndexMap: Optional[BoneIndexMap], armatureObject: Optional[bpy.types.Object]) -> Tuple[bool, ErrorMessage]:
         for lodLevel, model_root in enumerate(rootObjects):
             lod, message = MdxmLOD.loadFromBlender(
-                lodLevel, model_root, surfaceIndexMap, boneIndexMap, armatureObject)
+                lodLevel, model_root, surfaceIndexMap, surfaceDataCollection, boneIndexMap, armatureObject)
             if lod is None:
                 return False, ErrorMessage(f"loading LOD {lodLevel} from Blender: {message}")
             self.LODs.append(lod)
@@ -1052,7 +1055,7 @@ class GLM:
 
         # load all LODs
         success, message = self.LODCollection.loadFromBlender(
-            rootObjects, surfaceIndexMap, boneIndexMap, skeleton_object)
+            rootObjects, surfaceIndexMap, self.surfaceDataCollection, boneIndexMap, skeleton_object)
         if not success:
             return False, message
 
