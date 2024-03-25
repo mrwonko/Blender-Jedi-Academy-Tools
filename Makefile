@@ -1,4 +1,4 @@
-PY_FILES = __init__.py ImportHelper.py JAAseExport.py JAAseImport.py JAFilesystem.py JAG2Constants.py JAG2GLA.py JAG2GLM.py JAG2Math.py JAG2Operators.py JAG2Panels.py JAG2Scene.py JAMaterialmanager.py JAMd3Encode.py JAMd3Export.py JAPatchExport.py JARoffExport.py JARoffImport.py JAStringhelper.py MrwProfiler.py
+PY_FILES = __init__.py mod_reload.py casts.py error_types.py JAAseExport.py JAAseImport.py JAFilesystem.py JAG2Constants.py JAG2GLA.py JAG2GLM.py JAG2Math.py JAG2Operators.py JAG2Panels.py JAG2Scene.py JAMaterialmanager.py JAMd3Encode.py JAMd3Export.py JAPatchExport.py JARoffExport.py JARoffImport.py JAStringhelper.py MrwProfiler.py
 
 ZIP_CONTENTS = $(PY_FILES) jediacademy_plugins_readme.txt
 

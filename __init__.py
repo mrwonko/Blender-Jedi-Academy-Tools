@@ -16,97 +16,76 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-bl_info = {
-	"name": "Jedi Academy Import/Export Tools",
-	"author": "mrwonko, Cagelight et al",
-	"description": "Various Jedi Knight: Jedi Academy related tools: Importers for ASE, GLA, GLM, ROFF and Exporters for ASE, GLA, GLM, animation.cfg, ROFF",
-	"blender": (2, 80, 0),
-	"location": "File > Import-Export",
-	"category": "Import-Export"
-}
-
 #  Imports
 
-#  Python
-import importlib
+from .mod_reload import reload_modules
+reload_modules(locals(), __package__, ["JAAseExport", "JAAseImport", "JAPatchExport", "JARoffImport", "JARoffExport", "JAG2Panels", "JAG2Operators"], [])  # nopep8
 
 #  Blender
-if "bpy" not in locals():
-	import bpy
+import bpy
 
 #  Local
 # ASE
-if "JAAseExport" in locals():
-	importlib.reload( JAAseExport )
-else:
-	from . import JAAseExport
-if "JAAseImport" in locals():
-	importlib.reload( JAAseImport )
-else:
-	from . import JAAseImport
+from . import JAAseExport
+from . import JAAseImport
 # Patch
-if "JAPatchExport" in locals():
-	importlib.reload( JAPatchExport )
-else:
-	from . import JAPatchExport
+from . import JAPatchExport
 # ROFF
-if "JARoffImport" in locals():
-	importlib.reload( JARoffImport )
-else:
-	from . import JARoffImport
-if "JARoffExport" in locals():
-	importlib.reload( JARoffExport )
-else:
-	from . import JARoffExport
+from . import JARoffImport
+from . import JARoffExport
 # Ghoul 2
-if "JAG2Panels" in locals():
-	importlib.reload( JAG2Panels )
-else:
-	from . import JAG2Panels
-if "JAG2Operators" in locals():
-	importlib.reload( JAG2Operators )
-else:
-	from . import JAG2Operators
+from . import JAG2Panels
+from . import JAG2Operators
+
+bl_info = {
+    "name": "Jedi Academy Import/Export Tools",
+    "author": "mrwonko, Cagelight et al",
+    "description": "Various Jedi Knight: Jedi Academy related tools: Importers for ASE, GLA, GLM, ROFF and Exporters for ASE, GLA, GLM, animation.cfg, ROFF",
+    "blender": (2, 80, 0),
+    "location": "File > Import-Export",
+    "category": "Import-Export"
+}
 
 # there must be at least one operator in the locals for Blender to reload correctly.
 JAAseExportOp = JAAseExport.Operator
 
+
 def register():
-	bpy.utils.register_class(JAAseExport.Operator)
-	bpy.utils.register_class(JAPatchExport.Operator)
-	bpy.utils.register_class(JARoffExport.Operator)
-	bpy.utils.register_class(JAAseImport.Operator)
-	bpy.utils.register_class(JARoffImport.Operator)
-	bpy.utils.register_class(JAG2Panels.G2PropertiesPanel)
-	
-	JAG2Panels.initG2Properties()
-	JAG2Operators.register();
-	
-	bpy.types.TOPBAR_MT_file_export.append(JAAseExport.menu_func)
-	bpy.types.TOPBAR_MT_file_export.append(JAPatchExport.menu_func)
-	bpy.types.TOPBAR_MT_file_export.append(JARoffExport.menu_func)
-	
-	bpy.types.TOPBAR_MT_file_import.append(JAAseImport.menu_func)
-	bpy.types.TOPBAR_MT_file_import.append(JARoffImport.menu_func)
+    bpy.utils.register_class(JAAseExport.Operator)
+    bpy.utils.register_class(JAPatchExport.Operator)
+    bpy.utils.register_class(JARoffExport.Operator)
+    bpy.utils.register_class(JAAseImport.Operator)
+    bpy.utils.register_class(JARoffImport.Operator)
+    bpy.utils.register_class(JAG2Panels.G2PropertiesPanel)
+
+    JAG2Panels.initG2Properties()
+    JAG2Operators.register()
+
+    bpy.types.TOPBAR_MT_file_export.append(JAAseExport.menu_func)
+    bpy.types.TOPBAR_MT_file_export.append(JAPatchExport.menu_func)
+    bpy.types.TOPBAR_MT_file_export.append(JARoffExport.menu_func)
+
+    bpy.types.TOPBAR_MT_file_import.append(JAAseImport.menu_func)
+    bpy.types.TOPBAR_MT_file_import.append(JARoffImport.menu_func)
 
 
 def unregister():
-	bpy.utils.unregister_class(JAAseExport.Operator)
-	bpy.utils.unregister_class(JAPatchExport.Operator)
-	bpy.utils.unregister_class(JARoffExport.Operator)
-	bpy.utils.unregister_class(JAAseImport.Operator)
-	bpy.utils.unregister_class(JARoffImport.Operator)
-	bpy.utils.unregister_class(JAG2Panels.G2PropertiesPanel)
-	
-	JAG2Operators.unregister()
-	
-	bpy.types.TOPBAR_MT_file_export.remove(JAAseExport.menu_func)
-	bpy.types.TOPBAR_MT_file_export.remove(JAPatchExport.menu_func)
-	bpy.types.TOPBAR_MT_file_export.remove(JARoffExport.menu_func)
-	
-	bpy.types.TOPBAR_MT_file_import.remove(JAAseImport.menu_func)
-	bpy.types.TOPBAR_MT_file_import.remove(JARoffImport.menu_func)
+    bpy.utils.unregister_class(JAAseExport.Operator)
+    bpy.utils.unregister_class(JAPatchExport.Operator)
+    bpy.utils.unregister_class(JARoffExport.Operator)
+    bpy.utils.unregister_class(JAAseImport.Operator)
+    bpy.utils.unregister_class(JARoffImport.Operator)
+    bpy.utils.unregister_class(JAG2Panels.G2PropertiesPanel)
+
+    JAG2Operators.unregister()
+
+    bpy.types.TOPBAR_MT_file_export.remove(JAAseExport.menu_func)
+    bpy.types.TOPBAR_MT_file_export.remove(JAPatchExport.menu_func)
+    bpy.types.TOPBAR_MT_file_export.remove(JARoffExport.menu_func)
+
+    bpy.types.TOPBAR_MT_file_import.remove(JAAseImport.menu_func)
+    bpy.types.TOPBAR_MT_file_import.remove(JARoffImport.menu_func)
 
 
 if __name__ == "__main__":
-	register()
+    register()
