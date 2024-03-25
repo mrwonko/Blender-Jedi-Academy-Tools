@@ -30,7 +30,7 @@ from . import JAG2GLA
 from . import JAMaterialmanager
 from . import MrwProfiler
 from . import JAG2Panels
-from .casts import optional_cast, downcast, bpy_generic_cast, unpack_cast, matrix_getter_cast, vector_getter_cast, vector_overload_cast
+from .casts import optional_cast, downcast, bpy_generic_cast, optional_list_cast, unpack_cast, matrix_getter_cast, vector_getter_cast, vector_overload_cast
 from .error_types import ErrorMessage, NoError
 
 import bpy
@@ -68,8 +68,8 @@ def buildBoneIndexLookupMap(gla_filepath_abs: str) -> Tuple[Optional[BoneIndexMa
 
 
 def getName(object: bpy.types.Object) -> str:
-    if object.g2_prop_name != "":
-        return object.g2_prop_name
+    if object.g2_prop_name != "":  # pyright: ignore [reportAttributeAccessIssue]
+        return object.g2_prop_name  # pyright: ignore [reportAttributeAccessIssue]
     return object.name
 
 
@@ -238,12 +238,12 @@ class MdxmSurfaceData:
 
     def loadFromBlender(self, object: bpy.types.Object, surfaceIndexMap: Dict[str, int]) -> Tuple[bool, ErrorMessage]:
         self.name: bytes = getName(object).encode()
-        self.shader: bytes = object.g2_prop_shader.encode()
+        self.shader: bytes = object.g2_prop_shader.encode()  # pyright: ignore [reportAttributeAccessIssue]
         # set flags
         self.flags = 0
-        if object.g2_prop_off:
+        if object.g2_prop_off:  # pyright: ignore [reportAttributeAccessIssue]
             self.flags |= JAG2Constants.SURFACEFLAG_OFF
-        if object.g2_prop_tag:
+        if object.g2_prop_tag:  # pyright: ignore [reportAttributeAccessIssue]
             self.flags |= JAG2Constants.SURFACEFLAG_TAG
         # set parent
         if object.parent != None and getName(object.parent) in surfaceIndexMap:
@@ -331,10 +331,10 @@ class MdxmSurfaceDataCollection:
         success, message = addChildren(rootObject)
         if not success:
             return False, message
-        for index, surface in enumerate(surfaces):
-            if surface == None:  # a surface that was referenced did not get created
-                return False, ErrorMessage(f"Internal error during hierarchy creation! (Surface {index}/{len(surfaces)} referenced but not created)")
-        self.surfaces = optional_cast(List[MdxmSurfaceData], surfaces)
+        emptyIndices = [i for i, x in enumerate(surfaces) if x is None]
+        if len(emptyIndices) > 0:  # a surface that was referenced did not get created
+            return False, ErrorMessage(f"Internal error during hierarchy creation! (Surfaces {emptyIndices} referenced but not created)")
+        self.surfaces = optional_list_cast(List[MdxmSurfaceData], surfaces)
         return True, NoError
 
     def saveToFile(self, file: BinaryIO) -> None:
@@ -631,7 +631,11 @@ class MdxmSurface:
             boneReferences: List[Optional[int]] = [None] * len(boneIndices)
             for boneName, index in boneIndices.items():
                 boneReferences[index] = boneIndexMap[boneName]
-            self.boneReferences = optional_cast(List[int], boneReferences)
+            missingIndices = [i for i, x in enumerate(boneReferences) if x is None]
+            if len(missingIndices) > 0:
+                return False, ErrorMessage(f"bug: boneIndexMap did not fill indices {missingIndices}")
+
+            self.boneReferences = optional_list_cast(List[int], boneReferences)
 
         self._calculateOffsets()
         return True, NoError
@@ -707,7 +711,7 @@ class MdxmSurface:
             [v.normal for v in self.vertices])
 
         uv_layer = mesh.uv_layers.new()
-        uv_loops = uv_layer.data[:]
+        uv_loops = uv_layer.data
         for poly in mesh.polygons:
             indices = [mesh.loops[poly.loop_start +
                                   i].vertex_index for i in range(3)]
@@ -751,12 +755,10 @@ class MdxmSurface:
         bpy.context.view_layer.objects.active = obj
 
         # set ghoul2 specific properties
-        obj.g2_prop_name = name
-        obj.g2_prop_shader = surfaceData.shader.decode()
-        obj.g2_prop_tag = not not (
-            surfaceData.flags & JAG2Constants.SURFACEFLAG_TAG)
-        obj.g2_prop_off = not not (
-            surfaceData.flags & JAG2Constants.SURFACEFLAG_OFF)
+        obj.g2_prop_name = name  # pyright: ignore [reportAttributeAccessIssue]
+        obj.g2_prop_shader = surfaceData.shader.decode()  # pyright: ignore [reportAttributeAccessIssue]
+        obj.g2_prop_tag = not not (surfaceData.flags & JAG2Constants.SURFACEFLAG_TAG)  # pyright: ignore [reportAttributeAccessIssue]
+        obj.g2_prop_off = not not (surfaceData.flags & JAG2Constants.SURFACEFLAG_OFF)  # pyright: ignore [reportAttributeAccessIssue]
 
         # return object so hierarchy etc. can be set
         return obj
@@ -781,27 +783,34 @@ class MdxmSurface:
 
 
 class MdxmLOD:
-    def __init__(self):
-        self.surfaceOffsets = []
-        self.level = -1
-        self.surfaces: List[Optional[MdxmSurface]] = []
-        self.ofsEnd = -1  # = size
+    def __init__(self, surfaceOffsets: List[int], level: int, surfaces: List[MdxmSurface], ofsEnd: int):
+        self.surfaceOffsets = surfaceOffsets
+        self.level = level
+        self.surfaces = surfaces
+        self.ofsEnd = ofsEnd  # = size
 
-    def loadFromFile(self, file, header):
+    @staticmethod
+    def loadFromFile(file: BinaryIO, level: int, header: MdxmHeader) -> "MdxmLOD":
         startPos = file.tell()
-        self.ofsEnd, = struct.unpack("i", file.read(4))
-        for i in range(header.numSurfaces):
-            # surface offsets - they're relative to a structure after the one containing ofsEnd, so I need to add sizeof(int) to them later.
-            self.surfaceOffsets.append(struct.unpack("i", file.read(4))[0])
-        for surfaceIndex, offset in enumerate(self.surfaceOffsets):
+        ofsEnd, = unpack_cast(Tuple[int], struct.unpack("i", file.read(4)))
+        # surface offsets - they're relative to a structure after the one containing ofsEnd, so I need to add sizeof(int) to them later.
+        surfaceOffsets = unpack_cast(List[int], list(struct.unpack(f"{header.numSurfaces}i", file.read(4 * header.numSurfaces))))
+        surfaces: List[MdxmSurface] = []
+        for surfaceIndex, offset in enumerate(surfaceOffsets):
             if file.tell() != startPos + 4 + offset:
                 print("Warning: Surface not completely read or unordered")
                 file.seek(startPos + offset + 4)
             surface = MdxmSurface()
             surface.loadFromFile(file)
             assert (surface.index == surfaceIndex)
-            self.surfaces.append(surface)
-        assert (file.tell() == startPos + self.ofsEnd)
+            surfaces.append(surface)
+        assert (file.tell() == startPos + ofsEnd)
+        return MdxmLOD(
+            surfaceOffsets=surfaceOffsets,
+            level=level,
+            surfaces=surfaces,
+            ofsEnd=ofsEnd,
+        )
 
     def saveToFile(self, file: BinaryIO) -> None:
         startPos = file.tell()
@@ -811,12 +820,13 @@ class MdxmLOD:
         for offset in self.surfaceOffsets:
             file.write(struct.pack("i", offset))
         # write surfaces
-        for surface in optional_cast(List[MdxmSurface], self.surfaces):
+        for surface in self.surfaces:
             surface.saveToFile(file)
         # that's it, should've reached end.
         assert (file.tell() == startPos + self.ofsEnd)
 
-    def loadFromBlender(self, model_root, surfaceIndexMap, boneIndexMap, armatureObject) -> Tuple[bool, ErrorMessage]:
+    @staticmethod
+    def loadFromBlender(level: int, model_root: bpy.types.Object, surfaceIndexMap: Dict[str, int], boneIndexMap: Optional[BoneIndexMap], armatureObject: Optional[bpy.types.Object]) -> Tuple[Optional["MdxmLOD"], ErrorMessage]:
         # self.level gets set by caller
 
         # create dictionary of available objects
@@ -828,7 +838,7 @@ class MdxmLOD:
         available = {}
         addChildren(available, model_root)
 
-        self.surfaces = [None] * len(surfaceIndexMap)
+        surfaces: List[Optional[MdxmSurface]] = [None] * len(surfaceIndexMap)
         # for each required surface:
         for name, index in surfaceIndexMap.items():
             # create surface
@@ -841,14 +851,22 @@ class MdxmLOD:
                 success, message = surf.loadFromBlender(
                     available[name], boneIndexMap, armatureObject)
                 if not success:
-                    return False, ErrorMessage(f"Could not load surface {name} (LOD {self.level}) from Blender: {message}")
+                    return None, ErrorMessage(f"could not load surface {name}: {message}")
             # not available?
             else:
                 # create empty one
                 surf.makeEmpty()
             # add surface to list
-            self.surfaces[index] = surf
-        return True, NoError
+            surfaces[index] = surf
+        missingIndices = [i for i, x in enumerate(surfaces) if x is None]
+        if len(missingIndices) > 0:
+            return None, ErrorMessage(f"internal error: surface index map has missing indices {missingIndices}")
+        return MdxmLOD(
+            surfaceOffsets=[],  # FIXME: avoid this invalid state
+            level=level,
+            surfaces=optional_list_cast(List[MdxmSurface], surfaces),
+            ofsEnd=-1,  # FIXME: avoid this invalid state
+        ), NoError
 
     def saveToBlender(self, data: ImportMetadata, root: bpy.types.Object):
         # 1st pass: create objects
@@ -870,7 +888,7 @@ class MdxmLOD:
         self.surfaceOffsets = []
         # ofsEnd is in front of offsets, but they are relative to their start
         offset = 4 * len(self.surfaces)
-        for surface in optional_cast(List[MdxmSurface], self.surfaces):
+        for surface in self.surfaces:
             self.surfaceOffsets.append(offset)
             offset += surface.ofsEnd  # = size
         # memory required for ofsEnd
@@ -879,7 +897,7 @@ class MdxmLOD:
     def getSize(self):
         # ofsEnd + surface offsets
         size = 4 + 4 * len(self.surfaces)
-        for surface in optional_cast(List[MdxmSurface], self.surfaces):
+        for surface in self.surfaces:
             size += surface.ofsEnd
         return size
 
@@ -891,23 +909,19 @@ class MdxmLODCollection:
     def loadFromFile(self, file: BinaryIO, header: MdxmHeader) -> None:
         for i in range(header.numLODs):
             startPos = file.tell()
-            curLOD = MdxmLOD()
-            curLOD.loadFromFile(file, header)
-            curLOD.level = i
+            curLOD = MdxmLOD.loadFromFile(file, i, header)
             if file.tell() != startPos + curLOD.ofsEnd:
                 print("Warning: Internal reading error or LODs not tightly packed!")
                 file.seek(startPos + curLOD.ofsEnd)
             self.LODs.append(curLOD)
 
-    def loadFromBlender(self, rootObjects, surfaceIndexMap, boneIndexMap, armatureObject) -> Tuple[bool, ErrorMessage]:
+    def loadFromBlender(self, rootObjects: List[bpy.types.Object], surfaceIndexMap: Dict[str, int], boneIndexMap: Optional[BoneIndexMap], armatureObject: Optional[bpy.types.Object]) -> Tuple[bool, ErrorMessage]:
         for lodLevel, model_root in enumerate(rootObjects):
-            LOD = MdxmLOD()
-            LOD.level = lodLevel
-            success, message = LOD.loadFromBlender(
-                model_root, surfaceIndexMap, boneIndexMap, armatureObject)
-            if not success:
-                return False, message
-            self.LODs.append(LOD)
+            lod, message = MdxmLOD.loadFromBlender(
+                lodLevel, model_root, surfaceIndexMap, boneIndexMap, armatureObject)
+            if lod is None:
+                return False, ErrorMessage(f"loading LOD {lodLevel} from Blender: {message}")
+            self.LODs.append(lod)
         return True, NoError
 
     def calculateOffsets(self, ofsLODs):
@@ -1108,7 +1122,7 @@ class GLM:
 
         self.LODCollection.saveToBlender(data)
         profiler.stop("creating surfaces")
-        return True, ""
+        return True, NoError
 
     def getRequestedGLA(self) -> str:
         # todo

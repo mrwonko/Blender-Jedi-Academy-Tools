@@ -1,16 +1,27 @@
-from typing import cast
+from typing import List, Optional, cast
 import mathutils
-from typing import Any
+from typing import Any, TypeVar, Type
+
+T = TypeVar('T')
 
 # Aliases for type casts with stricter semantics.
 # These are unchecked, but should help identify dangerous code pieces.
 # Try to avoid naked cast(), it is too ambiguous.
 
-# A cast used to turn Optional[T] into T.
-# This is a code smell. Where this is needed, the code should be restructured,
-# so that it is no longer needed. It's a result from mutability overuse.
-# TODO: remove all optional_casts
-optional_cast = cast
+
+def optional_cast(t: Type[T], v: Optional[T]) -> T:
+    """
+    A cast used to turn Optional[T] into T.
+    This is a code smell. Where this is needed, the code should be restructured,
+    so that it is no longer needed. It's a result from mutability overuse.
+    TODO: remove all optional_casts
+    """
+    return cast(t, v)
+
+
+def optional_list_cast(t: Type[List[T]], v: List[Optional[T]]) -> List[T]:  # TODO replace with error-returning helper
+    return cast(t, v)
+
 
 # A cast used to turn A | B into A or B, for properties that accept unions in the setter but return a fixed type in the setter.
 # Blender uses this extensively to allow assigning sequences in place of vectors and matrices,

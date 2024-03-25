@@ -46,33 +46,33 @@ class GLMImport(bpy.types.Operator):
 
     # properties
     filepath: bpy.props.StringProperty(
-        name="File Path", description="The .glm file to import", default="", subtype='FILE_PATH')  # type: ignore
+        name="File Path", description="The .glm file to import", default="", subtype='FILE_PATH')  # pyright: ignore [reportInvalidTypeForm]
     skin: bpy.props.StringProperty(
-        name="Skin", description="The skin to load (modelname_<skin>.skin), leave empty to load none (use file internal paths)", default="default")  # type: ignore
+        name="Skin", description="The skin to load (modelname_<skin>.skin), leave empty to load none (use file internal paths)", default="default")  # pyright: ignore [reportInvalidTypeForm]
     guessTextures: bpy.props.BoolProperty(
-        name="Guess Textures", description="Many models try to force you to use the skin. Enable this to try to circumvent that. (Usually works well, but skins should be preferred.)", default=False)  # type: ignore
+        name="Guess Textures", description="Many models try to force you to use the skin. Enable this to try to circumvent that. (Usually works well, but skins should be preferred.)", default=False)  # pyright: ignore [reportInvalidTypeForm]
     basepath: bpy.props.StringProperty(
-        name="Base Path", description="The base folder relative to which paths should be interpreted. Leave empty to let the importer guess (needs /GameData/ in filepath).", default="")  # type: ignore
+        name="Base Path", description="The base folder relative to which paths should be interpreted. Leave empty to let the importer guess (needs /GameData/ in filepath).", default="")  # pyright: ignore [reportInvalidTypeForm]
     glaOverride: bpy.props.StringProperty(
-        name=".gla override", description="Gla file to use, relative to base. Leave empty to use the one referenced in the file.", maxlen=64, default="")  # type: ignore
+        name=".gla override", description="Gla file to use, relative to base. Leave empty to use the one referenced in the file.", maxlen=64, default="")  # pyright: ignore [reportInvalidTypeForm]
     scale: bpy.props.FloatProperty(
-        name="Scale", description="Scale to apply to the imported model.", default=10, min=0, max=1000, subtype='PERCENTAGE')  # type: ignore
+        name="Scale", description="Scale to apply to the imported model.", default=10, min=0, max=1000, subtype='PERCENTAGE')  # pyright: ignore [reportInvalidTypeForm]
     skeletonFixes: bpy.props.EnumProperty(name="skeleton changes", description="You can select a preset for automatic skeleton changes which result in a nicer imported skeleton.", default='NONE', items=[
         (SkeletonFixes.NONE.value, "None", "Don't change the skeleton in any way.", 0),
         (SkeletonFixes.JKA_HUMANOID.value, "Jedi Academy _humanoid",
          "Fixes for the default humanoid Jedi Academy skeleton", 1)
-    ])  # type: ignore
+    ])  # pyright: ignore [reportInvalidTypeForm, reportArgumentType]
     loadAnimations: bpy.props.EnumProperty(name="animations", description="Whether to import all animations, some animations or only a range from the .gla. (Importing huge animations takes forever.)", default='NONE', items=[
         (JAG2GLA.AnimationLoadMode.NONE.value, "None", "Don't import animations.", 0),
         (JAG2GLA.AnimationLoadMode.ALL.value, "All", "Import all animations", 1),
         (JAG2GLA.AnimationLoadMode.RANGE.value, "Range", "Import a certain range of frames", 2)
-    ])  # type: ignore
+    ])  # pyright: ignore [reportInvalidTypeForm, reportArgumentType]
     startFrame: bpy.props.IntProperty(
-        name="Start frame", description="If only a range of frames of the animation is to be imported, this is the first.", min=0)  # type: ignore
+        name="Start frame", description="If only a range of frames of the animation is to be imported, this is the first.", min=0)  # pyright: ignore [reportInvalidTypeForm]
     numFrames: bpy.props.IntProperty(
-        name="number of frames", description="If only a range of frames of the animation is to be imported, this is the total number of frames to import", min=1)  # type: ignore
+        name="number of frames", description="If only a range of frames of the animation is to be imported, this is the total number of frames to import", min=1)  # pyright: ignore [reportInvalidTypeForm]
 
-    def execute(self, context):  # pyright: ignore [reportIncompatibleMethodOverride]
+    def execute(self, context):
         print("\n== GLM Import ==\n")
         # initialize paths
         basepath, filepath = GetPaths(self.basepath, self.filepath)
@@ -126,25 +126,25 @@ class GLAImport(bpy.types.Operator):
 
     # properties
     filepath: bpy.props.StringProperty(
-        name="File Path", description="The .gla file to import", maxlen=1024, default="", subtype='FILE_PATH')  # type: ignore
+        name="File Path", description="The .gla file to import", maxlen=1024, default="", subtype='FILE_PATH')  # pyright: ignore [reportInvalidTypeForm]
     basepath: bpy.props.StringProperty(
-        name="Base Path", description="The base folder relative to which paths should be interpreted. Leave empty to let the importer guess (needs /GameData/ in filepath).", default="")  # type: ignore
+        name="Base Path", description="The base folder relative to which paths should be interpreted. Leave empty to let the importer guess (needs /GameData/ in filepath).", default="")  # pyright: ignore [reportInvalidTypeForm]
     scale: bpy.props.FloatProperty(
-        name="Scale", description="Scale to apply to the imported model.", default=10, min=0, max=1000, subtype='PERCENTAGE')  # type: ignore
+        name="Scale", description="Scale to apply to the imported model.", default=10, min=0, max=1000, subtype='PERCENTAGE')  # pyright: ignore [reportInvalidTypeForm]
     skeletonFixes: bpy.props.EnumProperty(name="skeleton changes", description="You can select a preset for automatic skeleton changes which result in a nicer imported skeleton.", default='NONE', items=[
         (SkeletonFixes.NONE.value, "None", "Don't change the skeleton in any way.", 0),
         (SkeletonFixes.JKA_HUMANOID.value, "Jedi Academy _humanoid",
          "Fixes for the default humanoid Jedi Academy skeleton", 1)
-    ])  # type: ignore
+    ])  # pyright: ignore [reportInvalidTypeForm, reportArgumentType]
     loadAnimations: bpy.props.EnumProperty(name="animations", description="Whether to import all animations, some animations or only a range from the .gla. (Importing huge animations takes forever.)", default='NONE', items=[
         (JAG2GLA.AnimationLoadMode.NONE.value, "None", "Don't import animations.", 0),
         (JAG2GLA.AnimationLoadMode.ALL.value, "All", "Import all animations", 1),
         (JAG2GLA.AnimationLoadMode.RANGE.value, "Range", "Import a certain range of frames", 2)
-    ])  # type: ignore
+    ])  # pyright: ignore [reportInvalidTypeForm, reportArgumentType]
     startFrame: bpy.props.IntProperty(
-        name="Start frame", description="If only a range of frames of the animation is to be imported, this is the first.", min=0)  # type: ignore
+        name="Start frame", description="If only a range of frames of the animation is to be imported, this is the first.", min=0)  # pyright: ignore [reportInvalidTypeForm]
     numFrames: bpy.props.IntProperty(
-        name="number of frames", description="If only a range of frames of the animation is to be imported, this is the total number of frames to import", min=1)  # type: ignore
+        name="number of frames", description="If only a range of frames of the animation is to be imported, this is the total number of frames to import", min=1)  # pyright: ignore [reportInvalidTypeForm]
 
     def execute(self, context):
         print("\n== GLA Import ==\n")
@@ -187,11 +187,11 @@ class GLMExport(bpy.types.Operator):
 
     # properties
     filepath: bpy.props.StringProperty(
-        name="File Path", description="The filename to export to", maxlen=1024, default="", subtype='FILE_PATH')  # type: ignore
+        name="File Path", description="The filename to export to", maxlen=1024, default="", subtype='FILE_PATH')  # pyright: ignore [reportInvalidTypeForm]
     basepath: bpy.props.StringProperty(
-        name="Base Path", description="The base folder relative to which paths should be interpreted. Leave empty to let the exporter guess (needs /GameData/ in filepath).", default="")  # type: ignore
+        name="Base Path", description="The base folder relative to which paths should be interpreted. Leave empty to let the exporter guess (needs /GameData/ in filepath).", default="")  # pyright: ignore [reportInvalidTypeForm]
     gla: bpy.props.StringProperty(
-        name=".gla name", description="Name of the skeleton this model uses (must exist!)", default="models/players/_humanoid/_humanoid")  # type: ignore
+        name=".gla name", description="Name of the skeleton this model uses (must exist!)", default="models/players/_humanoid/_humanoid")  # pyright: ignore [reportInvalidTypeForm]
 
     def execute(self, context):
         print("\n== GLM Export ==\n")
@@ -229,13 +229,13 @@ class GLAExport(bpy.types.Operator):
 
     # properties
     filepath: bpy.props.StringProperty(
-        name="File Path", description="The filename to export to", maxlen=1024, default="", subtype='FILE_PATH')  # type: ignore
+        name="File Path", description="The filename to export to", maxlen=1024, default="", subtype='FILE_PATH')  # pyright: ignore [reportInvalidTypeForm]
     basepath: bpy.props.StringProperty(
-        name="Base Path", description="The base folder relative to which paths should be interpreted. Leave empty to let the exporter guess (needs /GameData/ in filepath).", default="")  # type: ignore
+        name="Base Path", description="The base folder relative to which paths should be interpreted. Leave empty to let the exporter guess (needs /GameData/ in filepath).", default="")  # pyright: ignore [reportInvalidTypeForm]
     glapath: bpy.props.StringProperty(
-        name="gla name", description="The relative path of this gla. Leave empty to let the exporter guess (needs /GameData/ in filepath).", maxlen=64, default="")  # type: ignore
+        name="gla name", description="The relative path of this gla. Leave empty to let the exporter guess (needs /GameData/ in filepath).", maxlen=64, default="")  # pyright: ignore [reportInvalidTypeForm]
     glareference: bpy.props.StringProperty(
-        name="gla reference", description="Copies the bone indices from this skeleton, if any (e.g. for new animations for existing skeleton; path relative to the Base Path)", maxlen=64, default="")  # type: ignore
+        name="gla reference", description="Copies the bone indices from this skeleton, if any (e.g. for new animations for existing skeleton; path relative to the Base Path)", maxlen=64, default="")  # pyright: ignore [reportInvalidTypeForm]
 
     def execute(self, context):
         print("\n== GLA Export ==\n")
@@ -283,17 +283,17 @@ class ObjectAddG2Properties(bpy.types.Operator):
         if obj.type == 'MESH':
             # don't overwrite those that already exist
             if not "g2_prop_off" in obj:
-                obj.g2_prop_off = False
+                obj.g2_prop_off = False  # pyright: ignore [reportAttributeAccessIssue]
             if not "g2_prop_tag" in obj:
-                obj.g2_prop_tag = False
+                obj.g2_prop_tag = False  # pyright: ignore [reportAttributeAccessIssue]
             if not "g2_prop_name" in obj:
-                obj.g2_prop_name = ""
+                obj.g2_prop_name = ""  # pyright: ignore [reportAttributeAccessIssue]
             if not "g2_prop_shader" in obj:
-                obj.g2_prop_shader = ""
+                obj.g2_prop_shader = ""  # pyright: ignore [reportAttributeAccessIssue]
         else:
             assert (obj.type == 'ARMATURE')
             if not "g2_prop_scale" in obj:
-                obj.g2_prop_scale = 100
+                obj.g2_prop_scale = 100  # pyright: ignore [reportAttributeAccessIssue]
         return {'FINISHED'}
 
 
@@ -330,9 +330,9 @@ class GLAMetaExport(bpy.types.Operator):
 
     # properties
     filepath: bpy.props.StringProperty(
-        name="File Path", description="The filename to export to", maxlen=1024, default="", subtype='FILE_PATH')  # type: ignore
+        name="File Path", description="The filename to export to", maxlen=1024, default="", subtype='FILE_PATH')  # pyright: ignore [reportInvalidTypeForm]
     offset: bpy.props.IntProperty(
-        name="Offset", description="Frame offset for the animations, e.g. 21376 if you plan on merging with Jedi Academy's _humanoid.gla", min=0, default=0)  # type: ignore
+        name="Offset", description="Frame offset for the animations, e.g. 21376 if you plan on merging with Jedi Academy's _humanoid.gla", min=0, default=0)  # pyright: ignore [reportInvalidTypeForm]
 
     def execute(self, context):
         print("\n== GLA Metadata Export ==\n")
@@ -355,8 +355,7 @@ class GLAMetaExport(bpy.types.Operator):
                 markers.append(Marker(marker))
 
         if len(markers) == 0:
-            self.report(
-                {'No timeline markers found! Add Markers to label animations.'}, message)  # type: ignore
+            self.report({'ERROR'}, 'No timeline markers found! Add Markers to label animations.')
 
         # sort by frame
         markers.sort(key=lambda marker: marker.start)
