@@ -58,14 +58,14 @@ class GLMImport(bpy.types.Operator):
     scale: bpy.props.FloatProperty(
         name="Scale", description="Scale to apply to the imported model.", default=10, min=0, max=1000, subtype='PERCENTAGE')  # type: ignore
     skeletonFixes: bpy.props.EnumProperty(name="skeleton changes", description="You can select a preset for automatic skeleton changes which result in a nicer imported skeleton.", default='NONE', items=[
-        (SkeletonFixes.NONE, "None", "Don't change the skeleton in any way.", 0),
-        (SkeletonFixes.JKA_HUMANOID, "Jedi Academy _humanoid",
+        (SkeletonFixes.NONE.value, "None", "Don't change the skeleton in any way.", 0),
+        (SkeletonFixes.JKA_HUMANOID.value, "Jedi Academy _humanoid",
          "Fixes for the default humanoid Jedi Academy skeleton", 1)
     ])  # type: ignore
     loadAnimations: bpy.props.EnumProperty(name="animations", description="Whether to import all animations, some animations or only a range from the .gla. (Importing huge animations takes forever.)", default='NONE', items=[
-        (JAG2GLA.AnimationLoadMode.NONE, "None", "Don't import animations.", 0),
-        (JAG2GLA.AnimationLoadMode.ALL, "All", "Import all animations", 1),
-        (JAG2GLA.AnimationLoadMode.RANGE, "Range", "Import a certain range of frames", 2)
+        (JAG2GLA.AnimationLoadMode.NONE.value, "None", "Don't import animations.", 0),
+        (JAG2GLA.AnimationLoadMode.ALL.value, "All", "Import all animations", 1),
+        (JAG2GLA.AnimationLoadMode.RANGE.value, "Range", "Import a certain range of frames", 2)
     ])  # type: ignore
     startFrame: bpy.props.IntProperty(
         name="Start frame", description="If only a range of frames of the animation is to be imported, this is the first.", min=0)  # type: ignore
@@ -92,7 +92,7 @@ class GLMImport(bpy.types.Operator):
             glafile = scene.getRequestedGLA()
         else:
             glafile = cast(str, self.glaOverride)
-        loadAnimations = cast(JAG2GLA.AnimationLoadMode, self.loadAnimations)
+        loadAnimations = JAG2GLA.AnimationLoadMode(self.loadAnimations)
         success, message = scene.loadFromGLA(
             glafile, loadAnimations, cast(int, self.startFrame), cast(int, self.numFrames))
         if not success:
@@ -103,7 +103,7 @@ class GLMImport(bpy.types.Operator):
         if self.skin != "":
             skin = filepath + "_" + self.skin
         success, message = scene.saveToBlender(
-            scale, skin, self.guessTextures, loadAnimations != JAG2GLA.AnimationLoadMode.NONE, self.skeletonFixes)
+            scale, skin, self.guessTextures, loadAnimations != JAG2GLA.AnimationLoadMode.NONE, SkeletonFixes(self.skeletonFixes))
         if not success:
             self.report({'ERROR'}, message)
         return {'FINISHED'}
@@ -132,14 +132,14 @@ class GLAImport(bpy.types.Operator):
     scale: bpy.props.FloatProperty(
         name="Scale", description="Scale to apply to the imported model.", default=10, min=0, max=1000, subtype='PERCENTAGE')  # type: ignore
     skeletonFixes: bpy.props.EnumProperty(name="skeleton changes", description="You can select a preset for automatic skeleton changes which result in a nicer imported skeleton.", default='NONE', items=[
-        ('NONE', "None", "Don't change the skeleton in any way.", 0),
-        ('JKA_HUMANOID', "Jedi Academy _humanoid",
+        (SkeletonFixes.NONE.value, "None", "Don't change the skeleton in any way.", 0),
+        (SkeletonFixes.JKA_HUMANOID.value, "Jedi Academy _humanoid",
          "Fixes for the default humanoid Jedi Academy skeleton", 1)
     ])  # type: ignore
     loadAnimations: bpy.props.EnumProperty(name="animations", description="Whether to import all animations, some animations or only a range from the .gla. (Importing huge animations takes forever.)", default='NONE', items=[
-        ('NONE', "None", "Don't import animations.", 0),
-        ('ALL', "All", "Import all animations", 1),
-        ('RANGE', "Range", "Import a certain range of frames", 2)
+        (JAG2GLA.AnimationLoadMode.NONE.value, "None", "Don't import animations.", 0),
+        (JAG2GLA.AnimationLoadMode.ALL.value, "All", "Import all animations", 1),
+        (JAG2GLA.AnimationLoadMode.RANGE.value, "Range", "Import a certain range of frames", 2)
     ])  # type: ignore
     startFrame: bpy.props.IntProperty(
         name="Start frame", description="If only a range of frames of the animation is to be imported, this is the first.", min=0)  # type: ignore
@@ -157,7 +157,7 @@ class GLAImport(bpy.types.Operator):
             return {'FINISHED'}
         # load GLA
         scene = JAG2Scene.Scene(basepath)
-        loadAnimations = cast(JAG2GLA.AnimationLoadMode, self.loadAnimations)
+        loadAnimations = JAG2GLA.AnimationLoadMode(self.loadAnimations)
         success, message = scene.loadFromGLA(
             filepath, loadAnimations, self.startFrame, self.numFrames)
         if not success:
@@ -165,7 +165,7 @@ class GLAImport(bpy.types.Operator):
             return {'FINISHED'}
         # output to blender
         success, message = scene.saveToBlender(
-            scale, "", False, loadAnimations != JAG2GLA.AnimationLoadMode.NONE, self.skeletonFixes)
+            scale, "", False, loadAnimations != JAG2GLA.AnimationLoadMode.NONE, SkeletonFixes(self.skeletonFixes))
         if not success:
             self.report({'ERROR'}, message)
         return {'FINISHED'}
