@@ -92,7 +92,7 @@ class GLMImport(bpy.types.Operator):
             glafile = scene.getRequestedGLA()
         else:
             glafile = cast(str, self.glaOverride)
-        loadAnimations = JAG2GLA.AnimationLoadMode(self.loadAnimations)
+        loadAnimations = JAG2GLA.AnimationLoadMode[self.loadAnimations]
         success, message = scene.loadFromGLA(
             glafile, loadAnimations, cast(int, self.startFrame), cast(int, self.numFrames))
         if not success:
@@ -103,7 +103,7 @@ class GLMImport(bpy.types.Operator):
         if self.skin != "":
             skin = filepath + "_" + self.skin
         success, message = scene.saveToBlender(
-            scale, skin, self.guessTextures, loadAnimations != JAG2GLA.AnimationLoadMode.NONE, SkeletonFixes(self.skeletonFixes))
+            scale, skin, self.guessTextures, loadAnimations != JAG2GLA.AnimationLoadMode.NONE, SkeletonFixes[self.skeletonFixes])
         if not success:
             self.report({'ERROR'}, message)
         return {'FINISHED'}
@@ -157,7 +157,7 @@ class GLAImport(bpy.types.Operator):
             return {'FINISHED'}
         # load GLA
         scene = JAG2Scene.Scene(basepath)
-        loadAnimations = JAG2GLA.AnimationLoadMode(self.loadAnimations)
+        loadAnimations = JAG2GLA.AnimationLoadMode[self.loadAnimations]
         success, message = scene.loadFromGLA(
             filepath, loadAnimations, self.startFrame, self.numFrames)
         if not success:
@@ -165,7 +165,7 @@ class GLAImport(bpy.types.Operator):
             return {'FINISHED'}
         # output to blender
         success, message = scene.saveToBlender(
-            scale, "", False, loadAnimations != JAG2GLA.AnimationLoadMode.NONE, SkeletonFixes(self.skeletonFixes))
+            scale, "", False, loadAnimations != JAG2GLA.AnimationLoadMode.NONE, SkeletonFixes[self.skeletonFixes])
         if not success:
             self.report({'ERROR'}, message)
         return {'FINISHED'}
