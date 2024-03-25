@@ -23,7 +23,7 @@ from . import JAStringhelper
 from . import JAG2Constants
 from . import JAG2Math
 from . import MrwProfiler
-from .casts import optional_cast, downcast, bpy_generic_cast, matrix_getter_cast, matrix_overload_cast, vector_getter_cast
+from .casts import optional_cast, downcast, bpy_generic_cast, matrix_getter_cast, matrix_overload_cast, optional_list_cast, vector_getter_cast
 from .error_types import ErrorMessage, NoError
 
 from typing import BinaryIO, Dict, List, Optional, Tuple
@@ -198,7 +198,7 @@ class MdxaBone:
             if numParentChildren == 1 or self.name in JAG2Constants.PRIORITY_BONES[skeletonFixes]:
                 # but only if that doesn't rotate the bone (much)
                 # so calculate the directions...
-                oldDir = vector_getter_cast(blenderParent.tail) - blenderParent.head
+                oldDir = vector_getter_cast(blenderParent.tail) - vector_getter_cast(blenderParent.head)
                 newDir = pos - blenderParent.head
                 oldDir.normalize()
                 newDir.normalize()
@@ -671,17 +671,17 @@ class GLA:
             # bone offsets need to be calculated in hierarchical order, but written in index order
             # so calculate first:
             # these get written to the GLA
-            relativeBoneOffsets: Dict[int, mathutils.Matrix] = {}
+            relativeBoneOffsets: List[Optional[mathutils.Matrix]] = [None] * self.header.numBones
 
             # these are for calculating
-            absoluteBoneOffsets: Dict[int, mathutils.Matrix] = {}
+            absoluteBoneOffsets: List[Optional[mathutils.Matrix]] = [None] * self.header.numBones
 
-            unprocessed = [i for i in range(self.header.numBones)]
+            unprocessed = list(range(self.header.numBones))
             while len(unprocessed) > 0:
                 # make sure we're not looping infinitely (shouldn't be possible)
                 progressed = False
 
-                newUnprocessed = []
+                newUnprocessed: List[int] = []
                 for index in unprocessed:
                     bone = self.skeleton.bones[index]
                     basebone = bpy_generic_cast(bpy.types.Bone, self.skeleton_armature.bones[bone.name])
@@ -700,12 +700,12 @@ class GLA:
 
                     elif bone.parent not in unprocessed:
                         # just what the if checks
-                        assert bone.parent in absoluteBoneOffsets
+                        assert absoluteBoneOffsets[bone.parent] is not None
                         # each offset should only be calculated once.
-                        assert index not in absoluteBoneOffsets
+                        assert absoluteBoneOffsets[index] is None
 
-                        relativeBoneOffsets[index] = matrix_overload_cast(absoluteBoneOffsets[bone.parent].inverted() @ matrix_overload_cast(poseMat @ basePoseMat.inverted()))
-                        absoluteBoneOffsets[index] = matrix_overload_cast(absoluteBoneOffsets[bone.parent] @ relativeBoneOffsets[index])
+                        relativeBoneOffsets[index] = matrix_overload_cast(optional_cast(mathutils.Matrix, absoluteBoneOffsets[bone.parent]).inverted() @ matrix_overload_cast(poseMat @ basePoseMat.inverted()))
+                        absoluteBoneOffsets[index] = matrix_overload_cast(optional_cast(mathutils.Matrix, absoluteBoneOffsets[bone.parent]) @ optional_cast(mathutils.Matrix, relativeBoneOffsets[index]))
 
                         progressed = True
 
@@ -716,7 +716,7 @@ class GLA:
                 assert (progressed)
 
             # then write precalculated offsets:
-            for offset in relativeBoneOffsets:
+            for offset in optional_list_cast(List[mathutils.Matrix], relativeBoneOffsets):
 
                 # compress that offset
                 compOffset = JAG2Math.CompBone.compress(offset)

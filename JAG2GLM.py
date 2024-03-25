@@ -589,11 +589,10 @@ class MdxmSurface:
                 if len(face.vertices) != 3:
                     return False, ErrorMessage("Non-triangle face found!")
                 for i in range(3):
-                    loop = mesh.loops[face.loop_start + i]
+                    loop = bpy_generic_cast(bpy.types.MeshLoop, mesh.loops[face.loop_start + i])
                     v = loop.vertex_index
                     u = uv_layer[loop.index].uv
-                    n = loop.normal if mesh.has_custom_normals else mesh.vertices[
-                        loop.vertex_index].normal
+                    n = vector_getter_cast(loop.normal if mesh.has_custom_normals else bpy_generic_cast(bpy.types.MeshVertex, mesh.vertices[loop.vertex_index]).normal)
 
                     proto_found = -1
                     for j in range(len(protoverts)):

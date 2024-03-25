@@ -126,7 +126,7 @@ class CompBone:
 
     # returns the 14 byte compressed representation of this matrix (no scale) as saved in the compBonePool
     @staticmethod
-    def compress(mat) -> bytes:
+    def compress(mat: mathutils.Matrix) -> bytes:
         loc = mat.to_translation()
         quat = mat.to_quaternion()
         return struct.pack("7H",
