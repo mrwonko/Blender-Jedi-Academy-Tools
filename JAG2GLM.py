@@ -552,9 +552,6 @@ class MdxmSurface:
         mesh: bpy.types.Mesh = downcast(bpy.types.Object, object.evaluated_get(
             bpy.context.evaluated_depsgraph_get())).to_mesh()
 
-        if mesh.has_custom_normals:
-            mesh.calc_normals_split()
-
         boneIndices: Dict[str, int] = {}
 
         # This is a tag, use a simpler export procedure
@@ -720,8 +717,6 @@ class MdxmSurface:
                    for index in indices]
             for i, uv in enumerate(uvs):
                 uv_loops[poly.loop_start + i].uv = uv
-
-        mesh.use_auto_smooth = True
 
         mesh.update()
 
