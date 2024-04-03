@@ -1,7 +1,7 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 
-def reload_modules(locals: Dict[str, Any], package: str, module_names: List[str], forced_module_names: List[str] = []):
+def reload_modules(locals: Dict[str, Any], package: Optional[str], module_names: List[str], forced_module_names: List[str] = []):
     """
     Checks if any of module_names are present in locals, and if so, reloads them using importlib.
     Unconditionally imports everything in forced_module_names in the context of package,
