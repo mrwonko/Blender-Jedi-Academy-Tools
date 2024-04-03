@@ -19,7 +19,10 @@ def optional_cast(t: Type[T], v: Optional[T]) -> T:
     return cast(t, v)
 
 
-def optional_list_cast(t: Type[List[T]], v: List[Optional[T]]) -> List[T]:  # TODO replace with error-returning helper
+def optional_list_cast(t: Type[List[T]], v: List[Optional[T]]) -> List[T]:
+    """
+    Avoid using this directly, use error_types.ensureListIsGapless instead.
+    """
     return cast(t, v)
 
 

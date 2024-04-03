@@ -23,8 +23,8 @@ from . import JAStringhelper
 from . import JAG2Constants
 from . import JAG2Math
 from . import MrwProfiler
-from .casts import optional_cast, downcast, bpy_generic_cast, matrix_getter_cast, matrix_overload_cast, optional_list_cast, vector_getter_cast
-from .error_types import ErrorMessage, NoError
+from .casts import optional_cast, downcast, bpy_generic_cast, matrix_getter_cast, matrix_overload_cast, vector_getter_cast
+from .error_types import ErrorMessage, NoError, ensureListIsGapless
 
 from typing import BinaryIO, Dict, List, Optional, Tuple
 from enum import Enum
@@ -677,6 +677,7 @@ class GLA:
             absoluteBoneOffsets: List[Optional[mathutils.Matrix]] = [None] * self.header.numBones
 
             unprocessed = list(range(self.header.numBones))
+            # FIXME: instead of doing this once per frame, cache the correct processing order
             while len(unprocessed) > 0:
                 # make sure we're not looping infinitely (shouldn't be possible)
                 progressed = False
@@ -715,8 +716,11 @@ class GLA:
 
                 assert (progressed)
 
+            gaplessRelativeBoneOffsets, err = ensureListIsGapless(relativeBoneOffsets)
+            if gaplessRelativeBoneOffsets is None:
+                return False, ErrorMessage(f"internal error: did not calculate all bone transformations: {err}")
             # then write precalculated offsets:
-            for offset in optional_list_cast(List[mathutils.Matrix], relativeBoneOffsets):
+            for offset in gaplessRelativeBoneOffsets:
 
                 # compress that offset
                 compOffset = JAG2Math.CompBone.compress(offset)
