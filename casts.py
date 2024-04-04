@@ -59,7 +59,7 @@ def vector_overload_cast(x: Any) -> mathutils.Vector:
     return overload_cast(mathutils.Vector, x)
 
 
-def matrix_overload_cast(x: Any) -> mathutils.Matrix:
+def matrix_overload_cast(x: mathutils.Matrix | mathutils.Vector) -> mathutils.Matrix:
     """
     Shorthand for overload_cast(mathutils.Matrix, x).
     Matrix and Quaternion multiplication currently lacks overloads to distinguish matrix returns.

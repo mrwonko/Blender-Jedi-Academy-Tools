@@ -57,10 +57,11 @@ class Matrix:
             self.rows.append(l)
         del self.rows[3]
 
-# changes a GLA bone's rotation matrix (X+ = front) to blender style (Y+ = front)
 
-
-def GLABoneRotToBlender(matrix) -> None:
+def GLABoneRotToBlender(matrix: mathutils.Matrix) -> None:
+    """
+    Changes a GLA bone's rotation matrix (X+ = front) to blender style (Y+ = front)
+    """
     new_x = -matrix.col[1].copy()
     new_y = matrix.col[0].copy()
     matrix.col[0] = new_x
@@ -73,10 +74,11 @@ def GLABoneRotToBlender(matrix) -> None:
         matrix[0][2], -matrix[1][2], - \
         matrix[2][2], matrix[0][0], matrix[1][0], matrix[2][0]
 
-# changes a blender bone's rotation matrix (Y+ = front) to GLA style (X+ = front)
-
 
 def BlenderBoneRotToGLA(matrix: mathutils.Matrix) -> None:
+    """
+    Changes a blender bone's rotation matrix (Y+ = front) to GLA style (X+ = front)
+    """
     # undo roll 90 degrees
     matrix[0][0], matrix[1][0], matrix[2][0], matrix[0][2], matrix[1][2], matrix[2][2] = matrix[0][2], matrix[1][2], matrix[2][2], - \
         matrix[0][0], -matrix[1][0], -matrix[2][0]
