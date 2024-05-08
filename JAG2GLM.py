@@ -30,7 +30,7 @@ from . import JAG2GLA
 from . import JAMaterialmanager
 from . import MrwProfiler
 from . import JAG2Panels
-from .casts import optional_cast, downcast, bpy_generic_cast, union_cast, unpack_cast, matrix_getter_cast, vector_getter_cast, vector_overload_cast
+from .casts import optional_cast, downcast, bpy_generic_cast, unpack_cast, matrix_getter_cast, vector_getter_cast, vector_overload_cast
 from .error_types import ErrorMessage, NoError, ensureListIsGapless
 
 import bpy
@@ -577,7 +577,7 @@ class MdxmSurface:
         # This is not a tag, do normal things
         else:
 
-            uv_layer = union_cast(bpy.types.UVLoopLayers, mesh.uv_layers).active
+            uv_layer = mesh.uv_layers.active
             if not uv_layer or not (uv_layer_data := uv_layer.data):
                 return False, ErrorMessage("No UV coordinates found!")
 
@@ -1003,7 +1003,7 @@ class GLM:
             # retrieve skeleton
             if not "skeleton_root" in bpy.data.objects:
                 return False, ErrorMessage("No skeleton_root Object found!")
-            obj = cast(bpy.types.Object, bpy.data.objects["skeleton_root"])
+            obj = bpy_generic_cast(bpy.types.Object, bpy.data.objects["skeleton_root"])
             skeleton_object = obj
             if obj.type != 'ARMATURE':
                 return False, ErrorMessage("skeleton_root is no Armature!")

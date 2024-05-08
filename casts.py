@@ -27,11 +27,15 @@ def optional_list_cast(t: Type[List[T]], v: List[Optional[T]]) -> List[T]:
     return cast(t, v)
 
 
+def union_cast(t: Type[T], v: Union[T, U]) -> T:
+    """A cast from a union to one of its elements"""
+    return cast(t, v)
+
 # A cast used to turn A | B into A or B, for properties that accept unions in the setter but return a fixed type in the setter.
 # Blender uses this extensively to allow assigning sequences in place of vectors and matrices,
 # and mypy doesn't currently support differing types in setters (https://github.com/python/mypy/issues/3004)
 # and the bpy bindings don't currently define separate setter/getter (https://github.com/nutti/fake-bpy-module/issues/158)
-getter_cast = cast
+getter_cast = union_cast
 
 
 def matrix_getter_cast(x: Any) -> mathutils.Matrix:
@@ -47,10 +51,6 @@ def vector_getter_cast(x: Any) -> mathutils.Vector:
 # A cast used to turn a type into one of its sub-types.
 # Should happen close to a check that ensures this is valid.
 downcast = cast
-
-def union_cast(t: Type[T], v: Union[T, U]) -> T:
-    """A cast from a union to one of its elements"""
-    return cast(t, v)
 
 # A cast to resolve polymorphic functions being annotated with union return types instead of proper overloads.
 overload_cast = union_cast
