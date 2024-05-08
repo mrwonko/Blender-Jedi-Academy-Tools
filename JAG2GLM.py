@@ -30,7 +30,7 @@ from . import JAG2GLA
 from . import JAMaterialmanager
 from . import MrwProfiler
 from . import JAG2Panels
-from .casts import optional_cast, downcast, bpy_generic_cast, unpack_cast, matrix_getter_cast, vector_getter_cast, vector_overload_cast
+from .casts import optional_cast, downcast, bpy_generic_cast, union_cast, unpack_cast, matrix_getter_cast, vector_getter_cast, vector_overload_cast
 from .error_types import ErrorMessage, NoError, ensureListIsGapless
 
 import bpy
@@ -577,8 +577,8 @@ class MdxmSurface:
         # This is not a tag, do normal things
         else:
 
-            uv_layer = mesh.uv_layers.active.data
-            if not uv_layer:
+            uv_layer = union_cast(bpy.types.UVLoopLayers, mesh.uv_layers).active
+            if not uv_layer or not (uv_layer_data := uv_layer.data):
                 return False, ErrorMessage("No UV coordinates found!")
 
             protoverts = []
@@ -590,7 +590,7 @@ class MdxmSurface:
                 for i in range(3):
                     loop = bpy_generic_cast(bpy.types.MeshLoop, mesh.loops[face.loop_start + i])
                     v = loop.vertex_index
-                    u = uv_layer[loop.index].uv
+                    u = uv_layer_data[loop.index].uv
                     n = vector_getter_cast(loop.normal if mesh.has_custom_normals else bpy_generic_cast(bpy.types.MeshVertex, mesh.vertices[loop.vertex_index]).normal)
 
                     proto_found = -1

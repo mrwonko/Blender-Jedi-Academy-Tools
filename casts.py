@@ -1,8 +1,9 @@
-from typing import List, Optional, cast
+from typing import List, Optional, Union, cast
 import mathutils
 from typing import Any, TypeVar, Type
 
 T = TypeVar('T')
+U = TypeVar('U')
 
 # Aliases for type casts with stricter semantics.
 # These are unchecked, but should help identify dangerous code pieces.
@@ -47,8 +48,12 @@ def vector_getter_cast(x: Any) -> mathutils.Vector:
 # Should happen close to a check that ensures this is valid.
 downcast = cast
 
+def union_cast(t: Type[T], v: Union[T, U]) -> T:
+    """A cast from a union to one of its elements"""
+    return cast(t, v)
+
 # A cast to resolve polymorphic functions being annotated with union return types instead of proper overloads.
-overload_cast = cast
+overload_cast = union_cast
 
 
 def vector_overload_cast(x: Any) -> mathutils.Vector:
