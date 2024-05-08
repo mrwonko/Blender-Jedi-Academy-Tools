@@ -989,7 +989,8 @@ class GLM:
 
     def loadFromBlender(self, glm_filepath_rel: str, gla_filepath_rel: str, basepath: str) -> Tuple[bool, ErrorMessage]:
         self.header.name = glm_filepath_rel.replace("\\", "/").encode()
-        self.header.animName = gla_filepath_rel.encode()
+        # the .gla extension must be omitted
+        self.header.animName = gla_filepath_rel.removesuffix(".gla").encode()
         # create BoneName->BoneIndex lookup table based on GLA file (keeping in mind it might be "*default"/"")
         defaultSkeleton: bool = (gla_filepath_rel ==
                                  "" or gla_filepath_rel == "*default")
