@@ -684,8 +684,13 @@ class MdxmSurface:
 
         #  create mesh
         mesh = bpy.data.meshes.new(blenderName)
-        mesh.from_pydata([v.co for v in self.vertices], [], [
-                         triangle.indices for triangle in self.triangles])
+
+        mesh_triangles = [triangle.indices for triangle in self.triangles]
+        mesh.from_pydata(
+            [v.co for v in self.vertices],
+            [],
+            mesh_triangles
+            )
 
         material = data.materialManager.getMaterial(name, surfaceData.shader)
         if material == None:
@@ -701,22 +706,20 @@ class MdxmSurface:
 			self.vertices = [ self.vertices[ indexmap[ i ] ] for i in range( 3 ) ]
 			self.triangles[0].indices = [ indexmap[ self.triangles[0][ i ] ] for i in range( 3 ) ]
 		"""
+        for poly in mesh.polygons:
+            poly.use_smooth = True
+        mesh.normals_split_custom_set_from_vertices([v.normal for v in self.vertices])
+
+        flat_uvs = []
+        for triangle in mesh_triangles:
+            for i in triangle:
+                flat_uvs.append(self.vertices[i].uv[0])
+                flat_uvs.append(1 - self.vertices[i].uv[1])
+
+        uv_layer = mesh.uv_layers.new(do_init=False, name="UVMap")
+        uv_layer.data.foreach_set("uv", flat_uvs)
 
         mesh.validate()
-
-        mesh.normals_split_custom_set_from_vertices(
-            [v.normal for v in self.vertices])
-
-        uv_layer = mesh.uv_layers.new()
-        uv_loops = uv_layer.data
-        for poly in mesh.polygons:
-            indices = [mesh.loops[poly.loop_start +
-                                  i].vertex_index for i in range(3)]
-            uvs = [[self.vertices[index].uv[0], 1 - self.vertices[index].uv[1]]
-                   for index in indices]
-            for i, uv in enumerate(uvs):
-                uv_loops[poly.loop_start + i].uv = uv
-
         mesh.update()
 
         #  create object
