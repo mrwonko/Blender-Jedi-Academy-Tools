@@ -578,41 +578,33 @@ class MdxmSurface:
             uv_layer = mesh.uv_layers.active
             if not uv_layer or not (uv_layer_data := uv_layer.data):
                 return False, ErrorMessage("No UV coordinates found!")
+            
+            mesh.calc_loop_triangles()
+            vertexmap = {}
+            for triangle in mesh.loop_triangles:
+                indices = []
+                for vert_id, loop_id in zip(triangle.vertices, triangle.loops):
+                    vert = bpy_generic_cast(bpy.types.MeshVertex, mesh.vertices[vert_id])
+                    loop = bpy_generic_cast(bpy.types.MeshLoop, mesh.loops[loop_id])
+                    uv = uv_layer_data[loop.index].uv
+                    normal = vector_overload_cast(loop.normal if mesh.has_custom_normals else vert.normal)
 
-            protoverts = []
-
-            for face in mesh.polygons:
-                triangle = []
-                if len(face.vertices) != 3:
-                    return False, ErrorMessage("Non-triangle face found!")
-                for i in range(3):
-                    loop = bpy_generic_cast(bpy.types.MeshLoop, mesh.loops[face.loop_start + i])
-                    v = loop.vertex_index
-                    u = uv_layer_data[loop.index].uv
-                    n = vector_getter_cast(loop.normal if mesh.has_custom_normals else bpy_generic_cast(bpy.types.MeshVertex, mesh.vertices[loop.vertex_index]).normal)
-
-                    proto_found = -1
-                    for j in range(len(protoverts)):
-                        proto = protoverts[j]
-                        if proto[0] == v and proto[1] == u and abs(proto[2][0] - n[0]) < 0.05 and abs(proto[2][1] - n[1]) < 0.05 and abs(proto[2][2] - n[2]) < 0.05:
-                            proto_found = j
-                            break
-
-                    if proto_found >= 0:
-                        triangle.append(proto_found)
+                    hash_tuple = (vert_id, *uv, *normal)
+                    if hash_tuple in vertexmap:
+                        indices.append(vertexmap[hash_tuple])
                     else:
                         vertex = MdxmVertex()
                         success, message = vertex.loadFromBlender(
-                            mesh.vertices[v], u, n, boneIndices, object, armatureObject)
+                            vert, uv, normal, boneIndices, object, armatureObject)
                         if not success:
                             return False, ErrorMessage(f"Surface has invalid vertex: {message}")
-                        protoverts.append((v, u, n))
+                        vertexmap[hash_tuple] = len(vertexmap)
                         self.vertices.append(vertex)
-                        triangle.append(len(protoverts) - 1)
-                self.triangles.append(MdxmTriangle(triangle))
+                        indices.append(vertexmap[hash_tuple])
+                self.triangles.append(MdxmTriangle(indices))
 
-            self.numVerts = len(protoverts)
-            self.numTriangles = len(mesh.polygons)
+            self.numVerts = len(vertexmap)
+            self.numTriangles = len(mesh.loop_triangles)
 
             if self.numVerts > 1000:
                 print(f"Warning: {object.name} has over 1000 vertices ({self.numVerts})")
