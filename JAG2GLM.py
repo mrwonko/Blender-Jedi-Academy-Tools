@@ -30,7 +30,7 @@ from . import JAG2GLA
 from . import JAMaterialmanager
 from . import MrwProfiler
 from . import JAG2Panels
-from .casts import optional_cast, downcast, bpy_generic_cast, unpack_cast, matrix_getter_cast, vector_getter_cast, vector_overload_cast
+from .casts import optional_cast, downcast, bpy_generic_cast, unpack_cast, matrix_getter_cast, matrix_overload_cast, vector_getter_cast, vector_overload_cast
 from .error_types import ErrorMessage, NoError, ensureListIsGapless
 
 import bpy
@@ -106,9 +106,7 @@ def getBoneWeights(vertex: bpy.types.MeshVertex, meshObject: bpy.types.Object, a
 
     # if there are vertex group weights, envelopes are ignored
     if len(weights) == 0 and modifier.use_bone_envelopes:
-        co_meshspace = vector_getter_cast(vertex.co)
-        co_worldspace = vector_overload_cast(matrix_getter_cast(meshObject.matrix_world) @ co_meshspace)
-        co_armaspace = vector_overload_cast(matrix_getter_cast(armatureObject.matrix_world).inverted() @ co_worldspace)
+        co_armaspace = vector_overload_cast(matrix_getter_cast(armatureObject.matrix_world).inverted() @ vector_getter_cast(vertex.co))
         for bone in armature.bones:
             bone = bpy_generic_cast(bpy.types.Bone, bone)
             weight = bone.evaluate_envelope(co_armaspace)
@@ -424,12 +422,8 @@ class MdxmVertex:
     # uv :: [int, int] (blender style, will be y-flipped)
     # boneIndices :: { string -> int } (bone name -> index, may be changed)
     def loadFromBlender(self, vertex: bpy.types.MeshVertex, uv: List[float], normal: mathutils.Vector, boneIndices: Dict[str, int], meshObject: bpy.types.Object, armatureObject: Optional[bpy.types.Object]) -> Tuple[bool, ErrorMessage]:
-        # I'm taking the world matrix in case the object is not at the origin, but I really want the coordinates in scene_root-space, so I'm using that, too.
-        rootMat = matrix_getter_cast(bpy_generic_cast(bpy.types.Object, bpy.data.objects["scene_root"]).matrix_world).inverted()
-        co = vector_overload_cast(rootMat @ vector_overload_cast(matrix_getter_cast(meshObject.matrix_world) @ vector_getter_cast(vertex.co)))
-        normal = vector_overload_cast(rootMat.to_quaternion() @ vector_overload_cast(matrix_getter_cast(meshObject.matrix_world).to_quaternion() @ normal))
         for i in range(3):
-            self.co.append(co[i])
+            self.co.append(vertex.co[i])
             self.normal.append(normal[i])
 
         self.uv = [uv[0], 1 - uv[1]]  # flip Y
@@ -551,6 +545,10 @@ class MdxmSurface:
             return False, ErrorMessage(f"Object {object.name} is not of type Mesh!")
         mesh: bpy.types.Mesh = downcast(bpy.types.Object, object.evaluated_get(
             bpy.context.evaluated_depsgraph_get())).to_mesh()
+        
+        # Do all the transforms now
+        rootMat = matrix_getter_cast(bpy_generic_cast(bpy.types.Object, bpy.data.objects["scene_root"]).matrix_world).inverted()
+        mesh.transform(matrix_overload_cast(rootMat @ matrix_getter_cast(object.matrix_world)))
 
         boneIndices: Dict[str, int] = {}
 
