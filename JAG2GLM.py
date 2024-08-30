@@ -532,10 +532,10 @@ class MdxmSurface:
         self.boneReferences.extend(struct.unpack(
             str(self.numBoneReferences) + "i", file.read(4 * self.numBoneReferences)))
 
-        print(
-            f"surface {self.index}: numBoneReferences: {self.numBoneReferences}")
-        for i, boneRef in enumerate(self.boneReferences):
-            print(f"bone ref {i}: {boneRef}")
+        #print(
+        #    f"surface {self.index}: numBoneReferences: {self.numBoneReferences}")
+        #for i, boneRef in enumerate(self.boneReferences):
+        #    print(f"bone ref {i}: {boneRef}")
 
         if file.tell() != startPos + self.ofsEnd:
             print(
