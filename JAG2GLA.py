@@ -446,6 +446,8 @@ class MdxaAnimation:
         lastFrameNum = 0
 
         #   Export animation
+        # enter pose mode to make edits to the bone transforms
+        bpy.ops.object.mode_set(mode='POSE', toggle=False)
         for frameNum, frame in enumerate(self.frames):
             # show progress bar / remaining time
             if time.time() >= nextProgressDisplayTime:
@@ -461,13 +463,9 @@ class MdxaAnimation:
                 lastFrameNum = frameNum
                 nextProgressDisplayTime = time.time() + PROGRESS_UPDATE_INTERVAL
 
-            # set current frame
-            scene.frame_set(frameNum)
-
             # absolute offset matrices by bone index
             offsets: Dict[int, mathutils.Matrix] = {}
             for index in hierarchyOrder:
-                bpy.ops.object.mode_set(mode='POSE', toggle=False)
                 mdxaBone = skeleton.bones[index]
                 assert (mdxaBone.index == index)
                 bonePoolIndex = frame.boneIndices[index]
@@ -488,12 +486,16 @@ class MdxaAnimation:
                 pose_bone.matrix = transformation
                 # in the _humanoid face, the scale gets changed. that messes the re-export up. FIXME: understand why. Is there a problem?
                 pose_bone.scale = [1, 1, 1]
-                pose_bone.keyframe_insert('location')
-                pose_bone.keyframe_insert('rotation_quaternion')
-                # hackish way to force the matrix to update. FIXME: this seems to slow the process down a lot
-                bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+                # force the matrix to update, this is still slow, but faster than switching between pose and object mode
+                bpy.ops.pose.visual_transform_apply()
 
-        scene.frame_current = 1
+            # Adding keyframes outside of calculating the transforms is apparently faster
+            for pose_bone in bones:
+                pose_bone.keyframe_insert('location', frame=frameNum)
+                pose_bone.keyframe_insert('rotation_quaternion', frame=frameNum)
+
+        # enter object mode when done
+        bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
 
 
 class AnimationLoadMode(Enum):
