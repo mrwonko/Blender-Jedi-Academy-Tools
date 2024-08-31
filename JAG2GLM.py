@@ -991,6 +991,9 @@ class GLM:
                                  "" or gla_filepath_rel == "*default")
         skeleton_object: Optional[bpy.types.Object] = None
         boneIndexMap: Optional[BoneIndexMap] = None
+        skeleton_armature : Optional[bpy.types.Armature] = None
+        # Assume people usually use the "rest pose" before exporting
+        old_pose = "REST"
         if defaultSkeleton:
             # no skeleton available, generate default/unit skeleton instead
             self.header.numBones = 1
@@ -1004,10 +1007,14 @@ class GLM:
             if obj.type != 'ARMATURE':
                 return False, ErrorMessage("skeleton_root is no Armature!")
             skeleton_armature = downcast(bpy.types.Armature, obj.data)
+            # Exporting in pose position will lead to incorrect results, make sure to reset to users last position!
+            old_pose = skeleton_armature.pose_position
+            skeleton_armature.pose_position = "REST"
 
             boneIndexMap, message = buildBoneIndexLookupMap(JAFilesystem.RemoveExtension(
                 JAFilesystem.AbsPath(gla_filepath_rel, basepath)) + ".gla")
             if boneIndexMap is None:
+                skeleton_armature.pose_position = old_pose
                 return False, message
 
             self.header.numBones = len(boneIndexMap)
@@ -1015,6 +1022,7 @@ class GLM:
             # check if skeleton matches the specified one
             for bone in skeleton_armature.bones:
                 if bone.name not in boneIndexMap:
+                    skeleton_armature.pose_position = old_pose
                     return False, ErrorMessage(f"skeleton_root does not match specified gla, could not find bone {bone.name}")
 
         #   load from Blender
@@ -1030,6 +1038,8 @@ class GLM:
             f"Found {self.header.numLODs} model_root objects, i.e. LOD levels")
 
         if self.header.numLODs == 0:
+            if skeleton_armature:
+                skeleton_armature.pose_position = old_pose
             return False, ErrorMessage("Could not find model_root_0 object")
 
         # build hierarchy from first LOD
@@ -1037,6 +1047,8 @@ class GLM:
         success, message = self.surfaceDataCollection.loadFromBlender(
             rootObjects[0], surfaceIndexMap)
         if not success:
+            if skeleton_armature:
+                skeleton_armature.pose_position = old_pose
             return False, message
         self.surfaceDataOffsets.calculateOffsets(self.surfaceDataCollection)
 
@@ -1047,12 +1059,16 @@ class GLM:
         success, message = self.LODCollection.loadFromBlender(
             rootObjects, surfaceIndexMap, self.surfaceDataCollection, boneIndexMap, skeleton_object)
         if not success:
+            if skeleton_armature:
+                skeleton_armature.pose_position = old_pose
             return False, message
 
         self.LODCollection.calculateOffsets(self.header.ofsLODs)
 
         #   calculate offsets etc.4
         self._calculateHeaderOffsets()
+        if skeleton_armature:
+            skeleton_armature.pose_position = old_pose
         return True, NoError
 
     def saveToFile(self, filepath_abs: str) -> Tuple[bool, ErrorMessage]:
