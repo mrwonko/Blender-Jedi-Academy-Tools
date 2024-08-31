@@ -30,7 +30,7 @@ from . import JAG2GLA
 from . import JAMaterialmanager
 from . import MrwProfiler
 from . import JAG2Panels
-from .casts import optional_cast, downcast, bpy_generic_cast, unpack_cast, matrix_getter_cast, vector_getter_cast, vector_overload_cast
+from .casts import optional_cast, downcast, bpy_generic_cast, unpack_cast, matrix_getter_cast, matrix_overload_cast, vector_getter_cast, vector_overload_cast
 from .error_types import ErrorMessage, NoError, ensureListIsGapless
 
 import bpy
@@ -106,9 +106,9 @@ def getBoneWeights(vertex: bpy.types.MeshVertex, meshObject: bpy.types.Object, a
 
     # if there are vertex group weights, envelopes are ignored
     if len(weights) == 0 and modifier.use_bone_envelopes:
-        co_meshspace = vector_getter_cast(vertex.co)
-        co_worldspace = vector_overload_cast(matrix_getter_cast(meshObject.matrix_world) @ co_meshspace)
-        co_armaspace = vector_overload_cast(matrix_getter_cast(armatureObject.matrix_world).inverted() @ co_worldspace)
+        rootMat = matrix_getter_cast(bpy_generic_cast(bpy.types.Object, bpy.data.objects["scene_root"]).matrix_world)
+        world_space_pos = rootMat @ vector_getter_cast(vertex.co)
+        co_armaspace = vector_overload_cast(matrix_getter_cast(armatureObject.matrix_world).inverted() @ world_space_pos)
         for bone in armature.bones:
             bone = bpy_generic_cast(bpy.types.Bone, bone)
             weight = bone.evaluate_envelope(co_armaspace)
@@ -424,12 +424,8 @@ class MdxmVertex:
     # uv :: [int, int] (blender style, will be y-flipped)
     # boneIndices :: { string -> int } (bone name -> index, may be changed)
     def loadFromBlender(self, vertex: bpy.types.MeshVertex, uv: List[float], normal: mathutils.Vector, boneIndices: Dict[str, int], meshObject: bpy.types.Object, armatureObject: Optional[bpy.types.Object]) -> Tuple[bool, ErrorMessage]:
-        # I'm taking the world matrix in case the object is not at the origin, but I really want the coordinates in scene_root-space, so I'm using that, too.
-        rootMat = matrix_getter_cast(bpy_generic_cast(bpy.types.Object, bpy.data.objects["scene_root"]).matrix_world).inverted()
-        co = vector_overload_cast(rootMat @ vector_overload_cast(matrix_getter_cast(meshObject.matrix_world) @ vector_getter_cast(vertex.co)))
-        normal = vector_overload_cast(rootMat.to_quaternion() @ vector_overload_cast(matrix_getter_cast(meshObject.matrix_world).to_quaternion() @ normal))
         for i in range(3):
-            self.co.append(co[i])
+            self.co.append(vertex.co[i])
             self.normal.append(normal[i])
 
         self.uv = [uv[0], 1 - uv[1]]  # flip Y
@@ -536,10 +532,10 @@ class MdxmSurface:
         self.boneReferences.extend(struct.unpack(
             str(self.numBoneReferences) + "i", file.read(4 * self.numBoneReferences)))
 
-        print(
-            f"surface {self.index}: numBoneReferences: {self.numBoneReferences}")
-        for i, boneRef in enumerate(self.boneReferences):
-            print(f"bone ref {i}: {boneRef}")
+        #print(
+        #    f"surface {self.index}: numBoneReferences: {self.numBoneReferences}")
+        #for i, boneRef in enumerate(self.boneReferences):
+        #    print(f"bone ref {i}: {boneRef}")
 
         if file.tell() != startPos + self.ofsEnd:
             print(
@@ -551,6 +547,10 @@ class MdxmSurface:
             return False, ErrorMessage(f"Object {object.name} is not of type Mesh!")
         mesh: bpy.types.Mesh = downcast(bpy.types.Object, object.evaluated_get(
             bpy.context.evaluated_depsgraph_get())).to_mesh()
+        
+        # Do all the transforms now
+        rootMat = matrix_getter_cast(bpy_generic_cast(bpy.types.Object, bpy.data.objects["scene_root"]).matrix_world).inverted()
+        mesh.transform(matrix_overload_cast(rootMat @ matrix_getter_cast(object.matrix_world)))
 
         boneIndices: Dict[str, int] = {}
 
@@ -580,41 +580,33 @@ class MdxmSurface:
             uv_layer = mesh.uv_layers.active
             if not uv_layer or not (uv_layer_data := uv_layer.data):
                 return False, ErrorMessage("No UV coordinates found!")
+            
+            mesh.calc_loop_triangles()
+            vertexmap = {}
+            for triangle in mesh.loop_triangles:
+                indices = []
+                for vert_id, loop_id in zip(triangle.vertices, triangle.loops):
+                    vert = bpy_generic_cast(bpy.types.MeshVertex, mesh.vertices[vert_id])
+                    loop = bpy_generic_cast(bpy.types.MeshLoop, mesh.loops[loop_id])
+                    uv = uv_layer_data[loop.index].uv
+                    normal = vector_overload_cast(loop.normal if mesh.has_custom_normals else vert.normal)
 
-            protoverts = []
-
-            for face in mesh.polygons:
-                triangle = []
-                if len(face.vertices) != 3:
-                    return False, ErrorMessage("Non-triangle face found!")
-                for i in range(3):
-                    loop = bpy_generic_cast(bpy.types.MeshLoop, mesh.loops[face.loop_start + i])
-                    v = loop.vertex_index
-                    u = uv_layer_data[loop.index].uv
-                    n = vector_getter_cast(loop.normal if mesh.has_custom_normals else bpy_generic_cast(bpy.types.MeshVertex, mesh.vertices[loop.vertex_index]).normal)
-
-                    proto_found = -1
-                    for j in range(len(protoverts)):
-                        proto = protoverts[j]
-                        if proto[0] == v and proto[1] == u and abs(proto[2][0] - n[0]) < 0.05 and abs(proto[2][1] - n[1]) < 0.05 and abs(proto[2][2] - n[2]) < 0.05:
-                            proto_found = j
-                            break
-
-                    if proto_found >= 0:
-                        triangle.append(proto_found)
+                    hash_tuple = (vert_id, *uv, *normal)
+                    if hash_tuple in vertexmap:
+                        indices.append(vertexmap[hash_tuple])
                     else:
                         vertex = MdxmVertex()
                         success, message = vertex.loadFromBlender(
-                            mesh.vertices[v], u, n, boneIndices, object, armatureObject)
+                            vert, uv, normal, boneIndices, object, armatureObject)
                         if not success:
                             return False, ErrorMessage(f"Surface has invalid vertex: {message}")
-                        protoverts.append((v, u, n))
+                        vertexmap[hash_tuple] = len(vertexmap)
                         self.vertices.append(vertex)
-                        triangle.append(len(protoverts) - 1)
-                self.triangles.append(MdxmTriangle(triangle))
+                        indices.append(vertexmap[hash_tuple])
+                self.triangles.append(MdxmTriangle(indices))
 
-            self.numVerts = len(protoverts)
-            self.numTriangles = len(mesh.polygons)
+            self.numVerts = len(vertexmap)
+            self.numTriangles = len(mesh.loop_triangles)
 
             if self.numVerts > 1000:
                 print(f"Warning: {object.name} has over 1000 vertices ({self.numVerts})")
@@ -684,8 +676,13 @@ class MdxmSurface:
 
         #  create mesh
         mesh = bpy.data.meshes.new(blenderName)
-        mesh.from_pydata([v.co for v in self.vertices], [], [
-                         triangle.indices for triangle in self.triangles])
+
+        mesh_triangles = [triangle.indices for triangle in self.triangles]
+        mesh.from_pydata(
+            [v.co for v in self.vertices],
+            [],
+            mesh_triangles
+            )
 
         material = data.materialManager.getMaterial(name, surfaceData.shader)
         if material == None:
@@ -701,22 +698,20 @@ class MdxmSurface:
 			self.vertices = [ self.vertices[ indexmap[ i ] ] for i in range( 3 ) ]
 			self.triangles[0].indices = [ indexmap[ self.triangles[0][ i ] ] for i in range( 3 ) ]
 		"""
+        for poly in mesh.polygons:
+            poly.use_smooth = True
+        mesh.normals_split_custom_set_from_vertices([v.normal for v in self.vertices])
+
+        flat_uvs = []
+        for triangle in mesh_triangles:
+            for i in triangle:
+                flat_uvs.append(self.vertices[i].uv[0])
+                flat_uvs.append(1 - self.vertices[i].uv[1])
+
+        uv_layer = mesh.uv_layers.new(do_init=False, name="UVMap")
+        uv_layer.data.foreach_set("uv", flat_uvs)
 
         mesh.validate()
-
-        mesh.normals_split_custom_set_from_vertices(
-            [v.normal for v in self.vertices])
-
-        uv_layer = mesh.uv_layers.new()
-        uv_loops = uv_layer.data
-        for poly in mesh.polygons:
-            indices = [mesh.loops[poly.loop_start +
-                                  i].vertex_index for i in range(3)]
-            uvs = [[self.vertices[index].uv[0], 1 - self.vertices[index].uv[1]]
-                   for index in indices]
-            for i, uv in enumerate(uvs):
-                uv_loops[poly.loop_start + i].uv = uv
-
         mesh.update()
 
         #  create object
@@ -996,6 +991,9 @@ class GLM:
                                  "" or gla_filepath_rel == "*default")
         skeleton_object: Optional[bpy.types.Object] = None
         boneIndexMap: Optional[BoneIndexMap] = None
+        skeleton_armature : Optional[bpy.types.Armature] = None
+        # Assume people usually use the "rest pose" before exporting
+        old_pose = "REST"
         if defaultSkeleton:
             # no skeleton available, generate default/unit skeleton instead
             self.header.numBones = 1
@@ -1009,10 +1007,14 @@ class GLM:
             if obj.type != 'ARMATURE':
                 return False, ErrorMessage("skeleton_root is no Armature!")
             skeleton_armature = downcast(bpy.types.Armature, obj.data)
+            # Exporting in pose position will lead to incorrect results, make sure to reset to users last position!
+            old_pose = skeleton_armature.pose_position
+            skeleton_armature.pose_position = "REST"
 
             boneIndexMap, message = buildBoneIndexLookupMap(JAFilesystem.RemoveExtension(
                 JAFilesystem.AbsPath(gla_filepath_rel, basepath)) + ".gla")
             if boneIndexMap is None:
+                skeleton_armature.pose_position = old_pose
                 return False, message
 
             self.header.numBones = len(boneIndexMap)
@@ -1020,6 +1022,7 @@ class GLM:
             # check if skeleton matches the specified one
             for bone in skeleton_armature.bones:
                 if bone.name not in boneIndexMap:
+                    skeleton_armature.pose_position = old_pose
                     return False, ErrorMessage(f"skeleton_root does not match specified gla, could not find bone {bone.name}")
 
         #   load from Blender
@@ -1035,6 +1038,8 @@ class GLM:
             f"Found {self.header.numLODs} model_root objects, i.e. LOD levels")
 
         if self.header.numLODs == 0:
+            if skeleton_armature:
+                skeleton_armature.pose_position = old_pose
             return False, ErrorMessage("Could not find model_root_0 object")
 
         # build hierarchy from first LOD
@@ -1042,6 +1047,8 @@ class GLM:
         success, message = self.surfaceDataCollection.loadFromBlender(
             rootObjects[0], surfaceIndexMap)
         if not success:
+            if skeleton_armature:
+                skeleton_armature.pose_position = old_pose
             return False, message
         self.surfaceDataOffsets.calculateOffsets(self.surfaceDataCollection)
 
@@ -1052,12 +1059,16 @@ class GLM:
         success, message = self.LODCollection.loadFromBlender(
             rootObjects, surfaceIndexMap, self.surfaceDataCollection, boneIndexMap, skeleton_object)
         if not success:
+            if skeleton_armature:
+                skeleton_armature.pose_position = old_pose
             return False, message
 
         self.LODCollection.calculateOffsets(self.header.ofsLODs)
 
         #   calculate offsets etc.4
         self._calculateHeaderOffsets()
+        if skeleton_armature:
+            skeleton_armature.pose_position = old_pose
         return True, NoError
 
     def saveToFile(self, filepath_abs: str) -> Tuple[bool, ErrorMessage]:
