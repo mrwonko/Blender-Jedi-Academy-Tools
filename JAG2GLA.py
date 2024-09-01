@@ -776,10 +776,10 @@ class GLA:
         # first check if there's already an armature object called skeleton_root. Try using that.
         if "skeleton_root" in bpy.data.objects:
             print("Found a skeleton_root object, trying to use it.")
-            self.skeleton_object = bpy.data.objects["skeleton_root"]
+            self.skeleton_object = bpy_generic_cast(bpy.types.Object, bpy.data.objects["skeleton_root"])
             if self.skeleton_object.type != 'ARMATURE':
                 return False, ErrorMessage("Existing skeleton_root object is no armature!")
-            self.skeleton_armature = self.skeleton_object.data
+            self.skeleton_armature = bpy_generic_cast(bpy.types.Armature, self.skeleton_object.data)
             self.skeleton_object.g2_prop_scale = self.header.scale * 100
         # If there's no skeleton, there may yet still be an armature. Use that.
         elif "skeleton_root" in bpy.data.armatures:
