@@ -48,15 +48,34 @@ class GLMImport(bpy.types.Operator, ImportHelper): # type: ignore
     filename_ext = ".glm"
     filter_glob: bpy.props.StringProperty(default="*.glm", options={'HIDDEN'})  # pyright: ignore [reportInvalidTypeForm]
 
+    def skin_list_cb(self, context):
+        try:
+            filepath =JAFilesystem.PathToFile(self.filepath, "")
+        except:
+            print("could not find file or folder")
+            return []
+        skin_files = []
+
+        try:
+            skin_files = sorted(f for f in JAFilesystem.FileList(filepath)
+                                    if f.endswith(".skin"))
+        except Exception as e:
+            print("Could not open skin files, error: ", e)
+
+        return [(" ", "None", "")] + [(skin, skin.split(".")[0], "")
+                for skin in sorted(skin_files)]
+    
     # properties
     filepath: bpy.props.StringProperty(
         name="File Path",
         description="The .glm file to import",
         default="")  # pyright: ignore [reportInvalidTypeForm]
-    skin: bpy.props.StringProperty(
+    skin: bpy.props.EnumProperty(
+        items=skin_list_cb,
         name="Skin",
-        description="The skin to load (modelname_<skin>.skin), leave empty to load none (use file internal paths)",
-        default="default")  # pyright: ignore [reportInvalidTypeForm]
+        default=0, # type: ignore
+        description="The skin to load, choose none to use file internal paths"
+    ) # pyright: ignore [reportInvalidTypeForm]
     guessTextures: bpy.props.BoolProperty(
         name="Guess Textures",
         description="Many models try to force you to use the skin. Enable this to try to circumvent that. (Usually works well, but skins should be preferred.)",
@@ -99,10 +118,12 @@ class GLMImport(bpy.types.Operator, ImportHelper): # type: ignore
     startFrame: bpy.props.IntProperty(
         name="Start frame",
         description="If only a range of frames of the animation is to be imported, this is the first.",
+        default=0,
         min=0)  # pyright: ignore [reportInvalidTypeForm]
     numFrames: bpy.props.IntProperty(
         name="number of frames",
         description="If only a range of frames of the animation is to be imported, this is the total number of frames to import",
+        default=1,
         min=1)  # pyright: ignore [reportInvalidTypeForm]
 
     def execute(self, context):
@@ -133,8 +154,8 @@ class GLMImport(bpy.types.Operator, ImportHelper): # type: ignore
             return {'FINISHED'}
         # output to blender
         skin = ""
-        if self.skin != "":
-            skin = filepath + "_" + self.skin
+        if self.skin.strip() != "":
+            skin = JAFilesystem.PathToFile(filepath, "")  + self.skin
         success, message = scene.saveToBlender(
             scale,
             skin,
@@ -144,6 +165,36 @@ class GLMImport(bpy.types.Operator, ImportHelper): # type: ignore
         if not success:
             self.report({'ERROR'}, message)
         return {'FINISHED'}
+    
+    def draw(self, context):
+        addon_name = __name__.split('.')[0]
+        prefs = context.preferences.addons[addon_name].preferences
+        self.basepath = prefs.base_path
+        self.scale = prefs.scale
+
+        layout = self.layout
+        layout.use_property_split = True
+        row = layout.row()
+        row.prop(self, "gamepack")
+        row = layout.row()
+        row.prop(self, "skin")
+        row = layout.row()
+        row.prop(self, "guessTextures")
+        row = layout.row()
+        row.prop(self, "basepath")
+        row = layout.row()
+        row.prop(self, "glaOverride")
+        row = layout.row()
+        row.prop(self, "scale")
+        row = layout.row()
+        row.prop(self, "skeletonFixes")
+        row = layout.row()
+        row.prop(self, "loadAnimations")
+        if self.loadAnimations == JAG2GLA.AnimationLoadMode.RANGE.value:
+            row = layout.row()
+            row.prop(self, "startFrame")
+            row = layout.row()
+            row.prop(self, "numFrames")
 
 
 class GLAImport(bpy.types.Operator, ImportHelper): # type: ignore
@@ -193,10 +244,12 @@ class GLAImport(bpy.types.Operator, ImportHelper): # type: ignore
     startFrame: bpy.props.IntProperty(
         name="Start frame",
         description="If only a range of frames of the animation is to be imported, this is the first.",
+        default=0,
         min=0)  # pyright: ignore [reportInvalidTypeForm]
     numFrames: bpy.props.IntProperty(
         name="number of frames",
         description="If only a range of frames of the animation is to be imported, this is the total number of frames to import",
+        default=1,
         min=1)  # pyright: ignore [reportInvalidTypeForm]
 
     def execute(self, context):
@@ -222,6 +275,27 @@ class GLAImport(bpy.types.Operator, ImportHelper): # type: ignore
         if not success:
             self.report({'ERROR'}, message)
         return {'FINISHED'}
+    
+    def draw(self, context):
+        addon_name = __name__.split('.')[0]
+        prefs = context.preferences.addons[addon_name].preferences
+        self.basepath = prefs.base_path
+        self.scale = prefs.scale
+
+        layout = self.layout
+        row = layout.row()
+        row.prop(self, "basepath")
+        row = layout.row()
+        row.prop(self, "scale")
+        row = layout.row()
+        row.prop(self, "skeletonFixes")
+        row = layout.row()
+        row.prop(self, "loadAnimations")
+        if self.loadAnimations == JAG2GLA.AnimationLoadMode.RANGE.value:
+            row = layout.row()
+            row.prop(self, "startFrame")
+            row = layout.row()
+            row.prop(self, "numFrames")
 
 
 class GLMExport(bpy.types.Operator, ExportHelper): # type: ignore
@@ -260,6 +334,17 @@ class GLMExport(bpy.types.Operator, ExportHelper): # type: ignore
         if not success:
             self.report({'ERROR'}, message)
         return {'FINISHED'}
+    
+    def draw(self, context):
+        addon_name = __name__.split('.')[0]
+        prefs = context.preferences.addons[addon_name].preferences
+        self.basepath = prefs.base_path
+
+        layout = self.layout
+        row = layout.row()
+        row.prop(self, "basepath")
+        row = layout.row()
+        row.prop(self, "gla")
 
 
 class GLAExport(bpy.types.Operator, ExportHelper): # type: ignore
@@ -307,6 +392,19 @@ class GLAExport(bpy.types.Operator, ExportHelper): # type: ignore
         if not success:
             self.report({'ERROR'}, message)
         return {'FINISHED'}
+    
+    def draw(self, context):
+        addon_name = __name__.split('.')[0]
+        prefs = context.preferences.addons[addon_name].preferences
+        self.basepath = prefs.base_path
+
+        layout = self.layout
+        row = layout.row()
+        row.prop(self, "basepath")
+        row = layout.row()
+        row.prop(self, "glapath")
+        row = layout.row()
+        row.prop(self, "glareference")
 
 
 class ObjectAddG2Properties(bpy.types.Operator):
