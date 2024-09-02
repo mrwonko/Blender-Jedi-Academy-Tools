@@ -167,11 +167,6 @@ class GLMImport(bpy.types.Operator, ImportHelper): # type: ignore
         return {'FINISHED'}
     
     def draw(self, context):
-        addon_name = __name__.split('.')[0]
-        prefs = context.preferences.addons[addon_name].preferences
-        self.basepath = prefs.base_path
-        self.scale = prefs.scale
-
         layout = self.layout
         layout.use_property_split = True
         row = layout.row()
@@ -195,6 +190,12 @@ class GLMImport(bpy.types.Operator, ImportHelper): # type: ignore
             row.prop(self, "startFrame")
             row = layout.row()
             row.prop(self, "numFrames")
+
+    def invoke(self, context, event): # type: ignore
+        prefs = bpy.context.preferences.addons[__name__.split('.')[0]].preferences
+        self.basepath = prefs.base_path
+        self.scale = prefs.scale
+        return super().invoke(context, event)
 
 
 class GLAImport(bpy.types.Operator, ImportHelper): # type: ignore
@@ -276,13 +277,15 @@ class GLAImport(bpy.types.Operator, ImportHelper): # type: ignore
             self.report({'ERROR'}, message)
         return {'FINISHED'}
     
-    def draw(self, context):
-        addon_name = __name__.split('.')[0]
-        prefs = context.preferences.addons[addon_name].preferences
+    def invoke(self, context, event): # type: ignore
+        prefs = bpy.context.preferences.addons[__name__.split('.')[0]].preferences
         self.basepath = prefs.base_path
         self.scale = prefs.scale
-
+        return super().invoke(context, event)
+    
+    def draw(self, context):
         layout = self.layout
+        layout.use_property_split = True
         row = layout.row()
         row.prop(self, "basepath")
         row = layout.row()
@@ -310,9 +313,14 @@ class GLMExport(bpy.types.Operator, ExportHelper): # type: ignore
 
     # properties
     filepath: bpy.props.StringProperty(
-        name="File Path", description="The filename to export to", maxlen=1024, default="")  # pyright: ignore [reportInvalidTypeForm]
+        name="File Path",
+        description="The filename to export to",
+        maxlen=1024,
+        default="")  # pyright: ignore [reportInvalidTypeForm]
     basepath: bpy.props.StringProperty(
-        name="Base Path", description="The base folder relative to which paths should be interpreted. Leave empty to let the exporter guess (needs /GameData/ in filepath).", default="")  # pyright: ignore [reportInvalidTypeForm]
+        name="Base Path",
+        description="The base folder relative to which paths should be interpreted. Leave empty to let the exporter guess (needs /GameData/ in filepath).",
+        default="")  # pyright: ignore [reportInvalidTypeForm]
     gla: bpy.props.StringProperty(
         name=".gla name", description="Name of the skeleton this model uses (must exist!)", default="models/players/_humanoid/_humanoid")  # pyright: ignore [reportInvalidTypeForm]
 
@@ -335,16 +343,10 @@ class GLMExport(bpy.types.Operator, ExportHelper): # type: ignore
             self.report({'ERROR'}, message)
         return {'FINISHED'}
     
-    def draw(self, context):
-        addon_name = __name__.split('.')[0]
-        prefs = context.preferences.addons[addon_name].preferences
+    def invoke(self, context, event): # type: ignore
+        prefs = bpy.context.preferences.addons[__name__.split('.')[0]].preferences
         self.basepath = prefs.base_path
-
-        layout = self.layout
-        row = layout.row()
-        row.prop(self, "basepath")
-        row = layout.row()
-        row.prop(self, "gla")
+        return super().invoke(context, event)
 
 
 class GLAExport(bpy.types.Operator, ExportHelper): # type: ignore
@@ -359,13 +361,24 @@ class GLAExport(bpy.types.Operator, ExportHelper): # type: ignore
 
     # properties
     filepath: bpy.props.StringProperty(
-        name="File Path", description="The filename to export to", maxlen=1024, default="")  # pyright: ignore [reportInvalidTypeForm]
+        name="File Path",
+        description="The filename to export to",
+        maxlen=1024,
+        default="")  # pyright: ignore [reportInvalidTypeForm]
     basepath: bpy.props.StringProperty(
-        name="Base Path", description="The base folder relative to which paths should be interpreted. Leave empty to let the exporter guess (needs /GameData/ in filepath).", default="")  # pyright: ignore [reportInvalidTypeForm]
+        name="Base Path",
+        description="The base folder relative to which paths should be interpreted. Leave empty to let the exporter guess (needs /GameData/ in filepath).",
+        default="")  # pyright: ignore [reportInvalidTypeForm]
     glapath: bpy.props.StringProperty(
-        name="gla name", description="The relative path of this gla. Leave empty to let the exporter guess (needs /GameData/ in filepath).", maxlen=64, default="")  # pyright: ignore [reportInvalidTypeForm]
+        name="gla name",
+        description="The relative path of this gla. Leave empty to let the exporter guess (needs /GameData/ in filepath).",
+        maxlen=64,
+        default="")  # pyright: ignore [reportInvalidTypeForm]
     glareference: bpy.props.StringProperty(
-        name="gla reference", description="Copies the bone indices from this skeleton, if any (e.g. for new animations for existing skeleton; path relative to the Base Path)", maxlen=64, default="")  # pyright: ignore [reportInvalidTypeForm]
+        name="gla reference",
+        description="Copies the bone indices from this skeleton, if any (e.g. for new animations for existing skeleton; path relative to the Base Path)",
+        maxlen=64,
+        default="")  # pyright: ignore [reportInvalidTypeForm]
 
     def execute(self, context):
         print("\n== GLA Export ==\n")
@@ -393,18 +406,10 @@ class GLAExport(bpy.types.Operator, ExportHelper): # type: ignore
             self.report({'ERROR'}, message)
         return {'FINISHED'}
     
-    def draw(self, context):
-        addon_name = __name__.split('.')[0]
-        prefs = context.preferences.addons[addon_name].preferences
+    def invoke(self, context, event): # type: ignore
+        prefs = bpy.context.preferences.addons[__name__.split('.')[0]].preferences
         self.basepath = prefs.base_path
-
-        layout = self.layout
-        row = layout.row()
-        row.prop(self, "basepath")
-        row = layout.row()
-        row.prop(self, "glapath")
-        row = layout.row()
-        row.prop(self, "glareference")
+        return super().invoke(context, event)
 
 
 class ObjectAddG2Properties(bpy.types.Operator):
@@ -474,7 +479,10 @@ class GLAMetaExport(bpy.types.Operator, ExportHelper): # type: ignore
         maxlen=1024,
         default="")  # pyright: ignore [reportInvalidTypeForm]
     offset: bpy.props.IntProperty(
-        name="Offset", description="Frame offset for the animations, e.g. 21376 if you plan on merging with Jedi Academy's _humanoid.gla", min=0, default=0)  # pyright: ignore [reportInvalidTypeForm]
+        name="Offset",
+        description="Frame offset for the animations, e.g. 21376 if you plan on merging with Jedi Academy's _humanoid.gla",
+        min=0,
+        default=0)  # pyright: ignore [reportInvalidTypeForm]
 
     def execute(self, context):
         print("\n== GLA Metadata Export ==\n")
