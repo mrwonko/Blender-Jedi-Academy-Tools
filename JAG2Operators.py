@@ -63,8 +63,20 @@ class GLMImport(bpy.types.Operator, ImportHelper): # type: ignore
         except Exception as e:
             print("Could not open skin files, error: ", e)
 
-        return [(" ", "None", ""), ("DEFAULT", "<modelname>_default", "")] + [(skin, skin.split(".")[0], "")
-                for skin in sorted(skin_files) if not skin.endswith("_default.skin")]
+        items = [(
+            "GUESS_TEXTURES",
+            "Guess textures",
+            "Many models try to force you to use the skin. "
+            "Enable this to try to circumvent that. "
+            "(Usually works well, but skins should be preferred.)")]
+        for index, skin in enumerate(skin_files):
+            if skin.endswith("_default.skin"):
+                items.append((skin, skin.split(".")[0], ""))
+                break
+        items.append((" ", "None", "Use file internal paths. "))
+        
+        return items + [(skin, skin.split(".")[0], "")
+                for skin in skin_files if not skin.endswith("_default.skin")]
     
     # properties
     filepath: bpy.props.StringProperty(
@@ -77,10 +89,6 @@ class GLMImport(bpy.types.Operator, ImportHelper): # type: ignore
         default=1, # type: ignore
         description="The skin to load, choose none to use file internal paths"
     ) # pyright: ignore [reportInvalidTypeForm]
-    guessTextures: bpy.props.BoolProperty(
-        name="Guess Textures",
-        description="Many models try to force you to use the skin. Enable this to try to circumvent that. (Usually works well, but skins should be preferred.)",
-        default=False)  # pyright: ignore [reportInvalidTypeForm]
     basepath: bpy.props.StringProperty(
         name="Base Path",
         description="The base folder relative to which paths should be interpreted. Leave empty to let the importer guess (needs /GameData/ in filepath).",
@@ -162,14 +170,16 @@ class GLMImport(bpy.types.Operator, ImportHelper): # type: ignore
             return {'FINISHED'}
         # output to blender
         skin = ""
-        if self.skin == "DEFAULT":
-            skin = filepath + "_default.skin"
+        guess_textures = False
+        if self.skin == "GUESS_TEXTURES":
+            skin = ""
+            guess_textures = True
         elif self.skin.strip() != "":
             skin = JAFilesystem.PathToFile(filepath, "")  + self.skin
         success, message = scene.saveToBlender(
             scale,
             skin,
-            self.guessTextures,
+            guess_textures,
             loadAnimations != JAG2GLA.AnimationLoadMode.NONE,
             SkeletonFixes[self.skeletonFixes])
         if not success:
@@ -180,11 +190,7 @@ class GLMImport(bpy.types.Operator, ImportHelper): # type: ignore
         layout = self.layout
         layout.use_property_split = True
         row = layout.row()
-        row.prop(self, "gamepack")
-        row = layout.row()
         row.prop(self, "skin")
-        row = layout.row()
-        row.prop(self, "guessTextures")
         row = layout.row()
         row.prop(self, "basepath")
         row = layout.row()
