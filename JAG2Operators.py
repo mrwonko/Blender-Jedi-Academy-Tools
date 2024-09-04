@@ -205,7 +205,6 @@ class GLMImport(bpy.types.Operator, ImportHelper): # type: ignore
         prefs = bpy.context.preferences.addons[__name__.split('.')[0]].preferences
         self.basepath = prefs.base_path
         self.scale = prefs.scale
-        print(self.skin)
         return super().invoke(context, event)
 
 
