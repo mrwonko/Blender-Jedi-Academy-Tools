@@ -63,8 +63,8 @@ class GLMImport(bpy.types.Operator, ImportHelper): # type: ignore
         except Exception as e:
             print("Could not open skin files, error: ", e)
 
-        return [(" ", "None", "")] + [(skin, skin.split(".")[0], "")
-                for skin in sorted(skin_files)]
+        return [(" ", "None", ""), ("DEFAULT", "<modelname>_default", "")] + [(skin, skin.split(".")[0], "")
+                for skin in sorted(skin_files) if not skin.endswith("_default.skin")]
     
     # properties
     filepath: bpy.props.StringProperty(
@@ -74,7 +74,7 @@ class GLMImport(bpy.types.Operator, ImportHelper): # type: ignore
     skin: bpy.props.EnumProperty(
         items=skin_list_cb,
         name="Skin",
-        default=0, # type: ignore
+        default=1, # type: ignore
         description="The skin to load, choose none to use file internal paths"
     ) # pyright: ignore [reportInvalidTypeForm]
     guessTextures: bpy.props.BoolProperty(
@@ -162,7 +162,9 @@ class GLMImport(bpy.types.Operator, ImportHelper): # type: ignore
             return {'FINISHED'}
         # output to blender
         skin = ""
-        if self.skin.strip() != "":
+        if self.skin == "DEFAULT":
+            skin = filepath + "_default.skin"
+        elif self.skin.strip() != "":
             skin = JAFilesystem.PathToFile(filepath, "")  + self.skin
         success, message = scene.saveToBlender(
             scale,
@@ -203,6 +205,7 @@ class GLMImport(bpy.types.Operator, ImportHelper): # type: ignore
         prefs = bpy.context.preferences.addons[__name__.split('.')[0]].preferences
         self.basepath = prefs.base_path
         self.scale = prefs.scale
+        print(self.skin)
         return super().invoke(context, event)
 
 

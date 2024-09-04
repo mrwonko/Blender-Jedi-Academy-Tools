@@ -70,6 +70,7 @@ class JAAddonPreferences(bpy.types.AddonPreferences):
 
     def draw(self, context):
         layout = self.layout
+        layout.use_property_split = True
         row = layout.row()
         row.prop(self, "base_path")
         row = layout.row()
