@@ -6,14 +6,14 @@ import struct
 
 
 class Operator(bpy.types.Operator):
-    # everything is scaled down by this factor
-    SCALE = 10
     bl_idname = "import_scene.ja_roff"
     bl_label = "Import JA ROFF (.rof)"
 
     # gets set by the file select window - internal Blender Magic or whatever.
     filepath: bpy.props.StringProperty(
         name="File Path", description="File path used for importing the ROFF file", maxlen=1024, default="")  # type: ignore
+    scale: bpy.props.FloatProperty(
+        name="Scale", description="Movements are scaled by this factor", default=1)  # type: ignore
 
     def execute(self, context):
         self.ImportStart()
@@ -53,7 +53,7 @@ class Operator(bpy.types.Operator):
             scn.frame_start = 0
             scn.frame_end = frames
             scn.frame_current = 0
-            scn.render.fps = 1000/frameDuration  # supposedly read-only?
+            scn.render.fps = int(1000/frameDuration)  # supposedly read-only?
 
             # add keyframe at frame 0 with current position
 
@@ -69,7 +69,7 @@ class Operator(bpy.types.Operator):
 
                 # translate the object (it's the only selected object so the operators operate on it)
                 bpy.ops.transform.translate(
-                    value=(dx/self.SCALE, dy/self.SCALE, dz/self.SCALE))
+                    value=(dx/self.scale, dy/self.scale, dz/self.scale))
 
                 # rotate the object - unsure how to do the rotations using bpy.ops.transform.rotate
                 # (Blender now uses Radians. Deal with it.)
