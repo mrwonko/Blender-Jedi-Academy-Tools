@@ -53,7 +53,7 @@ class Operator(bpy.types.Operator):
             scn.frame_start = 0
             scn.frame_end = frames
             scn.frame_current = 0
-            scn.render.fps = 1000/frameDuration  # supposedly read-only?
+            scn.render.fps = int(1000/frameDuration)  # supposedly read-only?
 
             # add keyframe at frame 0 with current position
 
