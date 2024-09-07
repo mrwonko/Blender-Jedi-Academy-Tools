@@ -347,7 +347,6 @@ class Operator(bpy.types.Operator):
             bpy.ops.object.mode_set(mode='OBJECT')
         for object in objects:
             object.toBlender(materials)
-        bpy.context.scene.update()  # since new objects have been linked
 
 
 def menu_func(self, context):
