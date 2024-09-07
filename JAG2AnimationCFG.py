@@ -74,8 +74,8 @@ class AnimationSequence():
         new_frame.name = nla_strip.action.name
         new_frame.start_frame = int(nla_strip.frame_start + offset)
         new_frame.num_frames = int(nla_strip.frame_end - nla_strip.frame_start + length_difference)
-        new_frame.loop = False
-        new_frame.fps = int(fps)
+        new_frame.loop = bool(nla_strip.action.loop_frame)
+        new_frame.fps = int(nla_strip.action.fps)
         return new_frame
 
 

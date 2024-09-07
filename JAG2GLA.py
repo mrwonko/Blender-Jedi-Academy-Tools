@@ -468,6 +468,8 @@ class MdxaAnimation:
 
             for sequenceNum, sequence in enumerate(animations.sequences):
                 action = bpy.data.actions.new(sequence.name)
+                action.loop_frame = sequence.loop
+                action.fps = sequence.fps
                 armature.animation_data.action = action
                 strip = None
                 nla_track_index = 1

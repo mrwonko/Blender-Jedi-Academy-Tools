@@ -85,8 +85,11 @@ def register():
     bpy.utils.register_class(JAAseImport.Operator)
     bpy.utils.register_class(JARoffImport.Operator)
     bpy.utils.register_class(JAG2Panels.G2PropertiesPanel)
+    bpy.utils.register_class(JAG2Panels.G2NLAPropertiesPanel)
+    bpy.utils.register_class(JAG2Panels.G2ActionPropertiesPanel)
 
     JAG2Panels.initG2Properties()
+    JAG2Panels.initSeqenceProperties()
     JAG2Operators.register()
 
     bpy.types.TOPBAR_MT_file_export.append(JAAseExport.menu_func)
@@ -104,6 +107,8 @@ def unregister():
     bpy.utils.unregister_class(JAAseImport.Operator)
     bpy.utils.unregister_class(JARoffImport.Operator)
     bpy.utils.unregister_class(JAG2Panels.G2PropertiesPanel)
+    bpy.utils.unregister_class(JAG2Panels.G2NLAPropertiesPanel)
+    bpy.utils.unregister_class(JAG2Panels.G2ActionPropertiesPanel)
     bpy.utils.unregister_class(JAAddonPreferences)
 
     JAG2Operators.unregister()
