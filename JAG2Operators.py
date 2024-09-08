@@ -69,10 +69,9 @@ class GLMImport(bpy.types.Operator, ImportHelper): # type: ignore
             "Many models try to force you to use the skin. "
             "Enable this to try to circumvent that. "
             "(Usually works well, but skins should be preferred.)")]
-        for index, skin in enumerate(skin_files):
+        for skin in skin_files:
             if skin.endswith("_default.skin"):
                 items.append((skin, skin.split(".")[0], ""))
-                break
         items.append((" ", "None", "Use file internal paths. "))
         
         return items + [(skin, skin.split(".")[0], "")
