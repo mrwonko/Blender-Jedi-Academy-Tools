@@ -19,7 +19,7 @@
 from .mod_reload import reload_modules
 reload_modules(locals(), __package__, ["JAFilesystem", "JAStringhelper"], [".casts", ".error_types"])  # nopep8
 
-from typing import Tuple
+from typing import Optional, Tuple
 from . import JAFilesystem
 from . import JAStringhelper
 from .casts import downcast
@@ -87,7 +87,19 @@ class MaterialManager():
             return mat
 
         mat.use_nodes = True
-        bsdf = mat.node_tree.nodes["Principled BSDF"]
+        # we cannot query the "Principled BSDF" node by name because that only works in English Blender
+        bsdf: Optional[bpy.types.Node] = None
+        for node in mat.node_tree.nodes.values():
+            # so we search by type instead
+            if node.type == 'BSDF_PRINCIPLED':
+                bsdf = node
+                break
+        if bsdf == None:
+            print("Bug: could not find the Principled BSDF node in new material, please report this")
+            # fall back to pink
+            mat.use_nodes = False
+            mat.diffuse_color = (1, 0, 1, 1)
+            return mat
         img = downcast(bpy.types.ShaderNodeTexImage, mat.node_tree.nodes.new('ShaderNodeTexImage'))
         img.image = bpy.data.images.load(path)
         mat.node_tree.links.new(
