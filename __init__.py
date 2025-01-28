@@ -50,15 +50,46 @@ bl_info = {
 JAAseExportOp = JAAseExport.Operator
 
 
+class JAAddonPreferences(bpy.types.AddonPreferences):
+    bl_idname = __name__
+    base_path: bpy.props.StringProperty(
+        name="default base path",
+        description="Path to base folder",
+        default="",
+        subtype="DIR_PATH",
+        maxlen=2048,
+    ) # pyright: ignore [reportInvalidTypeForm]
+
+    scale: bpy.props.FloatProperty(
+        name="default import scale",
+        description="Scale of imported objects in percent",
+        default=10,
+        min = 0,
+        max = 1000
+    ) # pyright: ignore [reportInvalidTypeForm]
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        row = layout.row()
+        row.prop(self, "base_path")
+        row = layout.row()
+        row.prop(self, "scale")
+
+
 def register():
+    bpy.utils.register_class(JAAddonPreferences)
     bpy.utils.register_class(JAAseExport.Operator)
     bpy.utils.register_class(JAPatchExport.Operator)
     bpy.utils.register_class(JARoffExport.Operator)
     bpy.utils.register_class(JAAseImport.Operator)
     bpy.utils.register_class(JARoffImport.Operator)
     bpy.utils.register_class(JAG2Panels.G2PropertiesPanel)
+    bpy.utils.register_class(JAG2Panels.G2NLAPropertiesPanel)
+    bpy.utils.register_class(JAG2Panels.G2ActionPropertiesPanel)
 
     JAG2Panels.initG2Properties()
+    JAG2Panels.initSeqenceProperties()
     JAG2Operators.register()
 
     bpy.types.TOPBAR_MT_file_export.append(JAAseExport.menu_func)
@@ -76,6 +107,9 @@ def unregister():
     bpy.utils.unregister_class(JAAseImport.Operator)
     bpy.utils.unregister_class(JARoffImport.Operator)
     bpy.utils.unregister_class(JAG2Panels.G2PropertiesPanel)
+    bpy.utils.unregister_class(JAG2Panels.G2NLAPropertiesPanel)
+    bpy.utils.unregister_class(JAG2Panels.G2ActionPropertiesPanel)
+    bpy.utils.unregister_class(JAAddonPreferences)
 
     JAG2Operators.unregister()
 
