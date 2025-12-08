@@ -5,22 +5,23 @@
 #  as published by the Free Software Foundation; either version 2
 #  of the License, or (at your option) any later version.
 #
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
 # ##### END GPL LICENSE BLOCK #####
 
-# Main File containing the important definitions
-
 from .mod_reload import reload_modules
-reload_modules(locals(), __package__, ["JAFilesystem", "JAG2Constants", "JAG2GLM", "JAG2GLA"], [".error_types", ".casts"])  # nopep8
+reload_modules(
+    locals(),
+    __package__,
+    [
+        "JAG2Scene",      # <-- REQUIRED FIX (module must reload itself)
+        "JAFilesystem",
+        "JAG2Constants",
+        "JAG2GLM",
+        "JAG2GLA",
+    ],
+    [".error_types", ".casts"]
+)
 
+import bpy
 from typing import Optional, Tuple
 from . import JAFilesystem
 from . import JAG2Constants
@@ -29,16 +30,18 @@ from . import JAG2GLA
 from .error_types import ErrorMessage, NoError
 from .casts import optional_cast
 
-import bpy
 
+# ----------------------------------------------------------
+# Scene Root Helper
+# ----------------------------------------------------------
 
 def findSceneRootObject() -> Optional[bpy.types.Object]:
-    scene_root = None
-    if "scene_root" in bpy.data.objects:
-        # if so, use that
-        scene_root = bpy.data.objects["scene_root"]
-    return scene_root
+    return bpy.data.objects.get("scene_root")
 
+
+# ----------------------------------------------------------
+# Scene Logic
+# ----------------------------------------------------------
 
 class Scene:
 
@@ -48,109 +51,136 @@ class Scene:
         self.glm: Optional[JAG2GLM.GLM] = None
         self.gla: Optional[JAG2GLA.GLA] = None
 
-    # Fills scene from on GLM file
+    # ------------------------------------------------------
+    # Load GLM
+    # ------------------------------------------------------
     def loadFromGLM(self, glm_filepath_rel: str) -> Tuple[bool, ErrorMessage]:
         success, glm_filepath_abs = JAFilesystem.FindFile(
-            glm_filepath_rel, self.basepath, ["glm"])
+            glm_filepath_rel, self.basepath, ["glm"]
+        )
         if not success:
-            print("File not found: ", self.basepath +
-                  glm_filepath_rel + ".glm", sep="")
-            return False, ErrorMessage(f".glm file {glm_filepath_rel} not found in basepath ({self.basepath})")
-        self.glm = JAG2GLM.GLM()
-        success, message = self.glm.loadFromFile(glm_filepath_abs)
-        if not success:
-            return False, message
-        return True, NoError
+            return False, ErrorMessage(f".glm file {glm_filepath_rel} not found in basepath {self.basepath}")
 
-    # Loads scene from on GLA file
-    def loadFromGLA(self, gla_filepath_rel: str, loadAnimations=JAG2GLA.AnimationLoadMode.NONE, startFrame=0, numFrames=1) -> Tuple[bool, ErrorMessage]:
-        # create default skeleton if necessary (doing it here is a bit of a hack)
+        self.glm = JAG2GLM.GLM()
+        return self.glm.loadFromFile(glm_filepath_abs)
+
+    # ------------------------------------------------------
+    # Load GLA
+    # ------------------------------------------------------
+    def loadFromGLA(self, gla_filepath_rel: str,
+                    loadAnimations=JAG2GLA.AnimationLoadMode.NONE,
+                    startFrame=0, numFrames=1) -> Tuple[bool, ErrorMessage]:
+
+        # default skeleton
         if gla_filepath_rel == "*default":
             self.gla = JAG2GLA.GLA()
             self.gla.header.numBones = 1
             self.gla.isDefault = True
             return True, NoError
-        success, gla_filepath_abs = JAFilesystem.FindFile(
-            gla_filepath_rel, self.basepath, ["gla"])
-        if not success:
-            print("File not found: ", self.basepath +
-                  gla_filepath_rel + ".gla", sep="")
-            return False, ErrorMessage(f".gla file {gla_filepath_rel} not found in basepath ({self.basepath})")
-        self.gla = JAG2GLA.GLA()
-        success, message = self.gla.loadFromFile(
-            gla_filepath_abs, loadAnimations, startFrame, numFrames)
-        if not success:
-            return False, message
-        return True, NoError
 
-    # "Loads" model from Blender data
+        success, gla_filepath_abs = JAFilesystem.FindFile(
+            gla_filepath_rel, self.basepath, ["gla"]
+        )
+        if not success:
+            return False, ErrorMessage(f".gla file {gla_filepath_rel} not found in basepath {self.basepath}")
+
+        self.gla = JAG2GLA.GLA()
+        return self.gla.loadFromFile(
+            gla_filepath_abs, loadAnimations, startFrame, numFrames
+        )
+
+    # ------------------------------------------------------
+    # Load Model from Blender
+    # ------------------------------------------------------
     def loadModelFromBlender(self, glm_filepath_rel, gla_filepath_rel):
         self.glm = JAG2GLM.GLM()
-        success, message = self.glm.loadFromBlender(
-            glm_filepath_rel, gla_filepath_rel, self.basepath)
-        if not success:
-            return False, message
-        return True, ""
+        return self.glm.loadFromBlender(
+            glm_filepath_rel, gla_filepath_rel, self.basepath
+        )
 
-    # "Loads" skeleton & animation from Blender data
+    # ------------------------------------------------------
+    # Load Skeleton from Blender
+    # ------------------------------------------------------
     def loadSkeletonFromBlender(self, gla_filepath_rel, gla_reference_rel):
         self.gla = JAG2GLA.GLA()
+
         gla_reference_abs = ""
-        if gla_reference_rel != "":
+        if gla_reference_rel:
             success, gla_reference_abs = JAFilesystem.FindFile(
-                gla_reference_rel, self.basepath, ["gla"])
+                gla_reference_rel, self.basepath, ["gla"]
+            )
             if not success:
                 return False, "Could not find reference GLA"
-        success, message = self.gla.loadFromBlender(
-            gla_filepath_rel, gla_reference_abs)
-        if not success:
-            return False, message
-        return True, ""
 
-    # saves the model to a .glm file
+        success, message = self.gla.loadFromBlender(
+            gla_filepath_rel, gla_reference_abs
+        )
+        return success, message
+
+    # ------------------------------------------------------
+    # Save GLM
+    # ------------------------------------------------------
     def saveToGLM(self, glm_filepath_rel):
         glm_filepath_abs = JAFilesystem.AbsPath(
-            glm_filepath_rel, self.basepath) + ".glm"
-        success, message = optional_cast(JAG2GLM.GLM, self.glm).saveToFile(glm_filepath_abs)
-        if not success:
-            return False, message
-        return True, ""
+            glm_filepath_rel, self.basepath
+        ) + ".glm"
 
-    # saves the skeleton & animations to a .gla file
+        return optional_cast(JAG2GLM.GLM, self.glm).saveToFile(glm_filepath_abs)
+
+    # ------------------------------------------------------
+    # Save GLA
+    # ------------------------------------------------------
     def saveToGLA(self, gla_filepath_rel):
         gla_filepath_abs = JAFilesystem.AbsPath(
-            gla_filepath_rel, self.basepath) + ".gla"
-        success, message = optional_cast(JAG2GLA.GLA, self.gla).saveToFile(gla_filepath_abs)
-        if not success:
-            return False, message
-        return True, ""
+            gla_filepath_rel, self.basepath
+        ) + ".gla"
 
-    # "saves" the scene to blender
-    # skeletonFixes is an enum with possible skeleton fixes - e.g. 'JKA' for connection- and
-    def saveToBlender(self, scale, skin_rel, guessTextures: bool, useAnimation: bool, skeletonFixes: JAG2Constants.SkeletonFixes) -> Tuple[bool, ErrorMessage]:
-        # is there already a scene root in blender?
+        return optional_cast(JAG2GLA.GLA, self.gla).saveToFile(gla_filepath_abs)
+
+    # ------------------------------------------------------
+    # Save Scene to Blender
+    # ------------------------------------------------------
+    def saveToBlender(self, scale, skin_rel, guessTextures: bool,
+                      useAnimation: bool,
+                      skeletonFixes: JAG2Constants.SkeletonFixes
+                      ) -> Tuple[bool, ErrorMessage]:
+
         scene_root = findSceneRootObject()
+
         if scene_root:
-            # make sure it's linked to the current scene
-            if not "scene_root" in bpy.context.scene.collection.objects:
-                bpy.context.scene.collection.objects.link(scene_root)
+            # ensure linked to ACTIVE collection
+            coll = bpy.context.view_layer.active_layer_collection.collection
+            if scene_root.name not in coll.objects:
+                coll.objects.link(scene_root)
         else:
-            # create it otherwise
             scene_root = bpy.data.objects.new("scene_root", None)
             scene_root.scale = (scale, scale, scale)
-            bpy.context.scene.collection.objects.link(scene_root)
-        # there's always a skeleton (even if it's *default)
+            bpy.context.view_layer.active_layer_collection.collection.objects.link(scene_root)
+
+        # Save GLA first
         success, message = optional_cast(JAG2GLA.GLA, self.gla).saveToBlender(
-            scene_root, useAnimation, skeletonFixes)
+            scene_root, useAnimation, skeletonFixes
+        )
         if not success:
             return False, message
+
+        # Save GLM if it exists
         if self.glm:
             success, message = self.glm.saveToBlender(
-                self.basepath, optional_cast(JAG2GLA.GLA, self.gla), scene_root, skin_rel, guessTextures)
+                self.basepath,
+                optional_cast(JAG2GLA.GLA, self.gla),
+                scene_root,
+                skin_rel,
+                guessTextures
+            )
             if not success:
                 return False, message
+
         return True, NoError
 
-    # returns the relative path of the gla file referenced in the glm header
+    # ------------------------------------------------------
+    # Return GLA Path from GLM Header
+    # ------------------------------------------------------
     def getRequestedGLA(self) -> str:
         return optional_cast(JAG2GLM.GLM, self.glm).getRequestedGLA()
+

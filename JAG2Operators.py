@@ -20,12 +20,13 @@ from .mod_reload import reload_modules
 reload_modules(locals(), __package__, ["JAG2Scene", "JAG2GLA", "JAFilesystem"], [".JAG2Constants"])  # nopep8
 
 import bpy
-from typing import Tuple, cast
+from typing import Tuple, Set, Literal, cast
 from . import JAG2Scene
 from . import JAG2GLA
 from . import JAFilesystem
 from .JAG2Constants import SkeletonFixes
 
+OperatorReturn = Set[Literal['FINISHED', 'CANCELLED']]
 
 def GetPaths(basepath, filepath) -> Tuple[str, str]:
     if basepath == "":
@@ -71,12 +72,16 @@ class GLMImport(bpy.types.Operator):
         name="Start frame", description="If only a range of frames of the animation is to be imported, this is the first.", min=0)  # pyright: ignore [reportInvalidTypeForm]
     numFrames: bpy.props.IntProperty(
         name="number of frames", description="If only a range of frames of the animation is to be imported, this is the total number of frames to import", min=1)  # pyright: ignore [reportInvalidTypeForm]
+    filter_glob: bpy.props.StringProperty(
+        default="*.glm",
+        options={'HIDDEN'}
+    )
 
     def execute(self, context):
         print("\n== GLM Import ==\n")
         # initialize paths
         basepath, filepath = GetPaths(self.basepath, self.filepath)
-        if self.basepath != "" and JAFilesystem.RemoveExtension(self.filepath) == filepath:
+        if self.basepath and JAFilesystem.RemoveExtension(self.filepath) == filepath:
             self.report({'ERROR'}, "Invalid Base Path")
             return {'FINISHED'}
         # de-percentagionise scale
@@ -122,7 +127,7 @@ class GLAImport(bpy.types.Operator):
     bl_description = "Imports a Ghoul 2 skeleton (.gla) and optionally the animation."
     bl_options = {'REGISTER', 'UNDO'}
 
-    filename_ext = "*.gla"  # I believe this limits the shown files.
+    filename_ext = ".gla"  # I believe this limits the shown files.
 
     # properties
     filepath: bpy.props.StringProperty(
@@ -145,6 +150,10 @@ class GLAImport(bpy.types.Operator):
         name="Start frame", description="If only a range of frames of the animation is to be imported, this is the first.", min=0)  # pyright: ignore [reportInvalidTypeForm]
     numFrames: bpy.props.IntProperty(
         name="number of frames", description="If only a range of frames of the animation is to be imported, this is the total number of frames to import", min=1)  # pyright: ignore [reportInvalidTypeForm]
+    filter_glob: bpy.props.StringProperty(
+        default="*.gla",
+        options={'HIDDEN'}
+    )
 
     def execute(self, context):
         print("\n== GLA Import ==\n")
@@ -183,7 +192,7 @@ class GLMExport(bpy.types.Operator):
     bl_description = "Exports a Ghoul 2 model (.glm)"
     bl_options = {'REGISTER', 'UNDO'}
 
-    filename_ext = "*.glm"
+    filename_ext = ".glm"
 
     # properties
     filepath: bpy.props.StringProperty(
@@ -192,6 +201,11 @@ class GLMExport(bpy.types.Operator):
         name="Base Path", description="The base folder relative to which paths should be interpreted. Leave empty to let the exporter guess (needs /GameData/ in filepath).", default="")  # pyright: ignore [reportInvalidTypeForm]
     gla: bpy.props.StringProperty(
         name=".gla name", description="Name of the skeleton this model uses (must exist!)", default="models/players/_humanoid/_humanoid")  # pyright: ignore [reportInvalidTypeForm]
+    filter_glob: bpy.props.StringProperty(
+        default="*.glm",
+        options={'HIDDEN'}
+    )
+
 
     def execute(self, context):
         print("\n== GLM Export ==\n")
@@ -225,7 +239,7 @@ class GLAExport(bpy.types.Operator):
     bl_description = "Exports a Ghoul 2 Skeleton and its animations (.gla)"
     bl_options = {'REGISTER', 'UNDO'}
 
-    filename_ext = "*.gla"
+    filename_ext = ".gla"
 
     # properties
     filepath: bpy.props.StringProperty(
@@ -236,6 +250,11 @@ class GLAExport(bpy.types.Operator):
         name="gla name", description="The relative path of this gla. Leave empty to let the exporter guess (needs /GameData/ in filepath).", maxlen=64, default="")  # pyright: ignore [reportInvalidTypeForm]
     glareference: bpy.props.StringProperty(
         name="gla reference", description="Copies the bone indices from this skeleton, if any (e.g. for new animations for existing skeleton; path relative to the Base Path)", maxlen=64, default="")  # pyright: ignore [reportInvalidTypeForm]
+    filter_glob: bpy.props.StringProperty(
+        default="*.gla",
+        options={'HIDDEN'}
+    )
+
 
     def execute(self, context):
         print("\n== GLA Export ==\n")
@@ -269,32 +288,43 @@ class GLAExport(bpy.types.Operator):
         return {'RUNNING_MODAL'}
 
 
+
 class ObjectAddG2Properties(bpy.types.Operator):
     bl_idname = "object.add_g2_properties"
     bl_label = "Add G2 properties"
     bl_description = "Adds Ghoul 2 properties"
-
+    
     @classmethod
     def poll(cls, context):
-        return context.active_object and context.active_object.type in ['MESH', 'ARMATURE'] or False
-
-    def execute(self, context):
         obj = context.active_object
+        return obj is not None and obj.type in {'MESH', 'ARMATURE'}
+
+    def execute(self, context) -> OperatorReturn:
+        obj = context.active_object
+        props = obj.g2_props   # Always exists (PointerProperty)
+
+        # MESH-type properties
         if obj.type == 'MESH':
-            # don't overwrite those that already exist
-            if not "g2_prop_off" in obj:
-                obj.g2_prop_off = False  # pyright: ignore [reportAttributeAccessIssue]
-            if not "g2_prop_tag" in obj:
-                obj.g2_prop_tag = False  # pyright: ignore [reportAttributeAccessIssue]
-            if not "g2_prop_name" in obj:
-                obj.g2_prop_name = ""  # pyright: ignore [reportAttributeAccessIssue]
-            if not "g2_prop_shader" in obj:
-                obj.g2_prop_shader = ""  # pyright: ignore [reportAttributeAccessIssue]
-        else:
-            assert (obj.type == 'ARMATURE')
-            if not "g2_prop_scale" in obj:
-                obj.g2_prop_scale = 100  # pyright: ignore [reportAttributeAccessIssue]
+            # Set defaults only if still empty
+            if props.name == "":
+                props.name = ""
+            if props.shader == "":
+                props.shader = ""
+            # Booleans default to False automatically
+            # props.off and props.tag already default to False
+
+        # ARMATURE-type property
+        elif obj.type == 'ARMATURE':
+            if props.scale == 0:
+                props.scale = 100
+
+        # Force UI refresh so the panel updates immediately
+        obj.update_tag(refresh={'OBJECT'})
+        bpy.context.view_layer.update()
+
         return {'FINISHED'}
+
+
 
 
 class ObjectRemoveG2Properties(bpy.types.Operator):
@@ -304,19 +334,29 @@ class ObjectRemoveG2Properties(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return context.active_object and context.active_object.type in ['MESH', 'ARMATURE'] or False
+        obj = context.active_object
+        return obj is not None and obj.type in {'MESH', 'ARMATURE'}
 
     def execute(self, context):
         obj = context.active_object
+        props = obj.g2_props
+
+        # Reset all values depending on object type
         if obj.type == 'MESH':
-            bpy.types.Object.__delitem__(obj, "g2_prop_off")
-            bpy.types.Object.__delitem__(obj, "g2_prop_tag")
-            bpy.types.Object.__delitem__(obj, "g2_prop_name")
-            bpy.types.Object.__delitem__(obj, "g2_prop_shader")
-        else:
-            assert (obj.type == 'ARMATURE')
-            bpy.types.Object.__delitem__(obj, "g2_prop_scale")
+            props.off = False
+            props.tag = False
+            props.name = ""
+            props.shader = ""
+
+        elif obj.type == 'ARMATURE':
+            props.scale = 100
+
+        # UI refresh so changes show immediately
+        obj.update_tag(refresh={'OBJECT'})
+        bpy.context.view_layer.update()
+
         return {'FINISHED'}
+
 
 
 class GLAMetaExport(bpy.types.Operator):
@@ -326,7 +366,7 @@ class GLAMetaExport(bpy.types.Operator):
     bl_description = "Exports timeline markers labelling the animations to a .cfg file"
     bl_options = {'REGISTER', 'UNDO'}
 
-    filename_ext = "*.cfg"
+    filename_ext = ".cfg"
 
     # properties
     filepath: bpy.props.StringProperty(
@@ -417,35 +457,33 @@ def menu_func_import_gla(self, context):
 
 # menu button init/destroy
 
-
 def register():
+    # import/export operators
     bpy.utils.register_class(GLMExport)
     bpy.utils.register_class(GLAExport)
     bpy.utils.register_class(GLAMetaExport)
     bpy.utils.register_class(GLMImport)
     bpy.utils.register_class(GLAImport)
 
-    bpy.utils.register_class(ObjectAddG2Properties)
-    bpy.utils.register_class(ObjectRemoveG2Properties)
-
+    # menus
     bpy.types.TOPBAR_MT_file_export.append(menu_func_export_glm)
     bpy.types.TOPBAR_MT_file_export.append(menu_func_export_gla)
     bpy.types.TOPBAR_MT_file_export.append(menu_func_export_gla_meta)
     bpy.types.TOPBAR_MT_file_import.append(menu_func_import_glm)
     bpy.types.TOPBAR_MT_file_import.append(menu_func_import_gla)
 
-
 def unregister():
+
+    # unregister import/export
     bpy.utils.unregister_class(GLMExport)
     bpy.utils.unregister_class(GLAExport)
     bpy.utils.unregister_class(GLAMetaExport)
     bpy.utils.unregister_class(GLMImport)
     bpy.utils.unregister_class(GLAImport)
 
-    bpy.utils.unregister_class(ObjectAddG2Properties)
-    bpy.utils.unregister_class(ObjectRemoveG2Properties)
-
+    # remove menus
     bpy.types.TOPBAR_MT_file_export.remove(menu_func_export_glm)
     bpy.types.TOPBAR_MT_file_export.remove(menu_func_export_gla)
+    bpy.types.TOPBAR_MT_file_export.remove(menu_func_export_gla_meta)
     bpy.types.TOPBAR_MT_file_import.remove(menu_func_import_glm)
     bpy.types.TOPBAR_MT_file_import.remove(menu_func_import_gla)
