@@ -79,13 +79,13 @@ class GetBoneWeightException(Exception):
 
 def getBoneWeights(vertex: bpy.types.MeshVertex, meshObject: bpy.types.Object, armatureObject: bpy.types.Object, maxBones: int = -1):
     # find the armature modifier
-    modifier = None
+    modifier: Optional[bpy.types.ArmatureModifier] = None
     for mod in meshObject.modifiers:
         if mod.type == 'ARMATURE':
             if modifier != None:
                 raise GetBoneWeightException(
                     f"Multiple armature modifiers on {meshObject.name}!")
-            modifier = mod
+            modifier = cast(bpy.types.ArmatureModifier, mod)
     if modifier == None:
         raise GetBoneWeightException(
             f"{meshObject.name} has no armature modifier!")
@@ -428,7 +428,7 @@ class MdxmVertex:
     # vertex :: Blender MeshVertex
     # uv :: [int, int] (blender style, will be y-flipped)
     # boneIndices :: { string -> int } (bone name -> index, may be changed)
-    def loadFromBlender(self, vertex: bpy.types.MeshVertex, uv: List[float], normal: mathutils.Vector, boneIndices: Dict[str, int], meshObject: bpy.types.Object, armatureObject: Optional[bpy.types.Object]) -> Tuple[bool, ErrorMessage]:
+    def loadFromBlender(self, vertex: bpy.types.MeshVertex, uv: mathutils.Vector, normal: mathutils.Vector, boneIndices: Dict[str, int], meshObject: bpy.types.Object, armatureObject: Optional[bpy.types.Object]) -> Tuple[bool, ErrorMessage]:
         for i in range(3):
             self.co.append(vertex.co[i])
             self.normal.append(normal[i])
@@ -569,7 +569,7 @@ class MdxmSurface:
                 vi = bpy_generic_cast(bpy.types.MeshVertex, vi)
                 vert = MdxmVertex()
                 success, message = vert.loadFromBlender(
-                    vi, [0, 0], mathutils.Vector(), boneIndices, object, armatureObject)
+                    vi, mathutils.Vector(), mathutils.Vector(), boneIndices, object, armatureObject)
                 if not success:
                     return False, ErrorMessage(f"Mesh {mesh.name} has invalid vertex: {message}")
                 self.vertices.append(vert)
@@ -582,39 +582,41 @@ class MdxmSurface:
         # This is not a tag, do normal things
         else:
 
-            uv_layer = mesh.uv_layers.active
-            if (not uv_layer or not (uv_layer_data := uv_layer.data)) and len(mesh.polygons) > 0:
-                return False, ErrorMessage("No UV coordinates found!")
             
+
             mesh.calc_loop_triangles()
-            vertexmap = {}
-            for triangle in mesh.loop_triangles:
-                indices = []
-                for vert_id, loop_id in zip(triangle.vertices, triangle.loops):
-                    vert = bpy_generic_cast(bpy.types.MeshVertex, mesh.vertices[vert_id])
-                    loop = bpy_generic_cast(bpy.types.MeshLoop, mesh.loops[loop_id])
-                    uv = uv_layer_data[loop.index].uv
-                    normal = vector_overload_cast(loop.normal if mesh.has_custom_normals else vert.normal)
+            if (not (uv_layer := mesh.uv_layers.active) or not (uv_layer_data := uv_layer.data)):
+                if len(mesh.loop_triangles) > 0:
+                    return False, ErrorMessage("No UV coordinates found!")
+            else:
+                vertexmap = {}
+                for triangle in mesh.loop_triangles:
+                    indices = []
+                    for vert_id, loop_id in zip(triangle.vertices, triangle.loops):
+                        vert = bpy_generic_cast(bpy.types.MeshVertex, mesh.vertices[vert_id])
+                        loop = bpy_generic_cast(bpy.types.MeshLoop, mesh.loops[loop_id])
+                        uv = uv_layer_data[loop.index].uv
+                        normal = vector_overload_cast(loop.normal if mesh.has_custom_normals else vert.normal)
 
-                    hash_tuple = (vert_id, *uv, *normal)
-                    if hash_tuple in vertexmap:
-                        indices.append(vertexmap[hash_tuple])
-                    else:
-                        vertex = MdxmVertex()
-                        success, message = vertex.loadFromBlender(
-                            vert, uv, normal, boneIndices, object, armatureObject)
-                        if not success:
-                            return False, ErrorMessage(f"Surface has invalid vertex: {message}")
-                        vertexmap[hash_tuple] = len(vertexmap)
-                        self.vertices.append(vertex)
-                        indices.append(vertexmap[hash_tuple])
-                self.triangles.append(MdxmTriangle(indices))
+                        hash_tuple = (vert_id, *uv, *normal)
+                        if hash_tuple in vertexmap:
+                            indices.append(vertexmap[hash_tuple])
+                        else:
+                            vertex = MdxmVertex()
+                            success, message = vertex.loadFromBlender(
+                                vert, uv, normal, boneIndices, object, armatureObject)
+                            if not success:
+                                return False, ErrorMessage(f"Surface has invalid vertex: {message}")
+                            vertexmap[hash_tuple] = len(vertexmap)
+                            self.vertices.append(vertex)
+                            indices.append(vertexmap[hash_tuple])
+                    self.triangles.append(MdxmTriangle(indices))
 
-            self.numVerts = len(vertexmap)
-            self.numTriangles = len(mesh.loop_triangles)
+                self.numVerts = len(vertexmap)
+                self.numTriangles = len(mesh.loop_triangles)
 
-            if self.numVerts > 1000:
-                print(f"Warning: {object.name} has over 1000 vertices ({self.numVerts})")
+                if self.numVerts > 1000:
+                    print(f"Warning: {object.name} has over 1000 vertices ({self.numVerts})")
 
         assert (len(self.vertices) == self.numVerts)
         assert (len(self.triangles) == self.numTriangles)
@@ -744,10 +746,14 @@ class MdxmSurface:
                         [vertIndex], vert.weights[weightIndex], 'ADD')
 
         # link object to scene
-        bpy.context.scene.collection.objects.link(obj)
+        if (scene := bpy.context.scene) is None:
+            raise Exception("No active Scene")
+        scene.collection.objects.link(obj)
 
         # make object active - needed for this smoothing operator and possibly for material adding later
-        bpy.context.view_layer.objects.active = obj
+        if (view_layer := bpy.context.view_layer) is None:
+            raise Exception("No active View Layer")
+        view_layer.objects.active = obj
 
         # set ghoul2 specific properties
         obj.g2_prop.name = name  # pyright: ignore [reportAttributeAccessIssue]
@@ -934,7 +940,9 @@ class MdxmLODCollection:
         for i, LOD in enumerate(self.LODs):
             root = bpy.data.objects.new("model_root_" + str(i), None)
             root.parent = data.scene_root
-            bpy.context.scene.collection.objects.link(root)
+            if (scene := bpy.context.scene) is None:
+                raise Exception("No active Scene")
+            scene.collection.objects.link(root)
             LOD.saveToBlender(data, root)
 
     def getSize(self):
