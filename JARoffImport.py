@@ -1,7 +1,10 @@
+from .mod_reload import reload_modules
+reload_modules(locals(), __package__, [], [".bpy_internal_stubs"])  # nopep8
+
 import bpy
 import math
 import struct
-from bpy_internal_stubs import OperatorReturnItems
+from .bpy_internal_stubs import OperatorReturnItems
 
 ### The ROFF Import operator ###
 
