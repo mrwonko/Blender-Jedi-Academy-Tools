@@ -100,9 +100,14 @@ def getBoneWeights(vertex: bpy.types.MeshVertex, meshObject: bpy.types.Object, a
             group = bpy_generic_cast(bpy.types.VertexGroupElement, group)
             weight = group.weight
             index = group.group
-            name = meshObject.vertex_groups[index].name
-            if weight > 0 and name in armature.bones:
-                weights[name] = weight
+
+            # Ensure the index is within bounds
+            if index < len(meshObject.vertex_groups):  
+                name = meshObject.vertex_groups[index].name
+                if weight > 0 and name in armature.bones:
+                    weights[name] = weight
+            else:
+                print(f"Warning: Vertex group index {index} out of range (max {len(meshObject.vertex_groups)-1}) in object: {meshObject.name}")
 
     # if there are vertex group weights, envelopes are ignored
     if len(weights) == 0 and modifier.use_bone_envelopes:
