@@ -160,18 +160,18 @@ class AnimationCFG():
 
         blender_strips: List[Tuple[bpy.types.NlaStrip, int]] = []
         for nla_track in [track for track in skeleton_object.animation_data.nla_tracks]:
-            length_differnce = 0 if nla_track.name.startswith("Stills Layer") else 1
+            length_difference = 0 if nla_track.name.startswith("Stills Layer") else 1
             for nla_strip in [strip for strip in nla_track.strips if strip.frame_start >= start_frame and strip.frame_start <= end_frame]:
-                blender_strips.append((nla_strip, length_differnce))
+                blender_strips.append((nla_strip, length_difference))
         blender_strips.sort(key=lambda strip: strip[0].frame_start)
 
         if len(blender_strips) == 0:
             return False, ErrorMessage("No NLA strips found! Add animation strips to label animations.")
 
-        for strip, length_differnce in blender_strips:
+        for strip, length_difference in blender_strips:
             self.sequences.append(AnimationSequence().from_blender_strip(
                 strip,
-                length_differnce,
+                length_difference,
                 base_fps,
                 offset
             ))
