@@ -97,12 +97,6 @@ class G2PropertiesPanel(bpy.types.Panel):
             layout.operator("object.remove_g2_properties")
             layout.prop(props, "scale")
 
-                row = layout.row()
-                row.prop(obj, "g2_prop_scale")
-            else:
-                row = layout.row()
-                row.operator("object.add_g2_properties")
-
 class G2NLAPropertiesPanel(bpy.types.Panel):
     bl_label = "GLA Animation Properties"
     bl_idname = "STRIP_PT_g2sequence_props"
