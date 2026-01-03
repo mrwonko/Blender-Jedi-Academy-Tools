@@ -16,7 +16,7 @@ class Operator(bpy.types.Operator):
 
     # gets set by the file select window - internal Blender Magic or whatever.
     filepath: bpy.props.StringProperty(
-        name="File Path", description="File path used for importing the ASE file", maxlen=1024, default="")  # type: ignore
+        name="File Path", description="File path used for importing the ASE file", maxlen=1024, default="", subtype='FILE_PATH')  # type: ignore
 
     def execute(self, context):  # pyright: ignore [reportIncompatibleMethodOverride]
         self.ImportStart()
