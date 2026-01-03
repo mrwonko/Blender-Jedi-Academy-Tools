@@ -48,7 +48,7 @@ def hasG2MeshProperties(obj):
     return hasattr(obj, "g2_prop") and obj.g2_prop is not None
 
 
-def initSeqenceProperties() -> None:
+def initSequenceProperties() -> None:
     # TODO probably handle these custom properties more like the G2Props?
     bpy.types.Action.loop_frame = bpy.props.BoolProperty(
         name="Loop", default=False, description="Whether this squence will loop")
@@ -152,7 +152,7 @@ def register():
         bpy.utils.register_class(cls)
 
     bpy.types.Object.g2_prop = PointerProperty(type=G2Props)
-    initSeqenceProperties()
+    initSequenceProperties()
 
 
 def unregister():
