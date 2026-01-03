@@ -13,9 +13,10 @@ U = TypeVar('U')
 def optional_cast(t: Type[T], v: Optional[T]) -> T:
     """
     A cast used to turn Optional[T] into T.
-    This is a code smell. Where this is needed, the code should be restructured,
-    so that it is no longer needed. It's a result from mutability overuse.
-    TODO: remove all optional_casts
+    This is a code smell. Where possible, just improve the typing.
+    One acceptable use case are Panels. Their draw() function is only called when poll() returns true.
+    So any None-checks performed in poll() can be assumed to have succeeded in draw().
+    TODO: remove all non-Panel optional_casts
     """
     return cast(t, v)
 
