@@ -2,7 +2,7 @@
 from .mod_reload import reload_modules
 reload_modules(locals(), __package__, [], [".casts"])  # nopep8
 
-from .casts import bpy_generic_cast, optional_cast
+from .casts import optional_cast
 
 from typing import List
 import bpy
@@ -249,7 +249,6 @@ class Operator(bpy.types.Operator):
                 # FIXME "Argument of type "slice" cannot be assigned to parameter "key" of type" -> I should probably drop the [:]?
                 uv_loops = optional_cast(bpy.types.MeshUVLoopLayer, mesh.uv_layers.active).data[:]
                 for poly, tface in zip(mesh.polygons, self.tfaces):
-                    poly = bpy_generic_cast(bpy.types.MeshPolygon, poly)
                     for ofs, tvertIndex in enumerate(tface):
                         tvert = None
                         try:

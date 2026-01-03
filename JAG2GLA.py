@@ -24,7 +24,7 @@ from . import JAG2Constants
 from . import JAG2Math
 from . import JAG2AnimationCFG
 from . import MrwProfiler
-from .casts import optional_cast, downcast, bpy_generic_cast, matrix_getter_cast, matrix_overload_cast, vector_getter_cast
+from .casts import optional_cast, downcast, union_cast
 from .error_types import ErrorMessage, NoError, ensureListIsGapless
 
 from typing import BinaryIO, Dict, List, Optional, Tuple
@@ -145,7 +145,7 @@ class MdxaBone:
             parent.children.append(self.index)
 
         # save (inverted) base pose matrix
-        mat = matrix_overload_cast(objLocalMat @ matrix_getter_cast(editbone.matrix))
+        mat = objLocalMat @ editbone.matrix
         # must not be used for blender-internal calculations anymore!
         JAG2Math.BlenderBoneRotToGLA(mat)
         matInv = mat.inverted()
@@ -161,7 +161,7 @@ class MdxaBone:
 
         # set position
         mat = self.basePoseMat.toBlender()
-        pos = mathutils.Vector(mat.translation)
+        pos = mat.translation
         bone.head = pos
         # head is offset a bit.
         # X points towards next bone.
@@ -199,7 +199,7 @@ class MdxaBone:
             if numParentChildren == 1 or self.name in JAG2Constants.PRIORITY_BONES[skeletonFixes]:
                 # but only if that doesn't rotate the bone (much)
                 # so calculate the directions...
-                oldDir = vector_getter_cast(blenderParent.tail) - vector_getter_cast(blenderParent.head)
+                oldDir = blenderParent.tail - blenderParent.head
                 newDir = pos - blenderParent.head
                 oldDir.normalize()
                 newDir.normalize()
@@ -514,11 +514,11 @@ class MdxaAnimation:
                         offset = downcast(List[JAG2Math.CompBone], self.bonePool.bones)[bonePoolIndex].matrix
                         # turn into absolute offset matrix (already is if this is top level bone)
                         if mdxaBone.parent != -1:
-                            offset = matrix_overload_cast(offsets[mdxaBone.parent] @ offset)
+                            offset = offsets[mdxaBone.parent] @ offset
                         # save this absolute offset for use by children
                         offsets[index] = offset
                         # calculate the actual position
-                        transformation = matrix_overload_cast(offset @ basePoses[index])
+                        transformation = offset @ basePoses[index]
                         # flip axes as required for blender bone
                         JAG2Math.GLABoneRotToBlender(transformation)
 
@@ -561,11 +561,11 @@ class MdxaAnimation:
                     offset = downcast(List[JAG2Math.CompBone], self.bonePool.bones)[bonePoolIndex].matrix
                     # turn into absolute offset matrix (already is if this is top level bone)
                     if mdxaBone.parent != -1:
-                        offset = matrix_overload_cast(offsets[mdxaBone.parent] @ offset)
+                        offset = offsets[mdxaBone.parent] @ offset
                     # save this absolute offset for use by children
                     offsets[index] = offset
                     # calculate the actual position
-                    transformation = matrix_overload_cast(offset @ basePoses[index])
+                    transformation = offset @ basePoses[index]
                     # flip axes as required for blender bone
                     JAG2Math.GLABoneRotToBlender(transformation)
 
@@ -652,7 +652,7 @@ class GLA:
         # find skeleton_root
         if not "skeleton_root" in bpy.data.objects:
             return False, ErrorMessage("No skeleton_root object found!")
-        skeleton_object = bpy_generic_cast(bpy.types.Object, bpy.data.objects["skeleton_root"])
+        skeleton_object = bpy.data.objects["skeleton_root"]
         self.skeleton_object = skeleton_object
         if self.skeleton_object.type != 'ARMATURE':
             return False, ErrorMessage("skeleton_root is no Armature!")
@@ -665,7 +665,7 @@ class GLA:
         self.skeleton_object.hide_viewport = False
 
         # in case of rescaled/moved skeleton object: get transformation (assuming we're a child of scene_root)
-        localMat = matrix_getter_cast(self.skeleton_object.matrix_local)
+        localMat = self.skeleton_object.matrix_local
 
         # if there's a reference GLA (for bone indices), load that
         if gla_reference_abs != "":
@@ -700,7 +700,7 @@ class GLA:
             bpy.ops.object.mode_set(mode='EDIT')
 
             # populate bone hierarchy
-            bonesToAdd = [bpy_generic_cast(bpy.types.EditBone, bone) for bone in self.skeleton_armature.edit_bones]
+            bonesToAdd = self.skeleton_armature.edit_bones[:]
             while len(bonesToAdd) > 0:
                 addedSomething = False
                 newBonesToAdd = []
@@ -776,28 +776,29 @@ class GLA:
                 newUnprocessed: List[int] = []
                 for index in unprocessed:
                     bone = self.skeleton.bones[index]
-                    basebone = bpy_generic_cast(bpy.types.Bone, self.skeleton_armature.bones[bone.name])
-                    posebone = bpy_generic_cast(bpy.types.PoseBone, self.skeleton_object.pose.bones[bone.name])
+                    basebone = self.skeleton_armature.bones[bone.name]
+                    posebone = self.skeleton_object.pose.bones[bone.name]
 
-                    basePoseMat = matrix_overload_cast(localMat @ matrix_getter_cast(basebone.matrix_local))
-                    poseMat = matrix_overload_cast(localMat @ matrix_getter_cast(posebone.matrix))
+                    basePoseMat = localMat @ basebone.matrix_local
+                    poseMat = localMat @ posebone.matrix
 
                     # change rotation axes from blender style to gla style
                     JAG2Math.BlenderBoneRotToGLA(basePoseMat)
                     JAG2Math.BlenderBoneRotToGLA(poseMat)
                     if bone.parent == -1:
-                        relativeBoneOffsets[index] = absoluteBoneOffsets[index] = matrix_overload_cast(poseMat @ basePoseMat.inverted())
+                        relativeBoneOffsets[index] = absoluteBoneOffsets[index] = poseMat @ basePoseMat.inverted()
 
                         progressed = True
 
                     elif bone.parent not in unprocessed:
                         # just what the if checks
-                        assert absoluteBoneOffsets[bone.parent] is not None
+                        assert (absoluteParentOffset := absoluteBoneOffsets[bone.parent]) is not None
+                        assert (relativeOffset := relativeBoneOffsets[index]) is not None
                         # each offset should only be calculated once.
                         assert absoluteBoneOffsets[index] is None
 
-                        relativeBoneOffsets[index] = matrix_overload_cast(optional_cast(mathutils.Matrix, absoluteBoneOffsets[bone.parent]).inverted() @ matrix_overload_cast(poseMat @ basePoseMat.inverted()))
-                        absoluteBoneOffsets[index] = matrix_overload_cast(optional_cast(mathutils.Matrix, absoluteBoneOffsets[bone.parent]) @ optional_cast(mathutils.Matrix, relativeBoneOffsets[index]))
+                        relativeBoneOffsets[index] = absoluteParentOffset.inverted() @ poseMat @ basePoseMat.inverted()
+                        absoluteBoneOffsets[index] = absoluteParentOffset @ relativeOffset
 
                         progressed = True
 
@@ -865,10 +866,10 @@ class GLA:
         # first check if there's already an armature object called skeleton_root. Try using that.
         if "skeleton_root" in bpy.data.objects:
             print("Found a skeleton_root object, trying to use it.")
-            self.skeleton_object = bpy_generic_cast(bpy.types.Object, bpy.data.objects["skeleton_root"])
+            self.skeleton_object = bpy.data.objects["skeleton_root"]
             if self.skeleton_object.type != 'ARMATURE':
                 return False, ErrorMessage("Existing skeleton_root object is no armature!")
-            self.skeleton_armature = bpy_generic_cast(bpy.types.Armature, self.skeleton_object.data)
+            self.skeleton_armature = union_cast(bpy.types.Armature, self.skeleton_object.data)
             self.skeleton_object.g2_prop.scale = self.header.scale * 100
         # If there's no skeleton, there may yet still be an armature. Use that.
         elif "skeleton_root" in bpy.data.armatures:

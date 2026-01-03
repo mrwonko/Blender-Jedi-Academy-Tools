@@ -30,7 +30,7 @@ from . import JAG2GLA
 from . import JAMaterialmanager
 from . import MrwProfiler
 from . import JAG2Panels
-from .casts import optional_cast, downcast, bpy_generic_cast, unpack_cast, matrix_getter_cast, matrix_overload_cast, vector_getter_cast, vector_overload_cast
+from .casts import optional_cast, downcast, union_cast, unpack_cast
 from .error_types import ErrorMessage, NoError, ensureListIsGapless
 
 import bpy
@@ -97,7 +97,6 @@ def getBoneWeights(vertex: bpy.types.MeshVertex, meshObject: bpy.types.Object, a
     # vertex groups take priority
     if modifier.use_vertex_groups:
         for group in vertex.groups:
-            group = bpy_generic_cast(bpy.types.VertexGroupElement, group)
             weight = group.weight
             index = group.group
 
@@ -111,11 +110,10 @@ def getBoneWeights(vertex: bpy.types.MeshVertex, meshObject: bpy.types.Object, a
 
     # if there are vertex group weights, envelopes are ignored
     if len(weights) == 0 and modifier.use_bone_envelopes:
-        rootMat = matrix_getter_cast(bpy_generic_cast(bpy.types.Object, bpy.data.objects["scene_root"]).matrix_world)
-        world_space_pos = rootMat @ vector_getter_cast(vertex.co)
-        co_armaspace = vector_overload_cast(matrix_getter_cast(armatureObject.matrix_world).inverted() @ world_space_pos)
+        rootMat = bpy.data.objects["scene_root"].matrix_world
+        world_space_pos = rootMat @ vertex.co
+        co_armaspace = armatureObject.matrix_world.inverted() @ world_space_pos
         for bone in armature.bones:
-            bone = bpy_generic_cast(bpy.types.Bone, bone)
             weight = bone.evaluate_envelope(co_armaspace)
             if weight > 0:
                 weights[bone.name] = weight
@@ -554,8 +552,8 @@ class MdxmSurface:
             bpy.context.evaluated_depsgraph_get())).to_mesh()
         
         # Do all the transforms now
-        rootMat = matrix_getter_cast(bpy_generic_cast(bpy.types.Object, bpy.data.objects["scene_root"]).matrix_world).inverted()
-        mesh.transform(matrix_overload_cast(rootMat @ matrix_getter_cast(object.matrix_world)))
+        rootMat = bpy.data.objects["scene_root"].matrix_world.inverted()
+        mesh.transform(rootMat @ object.matrix_world)
 
         boneIndices: Dict[str, int] = {}
 
@@ -566,7 +564,6 @@ class MdxmSurface:
                 if len(face.vertices) != 3:
                     return False, ErrorMessage(f"Non-triangle tag found: {object.name}!")
             for vi in mesh.vertices:
-                vi = bpy_generic_cast(bpy.types.MeshVertex, vi)
                 vert = MdxmVertex()
                 success, message = vert.loadFromBlender(
                     vi, mathutils.Vector(), mathutils.Vector(), boneIndices, object, armatureObject)
@@ -593,10 +590,10 @@ class MdxmSurface:
                 for triangle in mesh.loop_triangles:
                     indices = []
                     for vert_id, loop_id in zip(triangle.vertices, triangle.loops):
-                        vert = bpy_generic_cast(bpy.types.MeshVertex, mesh.vertices[vert_id])
-                        loop = bpy_generic_cast(bpy.types.MeshLoop, mesh.loops[loop_id])
+                        vert = mesh.vertices[vert_id]
+                        loop = mesh.loops[loop_id]
                         uv = uv_layer_data[loop.index].uv
-                        normal = vector_overload_cast(loop.normal if mesh.has_custom_normals else vert.normal)
+                        normal = loop.normal if mesh.has_custom_normals else vert.normal
 
                         hash_tuple = (vert_id, *uv, *normal)
                         if hash_tuple in vertexmap:
@@ -1015,11 +1012,11 @@ class GLM:
             # retrieve skeleton
             if not "skeleton_root" in bpy.data.objects:
                 return False, ErrorMessage("No skeleton_root Object found!")
-            obj = bpy_generic_cast(bpy.types.Object, bpy.data.objects["skeleton_root"])
+            obj = bpy.data.objects["skeleton_root"]
             skeleton_object = obj
             if obj.type != 'ARMATURE':
                 return False, ErrorMessage("skeleton_root is no Armature!")
-            skeleton_armature = downcast(bpy.types.Armature, obj.data)
+            skeleton_armature = union_cast(bpy.types.Armature, obj.data)
             # Exporting in pose position will lead to incorrect results, make sure to reset to users last position!
             old_pose = skeleton_armature.pose_position
             skeleton_armature.pose_position = "REST"
