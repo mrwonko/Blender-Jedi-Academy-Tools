@@ -520,10 +520,14 @@ class GLAMetaExport(bpy.types.Operator, ExportHelper): # type: ignore
         print("\n== GLA Metadata Export ==\n")
 
         export_cfg = JAG2AnimationCFG.AnimationCFG()
+        scene = context.scene
+        if scene is None:
+            self.report({'ERROR'}, 'must have an active scene')
+            return {'FINISHED'}
         if self.source == "NLA":
-            success, message = export_cfg.from_blender_nla_tracks(context, self.offset)
+            success, message = export_cfg.from_blender_nla_tracks(scene, self.offset)
         else:
-            success, message = export_cfg.from_blender_markers(context, self.offset)
+            success, message = export_cfg.from_blender_markers(scene, self.offset)
         if not success:
             self.report({'ERROR'}, message)
             return {'FINISHED'}

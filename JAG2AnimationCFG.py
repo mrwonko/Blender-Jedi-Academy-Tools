@@ -59,7 +59,7 @@ class AnimationSequence():
             return None
         
     @classmethod
-    def from_blender_markers(cls, marker1, marker2, fps, offset = 0):
+    def from_blender_markers(cls, marker1: bpy.types.TimelineMarker, marker2: bpy.types.TimelineMarker, fps: int, offset: int = 0):
         new_frame = cls()
         new_frame.name = marker1.name
         new_frame.start_frame = int(marker1.frame + offset)
@@ -69,7 +69,7 @@ class AnimationSequence():
         return new_frame
     
     @classmethod
-    def from_blender_strip(cls, nla_strip, length_difference, fps, offset = 0):
+    def from_blender_strip(cls, nla_strip: bpy.types.NlaStrip, length_difference: int, fps: int, offset: int = 0):
         new_frame = cls()
         new_frame.name = nla_strip.action.name
         new_frame.start_frame = int(nla_strip.frame_start + offset)
@@ -88,7 +88,7 @@ class AnimationCFG():
         lines = [str(seq) for seq in self.sequences]
         return "\n".join(lines)
 
-    def load_from_cfg(self, cfg_file_path) -> Tuple[bool, ErrorMessage]:
+    def load_from_cfg(self, cfg_file_path: str) -> Tuple[bool, ErrorMessage]:
         success, cfg_abs = JAFilesystem.FindFile(cfg_file_path + "/animation", "", ["cfg"])
         if not success:
             print("Could not find file: ", cfg_abs, sep="")
@@ -110,14 +110,14 @@ class AnimationCFG():
         self.sequences.sort(key=lambda sequence: sequence.start_frame)
         return True, ErrorMessage("Nothing")
     
-    def from_blender_markers(self, context, offset):
-        start_frame = context.scene.frame_start
+    def from_blender_markers(self, scene: bpy.types.Scene, offset: int):
+        start_frame = scene.frame_start
         offset -= start_frame
-        end_frame = context.scene.frame_end
-        base_fps = context.scene.render.fps
+        end_frame = scene.frame_end
+        base_fps = scene.render.fps
 
         blender_markers = [
-            marker for marker in context.scene.timeline_markers if (
+            marker for marker in scene.timeline_markers if (
                 marker.frame >= start_frame and marker.frame <= end_frame+1)
             ]
         blender_markers.sort(key=lambda marker: marker.frame)
@@ -128,7 +128,7 @@ class AnimationCFG():
 
         if blender_markers[len(blender_markers)-1].frame != end_frame+1:
             blender_markers.append(
-                context.scene.timeline_markers.new("LAST_EXPORT_FRAME", frame = end_frame+1))
+                scene.timeline_markers.new("LAST_EXPORT_FRAME", frame = end_frame+1))
 
         for marker1, marker2 in zip(blender_markers[:-1], blender_markers[1:]):
             self.sequences.append(AnimationSequence().from_blender_markers(
@@ -138,17 +138,17 @@ class AnimationCFG():
                 offset
             ))
 
-        last_frame = context.scene.timeline_markers.get("LAST_EXPORT_FRAME")
+        last_frame = scene.timeline_markers.get("LAST_EXPORT_FRAME")
         if last_frame:
-            context.scene.timeline_markers.remove(last_frame)
+            scene.timeline_markers.remove(last_frame)
 
         return True, ErrorMessage("Nothing")
     
-    def from_blender_nla_tracks(self, context, offset):
-        start_frame = context.scene.frame_start
+    def from_blender_nla_tracks(self, scene: bpy.types.Scene, offset: int):
+        start_frame = scene.frame_start
         offset -= start_frame
-        end_frame = context.scene.frame_end
-        base_fps = context.scene.render.fps
+        end_frame = scene.frame_end
+        base_fps = scene.render.fps
 
         skeleton_object = bpy.data.objects.get("skeleton_root")
         if skeleton_object is None:
@@ -158,7 +158,7 @@ class AnimationCFG():
         if len(skeleton_object.animation_data.nla_tracks) == 0:
             return False, ErrorMessage("Couldn't find NLA tracks for the Skeleton object: skeleton_root")
 
-        blender_strips = []
+        blender_strips: List[Tuple[bpy.types.NlaStrip, int]] = []
         for nla_track in [track for track in skeleton_object.animation_data.nla_tracks]:
             length_differnce = 0 if nla_track.name.startswith("Stills Layer") else 1
             for nla_strip in [strip for strip in nla_track.strips if strip.frame_start >= start_frame and strip.frame_start <= end_frame]:
