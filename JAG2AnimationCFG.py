@@ -160,6 +160,7 @@ class AnimationCFG():
 
         blender_strips: List[Tuple[bpy.types.NlaStrip, int]] = []
         for nla_track in [track for track in skeleton_object.animation_data.nla_tracks]:
+            # TODO test if this works when not using English localisation
             length_difference = 0 if nla_track.name.startswith("Stills Layer") else 1
             for nla_strip in [strip for strip in nla_track.strips if strip.frame_start >= start_frame and strip.frame_start <= end_frame]:
                 blender_strips.append((nla_strip, length_difference))
