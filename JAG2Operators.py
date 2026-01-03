@@ -207,7 +207,7 @@ class GLMImport(bpy.types.Operator, ImportHelper): # type: ignore
             row.prop(self, "numFrames")
 
     def invoke(self, context, event): # type: ignore
-        prefs = bpy.context.preferences.addons[__name__.split('.')[0]].preferences
+        prefs = bpy.context.preferences.addons[__name__.rsplit('.', 1)[0]].preferences
         self.basepath = prefs.base_path
         self.scale = prefs.scale
         return super().invoke(context, event)
@@ -302,7 +302,7 @@ class GLAImport(bpy.types.Operator, ImportHelper): # type: ignore
         return {'FINISHED'}
     
     def invoke(self, context, event): # type: ignore
-        prefs = bpy.context.preferences.addons[__name__.split('.')[0]].preferences
+        prefs = bpy.context.preferences.addons[__name__.rsplit('.', 1)[0]].preferences
         self.basepath = prefs.base_path
         self.scale = prefs.scale
         return super().invoke(context, event)
@@ -368,7 +368,7 @@ class GLMExport(bpy.types.Operator, ExportHelper): # type: ignore
         return {'FINISHED'}
     
     def invoke(self, context, event): # type: ignore
-        prefs = bpy.context.preferences.addons[__name__.split('.')[0]].preferences
+        prefs = bpy.context.preferences.addons[__name__.rsplit('.', 1)[0]].preferences
         self.basepath = prefs.base_path
         return super().invoke(context, event)
 
@@ -431,7 +431,7 @@ class GLAExport(bpy.types.Operator, ExportHelper): # type: ignore
         return {'FINISHED'}
     
     def invoke(self, context, event): # type: ignore
-        prefs = bpy.context.preferences.addons[__name__.split('.')[0]].preferences
+        prefs = bpy.context.preferences.addons[__name__.rsplit('.', 1)[0]].preferences
         self.basepath = prefs.base_path
         return super().invoke(context, event)
 
