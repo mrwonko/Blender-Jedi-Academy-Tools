@@ -1,6 +1,7 @@
 import bpy
 import math
 import struct
+from bpy_internal_stubs import OperatorReturnItems
 
 ### The ROFF Import operator ###
 
@@ -15,12 +16,15 @@ class Operator(bpy.types.Operator):
     scale: bpy.props.FloatProperty(
         name="Scale", description="Movements are scaled by this factor", default=1)  # type: ignore
 
-    def execute(self, context):
+    def execute(self, context) -> set[OperatorReturnItems]:
         self.ImportStart()
         return {'FINISHED'}
 
-    def invoke(self, context, event):
+    def invoke(self, context, event) -> set[OperatorReturnItems]:
         windowMan = context.window_manager
+        if windowMan is None:
+            self.report({'ERROR'}, "No active WindowManager")
+            return {'RUNNING_MODAL'}
         # sets self.properties.filename and runs self.execute()
         windowMan.fileselect_add(self)
         return {'RUNNING_MODAL'}
@@ -50,6 +54,9 @@ class Operator(bpy.types.Operator):
                 return
 
             scn = bpy.context.scene
+            if scn is None:
+                self.report({"ERROR"}, "No active scene!")
+                return
             scn.frame_start = 0
             scn.frame_end = frames
             scn.frame_current = 0
@@ -85,9 +92,10 @@ class Operator(bpy.types.Operator):
                 obj.keyframe_insert("rotation_euler", frame=frame + 1)
 
             # set the interpolation to linear
-            for curve in obj.animation_data.action.fcurves:
-                for point in curve.keyframe_points:
-                    point.interpolation = "LINEAR"
+            if (anim_data := obj.animation_data) is not None and (action := anim_data.action) is not None:
+                for curve in action.fcurves:
+                    for point in curve.keyframe_points:
+                        point.interpolation = "LINEAR"
         except IOError:
             self.report({"ERROR"}, "Couldn't open file!")
             return
