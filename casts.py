@@ -18,19 +18,19 @@ def optional_cast(t: Type[T], v: Optional[T]) -> T:
     So any None-checks performed in poll() can be assumed to have succeeded in draw().
     TODO: remove all non-Panel optional_casts
     """
-    return cast(t, v)
+    return cast(T, v)
 
 
 def optional_list_cast(t: Type[List[T]], v: List[Optional[T]]) -> List[T]:
     """
     Avoid using this directly, use error_types.ensureListIsGapless instead.
     """
-    return cast(t, v)
+    return cast(List[T], v)
 
 
 def union_cast(t: Type[T], v: Union[T, U]) -> T:
     """A cast from a union to one of its elements"""
-    return cast(t, v)
+    return cast(T, v)
 
 # A cast used to turn A | B into A or B, for properties that accept unions in the setter but return a fixed type in the setter.
 # Blender uses this extensively to allow assigning sequences in place of vectors and matrices,
