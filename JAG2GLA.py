@@ -248,10 +248,14 @@ class MdxaSkel:
         # set parent
         self.armature_object.parent = scene_root
         # link object to scene
-        bpy.context.scene.collection.objects.link(self.armature_object)
+        if (scene := bpy.context.scene) is None:
+            raise Exception("No active Scene")
+        scene.collection.objects.link(self.armature_object)
 
         #  Set the armature as active and go to edit mode to add bones
-        bpy.context.view_layer.objects.active = self.armature_object
+        if (view_layer := bpy.context.view_layer) is None:
+            raise Exception("No active View Layer")
+        view_layer.objects.active = self.armature_object
         bpy.ops.object.mode_set(mode='EDIT')
         # list of indices of already created bones - only those bones with this as parent will be added
         createdBonesIndices = [-1]
