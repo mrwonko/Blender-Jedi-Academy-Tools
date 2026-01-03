@@ -1,74 +1,101 @@
 import bpy
+from bpy.props import StringProperty, BoolProperty, FloatProperty, PointerProperty
 
 
-def hasG2MeshProperties(obj: bpy.types.Object) -> bool:
-    """ Whether a given object has the ghoul 2 mesh-object properties """
-    return ("g2_prop_off" in obj) and ("g2_prop_tag" in obj) and ("g2_prop_name" in obj) and ("g2_prop_shader" in obj)
+# -------------------------------------------------------------
+#   PROPERTY GROUP
+# -------------------------------------------------------------
+class G2Props(bpy.types.PropertyGroup):
+    name: StringProperty(
+        name="Name",
+        maxlen=64,
+        default="",
+        description="Ghoul2 surface or tag name"
+    )
+
+    shader: StringProperty(
+        name="Shader",
+        maxlen=64,
+        default="",
+        description="Shader assigned to this surface"
+    )
+
+    tag: BoolProperty(
+        name="Tag",
+        default=False,
+        description="Marks object as a Ghoul2 tag"
+    )
+
+    off: BoolProperty(
+        name="Off",
+        default=False,
+        description="Surface initially disabled"
+    )
+
+    scale: FloatProperty(
+        name="Scale",
+        default=100.0,
+        min=0.0,
+        subtype='PERCENTAGE',
+        description="Skeleton scale (armature only)"
+    )
 
 
-def hasG2ArmatureProperties(obj: bpy.types.Object) -> bool:
-    """ Whether a given object has the ghoul 2 armature properties """
-    return "g2_prop_scale" in obj
+# -------------------------------------------------------------
+#   PROPERTY CHECK HELPERS
+# -------------------------------------------------------------
+def hasG2MeshProperties(obj):
+    return hasattr(obj, "g2_prop") and obj.g2_prop is not None
 
 
-def initG2Properties() -> None:
-    """ globally initializes the ghoul 2 custom properties """
-    bpy.types.Object.g2_prop_name = bpy.props.StringProperty(
-        name="name", maxlen=64, default="", description="Name (in case it doesn't fit in Blender's Object Name, which is used if this is empty)")
-    bpy.types.Object.g2_prop_shader = bpy.props.StringProperty(
-        name="shader", maxlen=64, default="", description="Shader to use (the one and only way to set this)")
-    bpy.types.Object.g2_prop_tag = bpy.props.BoolProperty(
-        name="Tag", default=False, description="Whether this object represents a tag")
-    bpy.types.Object.g2_prop_off = bpy.props.BoolProperty(
-        name="Off", default=False, description="Whether this object should be initially off (can be overridden in skin)")
-    bpy.types.Object.g2_prop_scale = bpy.props.FloatProperty(
-        name="Scale", default=100, min=0, subtype='PERCENTAGE', description="Scale of this skeleton")
-    
 def initSeqenceProperties() -> None:
+    # TODO probably handle these custom properties more like the G2Props?
     bpy.types.Action.loop_frame = bpy.props.BoolProperty(
         name="Loop", default=False, description="Whether this squence will loop")
     bpy.types.Action.fps = bpy.props.IntProperty(
         name="FPS", default=30, description="Sequence playback fps")
 
+def hasG2ArmatureProperties(obj):
+    return hasattr(obj, "g2_prop") and obj.g2_prop is not None
 
+
+# -------------------------------------------------------------
+#   UI PANELS
+# -------------------------------------------------------------
 class G2PropertiesPanel(bpy.types.Panel):
     bl_label = "Ghoul 2 Properties"
-    bl_idname = "OBJECT_PT_g2_props"
-    bl_space_type = 'PROPERTIES'  # goes in the properties editor
+    bl_idname = "OBJECT_PT_g2_prop"
+    bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
-    bl_context = "object"  # in the objects tab
+    bl_context = "object"
 
     @classmethod
-    def poll(self, context):
-        return context.active_object and context.active_object.type in ['MESH', 'ARMATURE'] or False
+    def poll(cls, context):
+        obj = context.active_object
+        return obj and obj.type in {"MESH", "ARMATURE"}
 
     def draw(self, context):
         layout = self.layout
-
         obj = context.active_object
 
-        if obj.type == 'MESH':
-            if hasG2MeshProperties(obj):
-                row = layout.row()
-                row.operator("object.remove_g2_properties")
+        if not hasattr(obj, "g2_prop"):
+            layout.label(text="No G2 props found.")
+            return
 
-                row = layout.row()
-                row.prop(obj, "g2_prop_name")
+        props = obj.g2_prop
 
-                row = layout.row()
-                row.prop(obj, "g2_prop_shader")
+        if obj.type == "MESH":
+            layout.operator("object.remove_g2_properties")
+            layout.prop(props, "name")
+            layout.prop(props, "shader")
 
-                row = layout.row()
-                row.prop(obj, "g2_prop_tag")
-                row.prop(obj, "g2_prop_off")
-            else:
-                row = layout.row()
-                row.operator("object.add_g2_properties")
-        else:
-            assert (obj.type == 'ARMATURE')
-            if hasG2ArmatureProperties(obj):
-                row = layout.row()
-                row.operator("object.remove_g2_properties")
+            row = layout.row()
+            row.prop(props, "tag")
+            row.prop(props, "off")
+
+        elif obj.type == "ARMATURE":
+            layout.operator("object.remove_g2_properties")
+            layout.prop(props, "scale")
 
                 row = layout.row()
                 row.prop(obj, "g2_prop_scale")
@@ -114,3 +141,27 @@ class G2ActionPropertiesPanel(bpy.types.Panel):
         row.prop(context.active_action, "loop_frame")
         row = layout.row()
         row.prop(context.active_action, "fps")
+
+# -------------------------------------------------------------
+#   REGISTRATION
+# -------------------------------------------------------------
+classes = (
+    G2Props,
+    G2PropertiesPanel,
+    G2NLAPropertiesPanel,
+    G2ActionPropertiesPanel,
+)
+
+
+def register():
+    for cls in classes:
+        bpy.utils.register_class(cls)
+
+    bpy.types.Object.g2_prop = PointerProperty(type=G2Props)
+    initSeqenceProperties()
+
+
+def unregister():
+    del bpy.types.Object.g2_prop
+    for cls in reversed(classes):
+        bpy.utils.unregister_class(cls)

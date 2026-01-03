@@ -68,8 +68,8 @@ def buildBoneIndexLookupMap(gla_filepath_abs: str) -> Tuple[Optional[BoneIndexMa
 
 
 def getName(object: bpy.types.Object) -> str:
-    if object.g2_prop_name != "":  # pyright: ignore [reportAttributeAccessIssue]
-        return object.g2_prop_name  # pyright: ignore [reportAttributeAccessIssue]
+    if object.g2_prop.name != "":  # pyright: ignore [reportAttributeAccessIssue]
+        return object.g2_prop.name  # pyright: ignore [reportAttributeAccessIssue]
     return object.name
 
 
@@ -238,12 +238,12 @@ class MdxmSurfaceData:
 
     def loadFromBlender(self, object: bpy.types.Object, surfaceIndexMap: Dict[str, int]) -> Tuple[bool, ErrorMessage]:
         self.name: bytes = getName(object).encode()
-        self.shader: bytes = object.g2_prop_shader.encode()  # pyright: ignore [reportAttributeAccessIssue]
+        self.shader: bytes = object.g2_prop.shader.encode()  # pyright: ignore [reportAttributeAccessIssue]
         # set flags
         self.flags = 0
-        if object.g2_prop_off:  # pyright: ignore [reportAttributeAccessIssue]
+        if object.g2_prop.off:  # pyright: ignore [reportAttributeAccessIssue]
             self.flags |= JAG2Constants.SURFACEFLAG_OFF
-        if object.g2_prop_tag:  # pyright: ignore [reportAttributeAccessIssue]
+        if object.g2_prop.tag:  # pyright: ignore [reportAttributeAccessIssue]
             self.flags |= JAG2Constants.SURFACEFLAG_TAG
         # set parent
         if object.parent != None and getName(object.parent) in surfaceIndexMap:
@@ -745,10 +745,10 @@ class MdxmSurface:
         bpy.context.view_layer.objects.active = obj
 
         # set ghoul2 specific properties
-        obj.g2_prop_name = name  # pyright: ignore [reportAttributeAccessIssue]
-        obj.g2_prop_shader = surfaceData.shader.decode()  # pyright: ignore [reportAttributeAccessIssue]
-        obj.g2_prop_tag = not not (surfaceData.flags & JAG2Constants.SURFACEFLAG_TAG)  # pyright: ignore [reportAttributeAccessIssue]
-        obj.g2_prop_off = not not (surfaceData.flags & JAG2Constants.SURFACEFLAG_OFF)  # pyright: ignore [reportAttributeAccessIssue]
+        obj.g2_prop.name = name  # pyright: ignore [reportAttributeAccessIssue]
+        obj.g2_prop.shader = surfaceData.shader.decode()  # pyright: ignore [reportAttributeAccessIssue]
+        obj.g2_prop.tag = not not (surfaceData.flags & JAG2Constants.SURFACEFLAG_TAG)  # pyright: ignore [reportAttributeAccessIssue]
+        obj.g2_prop.off = not not (surfaceData.flags & JAG2Constants.SURFACEFLAG_OFF)  # pyright: ignore [reportAttributeAccessIssue]
 
         # return object so hierarchy etc. can be set
         return obj

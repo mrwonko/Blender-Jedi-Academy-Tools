@@ -657,7 +657,7 @@ class GLA:
         if self.skeleton_object.type != 'ARMATURE':
             return False, ErrorMessage("skeleton_root is no Armature!")
         self.skeleton_armature = downcast(bpy.types.Armature, optional_cast(bpy.types.Object, self.skeleton_object).data)
-        self.header.scale = self.skeleton_object.g2_prop_scale / 100  # pyright: ignore [reportAttributeAccessIssue]
+        self.header.scale = self.skeleton_object.g2_prop.scale / 100  # pyright: ignore [reportAttributeAccessIssue]
 
         # make skeleton_root the active object
         bpy.context.view_layer.objects.active = self.skeleton_object
@@ -869,7 +869,7 @@ class GLA:
             if self.skeleton_object.type != 'ARMATURE':
                 return False, ErrorMessage("Existing skeleton_root object is no armature!")
             self.skeleton_armature = bpy_generic_cast(bpy.types.Armature, self.skeleton_object.data)
-            self.skeleton_object.g2_prop_scale = self.header.scale * 100
+            self.skeleton_object.g2_prop.scale = self.header.scale * 100
         # If there's no skeleton, there may yet still be an armature. Use that.
         elif "skeleton_root" in bpy.data.armatures:
             print("Found skeleton_root armature, trying to use it.")
@@ -889,7 +889,7 @@ class GLA:
             if not self.skeleton_object:
                 self.skeleton_object = bpy.data.objects.new(
                     "skeleton_root", self.skeleton_armature)
-                self.skeleton_object.g2_prop_scale = self.header.scale * 100  # pyright: ignore [reportAttributeAccessIssue]
+                self.skeleton_object.g2_prop.scale = self.header.scale * 100  # pyright: ignore [reportAttributeAccessIssue]
 
             # link the object to the current scene if necessary
             if not self.skeleton_object.name in bpy.context.scene.collection.objects:
@@ -928,7 +928,7 @@ class GLA:
             return False, message
         self.skeleton_armature = self.skeleton.armature
         self.skeleton_object = self.skeleton.armature_object
-        self.skeleton_object.g2_prop_scale = self.header.scale * 100  # pyright: ignore [reportAttributeAccessIssue]
+        self.skeleton_object.g2_prop.scale = self.header.scale * 100  # pyright: ignore [reportAttributeAccessIssue]
         profiler.stop("creating armature")
 
         # add animations, if any
