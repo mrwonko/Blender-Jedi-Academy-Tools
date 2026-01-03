@@ -2,7 +2,7 @@
 from .mod_reload import reload_modules
 reload_modules(locals(), __package__, [], [".casts"])  # nopep8
 
-from .casts import bpy_generic_cast
+from .casts import bpy_generic_cast, optional_cast
 
 from typing import List
 import bpy
@@ -23,7 +23,8 @@ class Operator(bpy.types.Operator):
         return {'FINISHED'}
 
     def invoke(self, context, event):  # pyright: ignore [reportIncompatibleMethodOverride]
-        windowMan = context.window_manager
+        if (windowMan := context.window_manager) is None:
+            return
         # sets self.properties.filename and runs self.execute()
         windowMan.fileselect_add(self)
         return {'RUNNING_MODAL'}
@@ -212,6 +213,10 @@ class Operator(bpy.types.Operator):
                 self.index = index  # index of this object's GEOMOBJECT entry
 
             def toBlender(self, materials: List[bpy.types.Material]):
+                if (scene := bpy.context.scene) is None:
+                    error("No active Scene")
+                    return
+
                 # create mesh
 
                 mesh = bpy.data.meshes.new("ASEMesh")
@@ -242,7 +247,7 @@ class Operator(bpy.types.Operator):
 
                 mesh.uv_layers.new()  # creates a new uv_layer
                 # FIXME "Argument of type "slice" cannot be assigned to parameter "key" of type" -> I should probably drop the [:]?
-                uv_loops = mesh.uv_layers.active.data[:]
+                uv_loops = optional_cast(bpy.types.MeshUVLoopLayer, mesh.uv_layers.active).data[:]
                 for poly, tface in zip(mesh.polygons, self.tfaces):
                     poly = bpy_generic_cast(bpy.types.MeshPolygon, poly)
                     for ofs, tvertIndex in enumerate(tface):
@@ -266,7 +271,7 @@ class Operator(bpy.types.Operator):
                 # add object
 
                 obj = bpy.data.objects.new("ASEObject", mesh)
-                bpy.context.scene.collection.objects.link(
+                scene.collection.objects.link(
                     obj)  # remember scene.update() later!
 
         objects: List[Object] = []
@@ -343,7 +348,7 @@ class Operator(bpy.types.Operator):
         materials = [bpy.data.materials.new(
             material_name) for material_name in material_names]
 
-        if bpy.ops.object.mode_set.poll():
+        if bpy.ops.object.mode_set.poll(): # pyright: ignore[reportFunctionMemberAccess]
             bpy.ops.object.mode_set(mode='OBJECT')
         for object in objects:
             object.toBlender(materials)
