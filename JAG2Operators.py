@@ -71,10 +71,10 @@ class GLMImport(bpy.types.Operator, ImportHelper): # type: ignore
             "(Usually works well, but skins should be preferred.)")]
         for skin in skin_files:
             if skin.endswith("_default.skin"):
-                items.append((skin, skin.split(".")[0], ""))
+                items.append((skin, skin.rsplit(".", 1)[0], ""))
         items.append((" ", "None", "Use file internal paths. "))
         
-        return items + [(skin, skin.split(".")[0], "")
+        return items + [(skin, skin.rsplit(".", 1)[0], "")
                 for skin in skin_files if not skin.endswith("_default.skin")]
     
     # properties
