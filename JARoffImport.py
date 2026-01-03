@@ -52,7 +52,6 @@ class Operator(bpy.types.Operator):
             scn = bpy.context.scene
             scn.frame_start = 0
             scn.frame_end = frames
-            scn.frame_current = 0
             scn.render.fps = 1000/frameDuration  # supposedly read-only?
 
             # add keyframe at frame 0 with current position
@@ -62,7 +61,6 @@ class Operator(bpy.types.Operator):
 
             for frame in range(frames):
                 # set the current frame
-                scn.frame_current = frame + 1
                 # I don't know what the last 8 bytes are, they always contain 0xFFFFFFFF00000000 (-1 & 0) - I trash them.
                 dx, dy, dz, droty, drotz, drotx = struct.unpack(
                     "6f8x", file.read(32))
@@ -82,11 +80,9 @@ class Operator(bpy.types.Operator):
                     math.radians(drotz)
 
                 # save keyframe
-                obj.keyframe_insert("location")
-                obj.keyframe_insert("rotation_euler")
+                obj.keyframe_insert("location", frame=frame + 1)
+                obj.keyframe_insert("rotation_euler", frame=frame + 1)
 
-            # back to frame 0
-            scn.frame_current = 0
             # set the interpolation to linear
             for curve in obj.animation_data.action.fcurves:
                 for point in curve.keyframe_points:
