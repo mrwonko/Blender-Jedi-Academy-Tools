@@ -392,7 +392,7 @@ class MdxaAnimation:
         assert (file.tell() == header.ofsCompBonePool)
         self.bonePool.saveToFile(file)
 
-    def saveToBlender(self, skeleton: MdxaSkel, armature: bpy.types.Object, scale, animations: Optional[JAG2AnimationCFG.AnimationCGF] = None):
+    def saveToBlender(self, skeleton: MdxaSkel, armature: bpy.types.Object, scale, animations: Optional[JAG2AnimationCFG.AnimationCFG] = None):
         import time
         startTime = time.time()
         #   Bone Position Set Order
@@ -854,7 +854,7 @@ class GLA:
         assert (file.tell() == self.header.ofsEnd)
         return True, NoError
 
-    def saveToBlender(self, scene_root: bpy.types.Object, useAnimation: bool, skeletonFixes: JAG2Constants.SkeletonFixes, animations: Optional[JAG2AnimationCFG.AnimationCGF] = None) -> Tuple[bool, ErrorMessage]:
+    def saveToBlender(self, scene_root: bpy.types.Object, useAnimation: bool, skeletonFixes: JAG2Constants.SkeletonFixes, animations: Optional[JAG2AnimationCFG.AnimationCFG] = None) -> Tuple[bool, ErrorMessage]:
         print("Applying skeleton/skeleton to Blender")
         profiler = MrwProfiler.SimpleProfiler(True)
         # default skeleton = no skeleton.

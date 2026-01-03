@@ -79,7 +79,7 @@ class AnimationSequence():
         return new_frame
 
 
-class AnimationCGF():
+class AnimationCFG():
 
     def __init__(self):
         self.sequences : List[AnimationSequence] = []

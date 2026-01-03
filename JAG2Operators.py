@@ -519,7 +519,7 @@ class GLAMetaExport(bpy.types.Operator, ExportHelper): # type: ignore
     def execute(self, context):
         print("\n== GLA Metadata Export ==\n")
 
-        export_cfg = JAG2AnimationCFG.AnimationCGF()
+        export_cfg = JAG2AnimationCFG.AnimationCFG()
         if self.source == "NLA":
             success, message = export_cfg.from_blender_nla_tracks(context, self.offset)
         else:

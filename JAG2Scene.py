@@ -48,7 +48,7 @@ class Scene:
         self.scale = 1.0
         self.glm: Optional[JAG2GLM.GLM] = None
         self.gla: Optional[JAG2GLA.GLA] = None
-        self.animation_cfg: Optional[JAG2AnimationCFG.AnimationCGF] = None
+        self.animation_cfg: Optional[JAG2AnimationCFG.AnimationCFG] = None
 
     # Fills scene from on GLM file
     def loadFromGLM(self, glm_filepath_rel: str) -> Tuple[bool, ErrorMessage]:
@@ -63,10 +63,10 @@ class Scene:
         if not success:
             return False, message
         return True, NoError
-    
+
     # Loads animations sequences from a CFG file
     def loadFromCFG(self, cfg_filepath: str) -> Tuple[bool, ErrorMessage]:
-        self.animation_cfg = JAG2AnimationCFG.AnimationCGF()
+        self.animation_cfg = JAG2AnimationCFG.AnimationCFG()
         success, message = self.animation_cfg.load_from_cfg(cfg_filepath)
         if not success:
             self.animation_cfg = None
