@@ -453,7 +453,7 @@ class MdxaAnimation:
         bpy.ops.object.mode_set(mode='POSE', toggle=False)
         if animations:
             lastSequenceNum = 0
-            nla_seqence_tracks = []
+            nla_sequence_tracks = []
             nla_stills_tracks = []
             # create NLA tracks keeping track of all animations
             armature.animation_data_create()
@@ -461,9 +461,9 @@ class MdxaAnimation:
             nla_track = armature.animation_data.nla_tracks.new()
             nla_track.name = "Sequences Layer 1"
             nla_track.select = True
-            # Only make the first layer visable
+            # Only make the first layer visible
             nla_track.is_solo = True
-            nla_seqence_tracks.append(nla_track)
+            nla_sequence_tracks.append(nla_track)
 
             # NLA strips can't be 0 frames long, so keep them seperated
             nla_track = armature.animation_data.nla_tracks.new()
