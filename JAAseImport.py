@@ -347,7 +347,7 @@ class Operator(bpy.types.Operator):
         materials = [bpy.data.materials.new(
             material_name) for material_name in material_names]
 
-        if bpy.ops.object.mode_set.poll(): # pyright: ignore[reportFunctionMemberAccess]
+        if bpy.ops.object.mode_set.poll():  # pyright: ignore[reportFunctionMemberAccess]
             bpy.ops.object.mode_set(mode='OBJECT')
         for object in objects:
             object.toBlender(materials)

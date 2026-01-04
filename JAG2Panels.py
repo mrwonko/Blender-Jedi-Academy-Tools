@@ -55,10 +55,11 @@ def hasG2MeshProperties(obj):
 
 def initSequenceProperties() -> None:
     # TODO probably handle these custom properties more like the G2Props?
-    bpy.types.Action.loop_frame = bpy.props.BoolProperty( # pyright: ignore[reportAttributeAccessIssue]
+    bpy.types.Action.loop_frame = bpy.props.BoolProperty(  # pyright: ignore[reportAttributeAccessIssue]
         name="Loop", default=False, description="Whether this squence will loop")
-    bpy.types.Action.fps = bpy.props.IntProperty( # pyright: ignore[reportAttributeAccessIssue]
+    bpy.types.Action.fps = bpy.props.IntProperty(  # pyright: ignore[reportAttributeAccessIssue]
         name="FPS", default=30, description="Sequence playback fps")
+
 
 def hasG2ArmatureProperties(obj):
     return hasattr(obj, "g2_prop") and obj.g2_prop is not None
@@ -88,7 +89,7 @@ class G2PropertiesPanel(bpy.types.Panel):
             layout.label(text="No G2 props found.")
             return
 
-        props = obj.g2_prop # pyright: ignore[reportAttributeAccessIssue]
+        props = obj.g2_prop  # pyright: ignore[reportAttributeAccessIssue]
 
         if obj.type == "MESH":
             layout.operator("object.remove_g2_properties")
@@ -103,6 +104,7 @@ class G2PropertiesPanel(bpy.types.Panel):
             layout.operator("object.remove_g2_properties")
             layout.prop(props, "scale")
 
+
 class G2NLAPropertiesPanel(bpy.types.Panel):
     bl_label = "GLA Animation Properties"
     bl_idname = "STRIP_PT_g2sequence_props"
@@ -113,7 +115,7 @@ class G2NLAPropertiesPanel(bpy.types.Panel):
     @classmethod
     def poll(cls, context):
         return context.active_nla_strip is not None and context.active_nla_strip.action is not None
-    
+
     def draw(self, context):
         if (layout := self.layout) is None:
             return
@@ -136,7 +138,7 @@ class G2ActionPropertiesPanel(bpy.types.Panel):
     @classmethod
     def poll(cls, context):
         return context.active_action is not None
-    
+
     def draw(self, context):
         if (layout := self.layout) is None:
             return
@@ -145,6 +147,7 @@ class G2ActionPropertiesPanel(bpy.types.Panel):
         row.prop(context.active_action, "loop_frame")
         row = layout.row()
         row.prop(context.active_action, "fps")
+
 
 # -------------------------------------------------------------
 #   REGISTRATION
@@ -161,11 +164,11 @@ def register():
     for cls in classes:
         bpy.utils.register_class(cls)
 
-    bpy.types.Object.g2_prop = PointerProperty(type=G2Props) # pyright: ignore[reportAttributeAccessIssue]
+    bpy.types.Object.g2_prop = PointerProperty(type=G2Props)  # pyright: ignore[reportAttributeAccessIssue]
     initSequenceProperties()
 
 
 def unregister():
-    del bpy.types.Object.g2_prop # pyright: ignore[reportAttributeAccessIssue]
+    del bpy.types.Object.g2_prop  # pyright: ignore[reportAttributeAccessIssue]
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)

@@ -316,8 +316,8 @@ class Operator(bpy.types.Operator):
     bl_idname = "export.ja_md3"
     bl_label = "Export MD3"
 
-    logenum = [("console",   "Console",   "log to console"),
-               ("append",    "Append",    "append to log file"),
+    logenum = [("console", "Console", "log to console"),
+               ("append", "Append", "append to log file"),
                ("overwrite", "Overwrite", "overwrite log file")]
 
     filepath = StringProperty(subtype='FILE_PATH', name="File Path",

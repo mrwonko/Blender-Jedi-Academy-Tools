@@ -32,12 +32,12 @@ def SplitPrefix(fullPath):
     # find /DIRNAME/
     if pos == -1:
         return "", normFullPath
-    pos = pos+len(DIRNAME)+2*len(os.path.sep)
+    pos = pos + len(DIRNAME) + 2 * len(os.path.sep)
     # find first / after that
     pos = searchme.find(os.path.sep, pos)
     if pos == -1:
         return "", normFullPath
-    return [normFullPath[:pos+len(os.path.sep)], normFullPath[pos+len(os.path.sep):]]
+    return [normFullPath[:pos + len(os.path.sep)], normFullPath[pos + len(os.path.sep):]]
 
 # removes a file extension, i.e. /foo/bar.baz -> /foo/bar
 

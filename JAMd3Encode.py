@@ -44,9 +44,9 @@ class md3Vert:
         l = math.sqrt((x * x) + (y * y) + (z * z))
         if l == 0:
             return 0
-        x = x/l
-        y = y/l
-        z = z/l
+        x = x / l
+        y = y / l
+        z = z / l
 
         if (x == 0.0) and (y == 0.0):
             if z > 0.0:

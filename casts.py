@@ -32,6 +32,7 @@ def union_cast(t: Type[T], v: Union[T, U]) -> T:
     """A cast from a union to one of its elements"""
     return cast(T, v)
 
+
 # A cast used to turn a type into one of its sub-types.
 # Should happen close to a check that ensures this is valid.
 downcast = cast

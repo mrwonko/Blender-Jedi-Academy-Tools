@@ -49,11 +49,11 @@ class Operator(bpy.types.Operator):
                 return
             if version != 2:
                 self.report(
-                    {"ERROR"}, "Wrong ROFF version, only 2 is supported! (file is "+str(version)+")")
+                    {"ERROR"}, "Wrong ROFF version, only 2 is supported! (file is " + str(version) + ")")
                 return
             if obj.rotation_mode != "XYZ":
                 self.report(
-                    {"ERROR"}, "Object's rotation mode is not XYZ, I can't handle that, sorry.! (It's "+obj.rotation_mode+")")
+                    {"ERROR"}, "Object's rotation mode is not XYZ, I can't handle that, sorry.! (It's " + obj.rotation_mode + ")")
                 return
 
             scn = bpy.context.scene
@@ -63,7 +63,7 @@ class Operator(bpy.types.Operator):
             scn.frame_start = 0
             scn.frame_end = frames
             scn.frame_current = 0
-            scn.render.fps = int(1000/frameDuration)  # supposedly read-only?
+            scn.render.fps = int(1000 / frameDuration)  # supposedly read-only?
 
             # add keyframe at frame 0 with current position
 
@@ -78,7 +78,7 @@ class Operator(bpy.types.Operator):
 
                 # translate the object (it's the only selected object so the operators operate on it)
                 bpy.ops.transform.translate(
-                    value=(dx/self.scale, dy/self.scale, dz/self.scale))
+                    value=(dx / self.scale, dy / self.scale, dz / self.scale))
 
                 # rotate the object - unsure how to do the rotations using bpy.ops.transform.rotate
                 # (Blender now uses Radians. Deal with it.)

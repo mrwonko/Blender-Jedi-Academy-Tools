@@ -35,11 +35,11 @@ class AnimationSequence():
 
     def __str__(self):
         return "{name}\t\t{start}\t{frames}\t{loop}\t{fps}".format(
-            name = self.name,
-            start = self.start_frame,
-            frames = self.num_frames,
-            loop = 0 if self.loop else -1,
-            fps = self.fps
+            name=self.name,
+            start=self.start_frame,
+            frames=self.num_frames,
+            loop=0 if self.loop else -1,
+            fps=self.fps
         )
 
     @classmethod
@@ -57,7 +57,7 @@ class AnimationSequence():
             return new_frame
         except Exception:
             return None
-        
+
     @classmethod
     def from_blender_markers(cls, marker1: bpy.types.TimelineMarker, marker2: bpy.types.TimelineMarker, fps: int, offset: int = 0):
         new_frame = cls()
@@ -67,7 +67,7 @@ class AnimationSequence():
         new_frame.loop = False
         new_frame.fps = int(fps)
         return new_frame
-    
+
     @classmethod
     def from_blender_strip(cls, nla_strip: bpy.types.NlaStrip, length_difference: int, fps: int, offset: int = 0):
         new_frame = cls()
@@ -82,7 +82,7 @@ class AnimationSequence():
 class AnimationCFG():
 
     def __init__(self):
-        self.sequences : List[AnimationSequence] = []
+        self.sequences: List[AnimationSequence] = []
 
     def __str__(self):
         lines = [str(seq) for seq in self.sequences]
@@ -93,7 +93,7 @@ class AnimationCFG():
         if not success:
             print("Could not find file: ", cfg_abs, sep="")
             return False, ErrorMessage("Could not find the animation.cfg next to the .gla file")
-        
+
         try:
             file = open(cfg_abs, mode="r")
         except IOError:
@@ -109,7 +109,7 @@ class AnimationCFG():
                 print("Could not parse following line in animations.cfg", line)
         self.sequences.sort(key=lambda sequence: sequence.start_frame)
         return True, ErrorMessage("Nothing")
-    
+
     def from_blender_markers(self, scene: bpy.types.Scene, offset: int):
         start_frame = scene.frame_start
         offset -= start_frame
@@ -118,17 +118,17 @@ class AnimationCFG():
 
         blender_markers = [
             marker for marker in scene.timeline_markers if (
-                marker.frame >= start_frame and marker.frame <= end_frame+1)
-            ]
+                marker.frame >= start_frame and marker.frame <= end_frame + 1)
+        ]
         blender_markers.sort(key=lambda marker: marker.frame)
 
-        if (len(blender_markers) == 0 or 
-            (len(blender_markers) == 1 and blender_markers[0].frame == end_frame+1)):
+        if (len(blender_markers) == 0 or
+                (len(blender_markers) == 1 and blender_markers[0].frame == end_frame + 1)):
             return False, ErrorMessage("No timeline markers found! Add Markers to label animations.")
 
-        if blender_markers[len(blender_markers)-1].frame != end_frame+1:
+        if blender_markers[len(blender_markers) - 1].frame != end_frame + 1:
             blender_markers.append(
-                scene.timeline_markers.new("LAST_EXPORT_FRAME", frame = end_frame+1))
+                scene.timeline_markers.new("LAST_EXPORT_FRAME", frame=end_frame + 1))
 
         for marker1, marker2 in zip(blender_markers[:-1], blender_markers[1:]):
             self.sequences.append(AnimationSequence().from_blender_markers(
@@ -143,7 +143,7 @@ class AnimationCFG():
             scene.timeline_markers.remove(last_frame)
 
         return True, ErrorMessage("Nothing")
-    
+
     def from_blender_nla_tracks(self, scene: bpy.types.Scene, offset: int):
         start_frame = scene.frame_start
         offset -= start_frame
@@ -178,4 +178,3 @@ class AnimationCFG():
             ))
 
         return True, ErrorMessage("Nothing")
-        

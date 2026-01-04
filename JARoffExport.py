@@ -48,13 +48,13 @@ class Operator(bpy.types.Operator):
                 {"ERROR"}, "Since relative movement is saved, I need more than 1 frame!")
             return
 
-        print("Exporting movement of "+obj.name)
+        print("Exporting movement of " + obj.name)
 
         try:
             file = open(filename, "wb")
             # ident, version, frames, frame duration in ms, unknown
             file.write(struct.pack("4s4i", b"ROFF", 2, numframes,
-                       round(1000/context.scene.render.fps), 0))
+                       round(1000 / context.scene.render.fps), 0))
 
             prevframe = scn.frame_current
 
@@ -72,7 +72,7 @@ class Operator(bpy.types.Operator):
                 rot = obj.matrix_world.to_euler()
 
                 # rotation: y z x
-                file.write(struct.pack("6f2i", (pos[0] - lastpos[0])*self.scale, (pos[1] - lastpos[1])*self.scale, (pos[2] - lastpos[2]) *
+                file.write(struct.pack("6f2i", (pos[0] - lastpos[0]) * self.scale, (pos[1] - lastpos[1]) * self.scale, (pos[2] - lastpos[2]) *
                            self.scale, math.degrees(rot[1] - lastrot[1]), math.degrees(rot[2] - lastrot[2]), math.degrees(rot[0] - lastrot[0]), -1, 0))
 
                 lastpos = pos.copy()

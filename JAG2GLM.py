@@ -101,7 +101,7 @@ def getBoneWeights(vertex: bpy.types.MeshVertex, meshObject: bpy.types.Object, a
             index = group.group
 
             # Ensure the index is within bounds
-            if index < len(meshObject.vertex_groups):  
+            if index < len(meshObject.vertex_groups):
                 name = meshObject.vertex_groups[index].name
                 if weight > 0 and name in armature.bones:
                     weights[name] = weight
@@ -535,9 +535,9 @@ class MdxmSurface:
         self.boneReferences.extend(struct.unpack(
             str(self.numBoneReferences) + "i", file.read(4 * self.numBoneReferences)))
 
-        #print(
+        # print(
         #    f"surface {self.index}: numBoneReferences: {self.numBoneReferences}")
-        #for i, boneRef in enumerate(self.boneReferences):
+        # for i, boneRef in enumerate(self.boneReferences):
         #    print(f"bone ref {i}: {boneRef}")
 
         if file.tell() != startPos + self.ofsEnd:
@@ -550,7 +550,7 @@ class MdxmSurface:
             return False, ErrorMessage(f"Object {object.name} is not of type Mesh!")
         mesh: bpy.types.Mesh = downcast(bpy.types.Object, object.evaluated_get(
             bpy.context.evaluated_depsgraph_get())).to_mesh()
-        
+
         # Do all the transforms now
         rootMat = bpy.data.objects["scene_root"].matrix_world.inverted()
         mesh.transform(rootMat @ object.matrix_world)
@@ -578,8 +578,6 @@ class MdxmSurface:
 
         # This is not a tag, do normal things
         else:
-
-            
 
             mesh.calc_loop_triangles()
             if (not (uv_layer := mesh.uv_layers.active) or not (uv_layer_data := uv_layer.data)):
@@ -686,7 +684,7 @@ class MdxmSurface:
             [v.co for v in self.vertices],
             [],
             mesh_triangles
-            )
+        )
 
         material = data.materialManager.getMaterial(name, surfaceData.shader)
         if material == None:
@@ -1001,7 +999,7 @@ class GLM:
                                  "" or gla_filepath_rel == "*default")
         skeleton_object: Optional[bpy.types.Object] = None
         boneIndexMap: Optional[BoneIndexMap] = None
-        skeleton_armature : Optional[bpy.types.Armature] = None
+        skeleton_armature: Optional[bpy.types.Armature] = None
         # Assume people usually use the "rest pose" before exporting
         old_pose = "REST"
         if defaultSkeleton:
