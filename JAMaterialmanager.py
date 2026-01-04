@@ -22,7 +22,7 @@ reload_modules(locals(), __package__, ["JAFilesystem", "JAStringhelper"], [".cas
 from typing import Optional, Tuple
 from . import JAFilesystem
 from . import JAStringhelper
-from .casts import downcast
+from .casts import downcast, optional_cast
 from .error_types import ErrorMessage, NoError
 
 import bpy
@@ -87,9 +87,11 @@ class MaterialManager():
             return mat
 
         mat.use_nodes = True
+        node_tree = optional_cast(bpy.types.ShaderNodeTree, mat.node_tree)
         # we cannot query the "Principled BSDF" node by name because that only works in English Blender
         bsdf: Optional[bpy.types.Node] = None
-        for node in mat.node_tree.nodes.values():
+        for node in node_tree.nodes.values():
+            node = optional_cast(bpy.types.Node, node)
             # so we search by type instead
             if node.type == 'BSDF_PRINCIPLED':
                 bsdf = node
@@ -100,9 +102,9 @@ class MaterialManager():
             mat.use_nodes = False
             mat.diffuse_color = (1, 0, 1, 1)
             return mat
-        img = downcast(bpy.types.ShaderNodeTexImage, mat.node_tree.nodes.new('ShaderNodeTexImage'))
+        img = downcast(bpy.types.ShaderNodeTexImage, node_tree.nodes.new('ShaderNodeTexImage'))
         img.image = bpy.data.images.load(path)
-        mat.node_tree.links.new(
+        node_tree.links.new(
             bsdf.inputs['Base Color'], img.outputs['Color'])
 
         return mat
