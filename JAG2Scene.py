@@ -34,11 +34,7 @@ import bpy
 
 
 def findSceneRootObject() -> Optional[bpy.types.Object]:
-    scene_root = None
-    if "scene_root" in bpy.data.objects:
-        # if so, use that
-        scene_root = bpy.data.objects["scene_root"]
-    return scene_root
+    return bpy.data.objects.get("scene_root", None)
 
 
 class Scene:
