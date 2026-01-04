@@ -1,8 +1,11 @@
+from .mod_reload import reload_modules
+reload_modules(locals(), __package__, [], [".bpy_internal_stubs"])  # nopep8
 
 import bpy
 import math
 import struct
 import os
+from .bpy_internal_stubs import OperatorReturnItems
 
 
 ### The ROFF Export operator ###
@@ -17,12 +20,13 @@ class Operator(bpy.types.Operator):
     filepath: bpy.props.StringProperty(
         name="File Path", description="File path used for the ROFF file", maxlen=1024, default="")  # type: ignore
 
-    def execute(self, context):
+    def execute(self, context) -> set[OperatorReturnItems]:
         self.ExportStart(context)
         return {'FINISHED'}
 
-    def invoke(self, context, event):
-        windowMan = context.window_manager
+    def invoke(self, context, event) -> set[OperatorReturnItems]:
+        if (windowMan := context.window_manager) is None:
+            return {'RUNNING_MODAL'}
         # sets self.properties.filename and runs self.execute()
         windowMan.fileselect_add(self)
         return {'RUNNING_MODAL'}
