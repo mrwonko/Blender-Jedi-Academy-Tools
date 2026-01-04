@@ -40,7 +40,7 @@ def GetPaths(basepath, filepath) -> Tuple[str, str]:
     return basepath, filepath
 
 
-class GLMImport(bpy.types.Operator, ImportHelper): # type: ignore
+class GLMImport(bpy.types.Operator, ImportHelper):  # type: ignore
     '''Import GLM Operator.'''
     bl_idname = "import_scene.glm"
     bl_label = "Import JA Ghoul 2 Model (.glm)"
@@ -53,7 +53,7 @@ class GLMImport(bpy.types.Operator, ImportHelper): # type: ignore
 
     def skin_list_cb(self, context):
         try:
-            filepath =JAFilesystem.PathToFile(self.filepath, "")
+            filepath = JAFilesystem.PathToFile(self.filepath, "")
         except:
             print("could not find file or folder")
             return []
@@ -61,7 +61,7 @@ class GLMImport(bpy.types.Operator, ImportHelper): # type: ignore
 
         try:
             skin_files = sorted(f for f in JAFilesystem.FileList(filepath)
-                                    if f.endswith(".skin"))
+                                if f.endswith(".skin"))
         except Exception as e:
             print("Could not open skin files, error: ", e)
 
@@ -75,10 +75,10 @@ class GLMImport(bpy.types.Operator, ImportHelper): # type: ignore
             if skin.endswith("_default.skin"):
                 items.append((skin, skin.rsplit(".", 1)[0], ""))
         items.append((" ", "None", "Use file internal paths. "))
-        
+
         return items + [(skin, skin.rsplit(".", 1)[0], "")
-                for skin in skin_files if not skin.endswith("_default.skin")]
-    
+                        for skin in skin_files if not skin.endswith("_default.skin")]
+
     # properties
     filepath: bpy.props.StringProperty(
         name="File Path",
@@ -87,14 +87,14 @@ class GLMImport(bpy.types.Operator, ImportHelper): # type: ignore
     skin: bpy.props.EnumProperty(
         items=skin_list_cb,
         name="Skin",
-        default=1, # type: ignore
+        default=1,  # type: ignore
         description="The skin to load, choose none to use file internal paths"
-    ) # pyright: ignore [reportInvalidTypeForm]
+    )  # pyright: ignore [reportInvalidTypeForm]
     basepath: bpy.props.StringProperty(
         name="Base Path",
         description="The base folder relative to which paths should be interpreted. Leave empty to let the importer guess (needs /GameData/ in filepath).",
         default=""
-        )  # pyright: ignore [reportInvalidTypeForm]
+    )  # pyright: ignore [reportInvalidTypeForm]
     glaOverride: bpy.props.StringProperty(
         name=".gla override",
         description="Gla file to use, relative to base. Leave empty to use the one referenced in the file.",
@@ -112,20 +112,20 @@ class GLMImport(bpy.types.Operator, ImportHelper): # type: ignore
         description="You can select a preset for automatic skeleton changes which result in a nicer imported skeleton.",
         default='NONE',
         items=[
-        (SkeletonFixes.NONE.value, "None", "Don't change the skeleton in any way.", 0),
-        (SkeletonFixes.JKA_HUMANOID.value, "Jedi Academy _humanoid",
-         "Fixes for the default humanoid Jedi Academy skeleton", 1)
-    ])  # pyright: ignore [reportInvalidTypeForm, reportArgumentType]
+            (SkeletonFixes.NONE.value, "None", "Don't change the skeleton in any way.", 0),
+            (SkeletonFixes.JKA_HUMANOID.value, "Jedi Academy _humanoid",
+             "Fixes for the default humanoid Jedi Academy skeleton", 1)
+        ])  # pyright: ignore [reportInvalidTypeForm, reportArgumentType]
     loadAnimations: bpy.props.EnumProperty(
         name="animations",
         description="Whether to import all animations, some animations or only a range from the .gla. (Importing huge animations takes forever.)",
         default='NONE',
         items=[
-        (JAG2GLA.AnimationLoadMode.NONE.value, "None", "Don't import animations.", 0),
-        (JAG2GLA.AnimationLoadMode.CFG.value, "Cfg", "Import animations from animations.cfg file", 1),
-        (JAG2GLA.AnimationLoadMode.ALL.value, "All (slow)", "Import all animations", 2),
-        (JAG2GLA.AnimationLoadMode.RANGE.value, "Range (slow)", "Import a certain range of frames", 3)
-    ])  # pyright: ignore [reportInvalidTypeForm, reportArgumentType]
+            (JAG2GLA.AnimationLoadMode.NONE.value, "None", "Don't import animations.", 0),
+            (JAG2GLA.AnimationLoadMode.CFG.value, "Cfg", "Import animations from animations.cfg file", 1),
+            (JAG2GLA.AnimationLoadMode.ALL.value, "All (slow)", "Import all animations", 2),
+            (JAG2GLA.AnimationLoadMode.RANGE.value, "Range (slow)", "Import a certain range of frames", 3)
+        ])  # pyright: ignore [reportInvalidTypeForm, reportArgumentType]
     startFrame: bpy.props.IntProperty(
         name="Start frame",
         description="If only a range of frames of the animation is to be imported, this is the first.",
@@ -176,7 +176,7 @@ class GLMImport(bpy.types.Operator, ImportHelper): # type: ignore
             skin = ""
             guess_textures = True
         elif self.skin.strip() != "":
-            skin = JAFilesystem.PathToFile(filepath, "")  + self.skin
+            skin = JAFilesystem.PathToFile(filepath, "") + self.skin
         success, message = scene.saveToBlender(
             scale,
             skin,
@@ -209,14 +209,14 @@ class GLMImport(bpy.types.Operator, ImportHelper): # type: ignore
             row = layout.row()
             row.prop(self, "numFrames")
 
-    def invoke(self, context, event): # type: ignore
+    def invoke(self, context, event):  # type: ignore
         prefs = bpy.context.preferences.addons[__name__.rsplit('.', 1)[0]].preferences
         self.basepath = prefs.base_path
         self.scale = prefs.scale
         return super().invoke(context, event)
 
 
-class GLAImport(bpy.types.Operator, ImportHelper): # type: ignore
+class GLAImport(bpy.types.Operator, ImportHelper):  # type: ignore
     '''Import GLA Operator.'''
     bl_idname = "import_scene.gla"
     bl_label = "Import JA Ghoul 2 Skeleton (.gla)"
@@ -240,27 +240,27 @@ class GLAImport(bpy.types.Operator, ImportHelper): # type: ignore
         name="Scale",
         description="Scale to apply to the imported model.",
         default=10,
-        min=0, 
+        min=0,
         max=1000,
         subtype='PERCENTAGE')  # pyright: ignore [reportInvalidTypeForm]
     skeletonFixes: bpy.props.EnumProperty(
         name="skeleton changes",
         description="You can select a preset for automatic skeleton changes which result in a nicer imported skeleton.",
         default='NONE', items=[
-        (SkeletonFixes.NONE.value, "None", "Don't change the skeleton in any way.", 0),
-        (SkeletonFixes.JKA_HUMANOID.value, "Jedi Academy _humanoid",
-         "Fixes for the default humanoid Jedi Academy skeleton", 1)
-    ])  # pyright: ignore [reportInvalidTypeForm, reportArgumentType]
+            (SkeletonFixes.NONE.value, "None", "Don't change the skeleton in any way.", 0),
+            (SkeletonFixes.JKA_HUMANOID.value, "Jedi Academy _humanoid",
+             "Fixes for the default humanoid Jedi Academy skeleton", 1)
+        ])  # pyright: ignore [reportInvalidTypeForm, reportArgumentType]
     loadAnimations: bpy.props.EnumProperty(
         name="animations",
         description="Whether to import all animations, some animations or only a range from the .gla. (Importing huge animations takes forever.)",
         default='NONE',
         items=[
-        (JAG2GLA.AnimationLoadMode.NONE.value, "None", "Don't import animations.", 0),
-        (JAG2GLA.AnimationLoadMode.CFG.value, "Cfg", "Import animations from animations.cfg file", 1),
-        (JAG2GLA.AnimationLoadMode.ALL.value, "All (slow)", "Import all animations", 2),
-        (JAG2GLA.AnimationLoadMode.RANGE.value, "Range (slow)", "Import a certain range of frames", 3)
-    ])  # pyright: ignore [reportInvalidTypeForm, reportArgumentType]
+            (JAG2GLA.AnimationLoadMode.NONE.value, "None", "Don't import animations.", 0),
+            (JAG2GLA.AnimationLoadMode.CFG.value, "Cfg", "Import animations from animations.cfg file", 1),
+            (JAG2GLA.AnimationLoadMode.ALL.value, "All (slow)", "Import all animations", 2),
+            (JAG2GLA.AnimationLoadMode.RANGE.value, "Range (slow)", "Import a certain range of frames", 3)
+        ])  # pyright: ignore [reportInvalidTypeForm, reportArgumentType]
     startFrame: bpy.props.IntProperty(
         name="Start frame",
         description="If only a range of frames of the animation is to be imported, this is the first.",
@@ -329,7 +329,7 @@ class GLAImport(bpy.types.Operator, ImportHelper): # type: ignore
             row.prop(self, "numFrames")
 
 
-class GLMExport(bpy.types.Operator, ExportHelper): # type: ignore
+class GLMExport(bpy.types.Operator, ExportHelper):  # type: ignore
     '''Export GLM Operator.'''
     bl_idname = "export_scene.glm"
     bl_label = "Export JA Ghoul 2 Model (.glm)"
@@ -370,14 +370,14 @@ class GLMExport(bpy.types.Operator, ExportHelper): # type: ignore
         if not success:
             self.report({'ERROR'}, message)
         return {'FINISHED'}
-    
-    def invoke(self, context, event): # type: ignore
+
+    def invoke(self, context, event):  # type: ignore
         prefs = bpy.context.preferences.addons[__name__.rsplit('.', 1)[0]].preferences
         self.basepath = prefs.base_path
         return super().invoke(context, event)
 
 
-class GLAExport(bpy.types.Operator, ExportHelper): # type: ignore
+class GLAExport(bpy.types.Operator, ExportHelper):  # type: ignore
     '''Export GLA Operator.'''
     bl_idname = "export_scene.gla"
     bl_label = "Export JA Ghoul 2 Skeleton & Animation (.gla)"
@@ -433,14 +433,14 @@ class GLAExport(bpy.types.Operator, ExportHelper): # type: ignore
         if not success:
             self.report({'ERROR'}, message)
         return {'FINISHED'}
-    
-    def invoke(self, context, event): # type: ignore
+
+    def invoke(self, context, event):  # type: ignore
         prefs = bpy.context.preferences.addons[__name__.rsplit('.', 1)[0]].preferences
         self.basepath = prefs.base_path
         return super().invoke(context, event)
 
 
-class GLAMetaExport(bpy.types.Operator, ExportHelper): # type: ignore
+class GLAMetaExport(bpy.types.Operator, ExportHelper):  # type: ignore
     '''Export GLA Metadata Operator.'''
     bl_idname = "export_scene.gla_meta"
     bl_label = "Export JA Ghoul 2 Animation metadata (.cfg)"
@@ -448,7 +448,7 @@ class GLAMetaExport(bpy.types.Operator, ExportHelper): # type: ignore
     bl_options = {'REGISTER', 'UNDO'}
 
     filename_ext = ".cfg"
-    filter_glob: bpy.props.StringProperty(default="*.cfg", options={'HIDDEN'}) # pyright: ignore [reportInvalidTypeForm]
+    filter_glob: bpy.props.StringProperty(default="*.cfg", options={'HIDDEN'})  # pyright: ignore [reportInvalidTypeForm]
 
     # properties
     filepath: bpy.props.StringProperty(
@@ -461,9 +461,10 @@ class GLAMetaExport(bpy.types.Operator, ExportHelper): # type: ignore
         description="Source for creating the animation frames",
         default='NLA',
         items=[
-        ("NLA", "NLA Strips", "Get all info from the NLA strips.", 0),
-        ("MARKERS", "Frame Markers", "Get all info from named timeline markers.", 1)
-    ])  # pyright: ignore [reportInvalidTypeForm, reportArgumentType]
+            # we could also load directly from bpy.data.actions, instead of requiring actions to be put into the NLA editor?
+            ("NLA", "NLA Strips", "Get all info from the NLA strips.", 0),
+            ("MARKERS", "Frame Markers", "Get all info from named timeline markers.", 1)
+        ])  # pyright: ignore [reportInvalidTypeForm, reportArgumentType]
     offset: bpy.props.IntProperty(
         name="Offset",
         description="Frame offset for the animations, e.g. 21376 if you plan on merging with Jedi Academy's _humanoid.gla",
@@ -485,7 +486,7 @@ class GLAMetaExport(bpy.types.Operator, ExportHelper): # type: ignore
         if not success:
             self.report({'ERROR'}, message)
             return {'FINISHED'}
-        
+
         with open(self.filepath, "w") as file:
             file.write("// Animation Data generated from Blender Markers\n")
             file.write("// name\t\tstart\tlength\tloop\tfps\n")
