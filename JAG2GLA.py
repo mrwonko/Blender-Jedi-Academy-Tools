@@ -470,7 +470,11 @@ class MdxaAnimation:
                 action = bpy.data.actions.new(sequence.name)
                 action.loop_frame = sequence.loop
                 action.fps = sequence.fps
+                slot = action.slots.get("Armature")
+                if not slot:
+                    slot = action.slots.new('OBJECT', "Armature")
                 armature.animation_data.action = action
+                armature.animation_data.action_slot = slot
                 strip = None
                 nla_track_index = 1
                 # pick a nla track that can hold the animation, overlapping strips is not possible
@@ -485,6 +489,7 @@ class MdxaAnimation:
                         strip = nla_track.strips.new(action.name, sequence.start_frame, action)
                         strip.action_frame_start = 0
                         strip.action_frame_end = sequence.num_frames-1
+                        strip.action_slot = slot
                     except Exception:
                         strip = None
                     nla_track_index += 1
@@ -533,6 +538,7 @@ class MdxaAnimation:
                         pose_bone.keyframe_insert('location', frame=i)
                         pose_bone.keyframe_insert('rotation_quaternion', frame=i)
             # remove action from the animation data to stop previewing a single action
+            armature.animation_data.action_slot = None # type: ignore
             armature.animation_data.action = None # type: ignore
         else:
             lastFrameNum = 0
