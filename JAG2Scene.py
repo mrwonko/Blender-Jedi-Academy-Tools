@@ -135,17 +135,19 @@ class Scene:
     # "saves" the scene to blender
     # skeletonFixes is an enum with possible skeleton fixes - e.g. 'JKA' for connection- and
     def saveToBlender(self, scale, skin_rel, guessTextures: bool, useAnimation: bool, skeletonFixes: JAG2Constants.SkeletonFixes) -> Tuple[bool, ErrorMessage]:
+        if (scene := bpy.context.scene) is None:
+            return False, ErrorMessage("No active Scene")
         # is there already a scene root in blender?
         scene_root = findSceneRootObject()
         if scene_root:
             # make sure it's linked to the current scene
-            if not "scene_root" in bpy.context.scene.collection.objects:
-                bpy.context.scene.collection.objects.link(scene_root)
+            if not "scene_root" in scene.collection.objects:
+                scene.collection.objects.link(scene_root)
         else:
             # create it otherwise
             scene_root = bpy.data.objects.new("scene_root", None)
             scene_root.scale = (scale, scale, scale)
-            bpy.context.scene.collection.objects.link(scene_root)
+            scene.collection.objects.link(scene_root)
         # there's always a skeleton (even if it's *default)
         success, message = optional_cast(JAG2GLA.GLA, self.gla).saveToBlender(
             scene_root, useAnimation, skeletonFixes, self.animation_cfg)
