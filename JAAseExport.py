@@ -1,6 +1,9 @@
 # ASE Export Functionality
+from .mod_reload import reload_modules
+reload_modules(locals(), __package__, [], [".bpy_internal_stubs"])  # nopep8
 
 import bpy
+from .bpy_internal_stubs import OperatorReturnItems
 
 
 class Vertex:
@@ -65,8 +68,11 @@ class ModelExporter:
 
     def readObjects(self):
         self.surfaces = []
+        if (scene := bpy.context.scene) is None:
+            self.reportError("No active scene!")
+            return False
         # go through all objects in the scene
-        for obj in bpy.context.scene.objects:
+        for obj in scene.objects:
             # mesh entities are geometry
             if obj.type == 'MESH':
                 if not self.readGeometry(obj):
@@ -173,7 +179,7 @@ class Operator(bpy.types.Operator):
 
     filepath: bpy.props.StringProperty(subtype='FILE_PATH')  # type: ignore
 
-    def execute(self, context):  # pyright: ignore [reportIncompatibleMethodOverride]
+    def execute(self, context) -> set[OperatorReturnItems]:
         filepath = bpy.path.ensure_ext(self.filepath, ".ase")
 
         def report_error(msg):
@@ -183,10 +189,11 @@ class Operator(bpy.types.Operator):
         exporter.export(filepath)
         return {"FINISHED"}
 
-    def invoke(self, context, event):  # pyright: ignore [reportIncompatibleMethodOverride]
+    def invoke(self, context, event) -> set[OperatorReturnItems]:
         if not self.filepath:
             self.filepath = bpy.path.ensure_ext(bpy.data.filepath, ".ase")
-        WindowManager = context.window_manager
+        if (WindowManager := context.window_manager) is None:
+            return {'RUNNING_MODAL'}
         WindowManager.fileselect_add(self)
         return {"RUNNING_MODAL"}
 
