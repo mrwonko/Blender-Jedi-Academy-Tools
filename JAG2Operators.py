@@ -17,7 +17,7 @@
 # ##### END GPL LICENSE BLOCK #####
 
 from .mod_reload import reload_modules
-reload_modules(locals(), __package__, ["JAG2Scene", "JAG2GLA", "JAFilesystem", "JAG2AnimationCFG"], [".JAG2Constants"])  # nopep8
+reload_modules(locals(), __package__, ["JAG2Scene", "JAG2GLA", "JAFilesystem", "JAG2AnimationCFG"], [".bpy_internal_stubs", ".casts", ".JAG2Constants"])  # nopep8
 
 import bpy
 from typing import Tuple, cast
@@ -25,6 +25,8 @@ from . import JAG2Scene
 from . import JAG2GLA
 from . import JAFilesystem
 from . import JAG2AnimationCFG
+from .bpy_internal_stubs import OperatorReturnItems
+from .casts import optional_cast
 from .JAG2Constants import SkeletonFixes
 from bpy_extras.io_utils import ImportHelper, ExportHelper
 
@@ -135,7 +137,7 @@ class GLMImport(bpy.types.Operator, ImportHelper): # type: ignore
         default=1,
         min=1)  # pyright: ignore [reportInvalidTypeForm]
 
-    def execute(self, context):
+    def execute(self, context) -> set[OperatorReturnItems]:
         print("\n== GLM Import ==\n")
         # initialize paths
         basepath, filepath = GetPaths(self.basepath, self.filepath)
@@ -184,9 +186,10 @@ class GLMImport(bpy.types.Operator, ImportHelper): # type: ignore
         if not success:
             self.report({'ERROR'}, message)
         return {'FINISHED'}
-    
+
     def draw(self, context):
-        layout = self.layout
+        if (layout := self.layout) is None:
+            return
         layout.use_property_split = True
         row = layout.row()
         row.prop(self, "skin")
@@ -269,7 +272,7 @@ class GLAImport(bpy.types.Operator, ImportHelper): # type: ignore
         default=1,
         min=1)  # pyright: ignore [reportInvalidTypeForm]
 
-    def execute(self, context):
+    def execute(self, context) -> set[OperatorReturnItems]:
         print("\n== GLA Import ==\n")
         # de-percentagionise scale
         scale = self.scale / 100
@@ -300,15 +303,16 @@ class GLAImport(bpy.types.Operator, ImportHelper): # type: ignore
         if not success:
             self.report({'ERROR'}, message)
         return {'FINISHED'}
-    
-    def invoke(self, context, event): # type: ignore
+
+    def invoke(self, context, event):  # type: ignore
         prefs = bpy.context.preferences.addons[__name__.rsplit('.', 1)[0]].preferences
         self.basepath = prefs.base_path
         self.scale = prefs.scale
         return super().invoke(context, event)
-    
+
     def draw(self, context):
-        layout = self.layout
+        if (layout := self.layout) is None:
+            return
         layout.use_property_split = True
         row = layout.row()
         row.prop(self, "basepath")
@@ -348,7 +352,7 @@ class GLMExport(bpy.types.Operator, ExportHelper): # type: ignore
     gla: bpy.props.StringProperty(
         name=".gla name", description="Name of the skeleton this model uses (must exist!)", default="models/players/_humanoid/_humanoid")  # pyright: ignore [reportInvalidTypeForm]
 
-    def execute(self, context):
+    def execute(self, context) -> set[OperatorReturnItems]:
         print("\n== GLM Export ==\n")
         # initialize paths
         basepath, filepath = GetPaths(self.basepath, self.filepath)
@@ -404,7 +408,7 @@ class GLAExport(bpy.types.Operator, ExportHelper): # type: ignore
         maxlen=64,
         default="")  # pyright: ignore [reportInvalidTypeForm]
 
-    def execute(self, context):
+    def execute(self, context) -> set[OperatorReturnItems]:
         print("\n== GLA Export ==\n")
         # initialize paths
         basepath, filepath = GetPaths(self.basepath, self.filepath)
@@ -466,7 +470,7 @@ class GLAMetaExport(bpy.types.Operator, ExportHelper): # type: ignore
         min=0,
         default=0)  # pyright: ignore [reportInvalidTypeForm]
 
-    def execute(self, context):
+    def execute(self, context) -> set[OperatorReturnItems]:
         print("\n== GLA Metadata Export ==\n")
 
         export_cfg = JAG2AnimationCFG.AnimationCFG()
@@ -498,7 +502,7 @@ class OBJECT_OT_AddG2Properties(bpy.types.Operator):
     def poll(cls, context):
         return context.active_object is not None
 
-    def execute(self, context):
+    def execute(self, context) -> set[OperatorReturnItems]:
         obj = context.active_object
         _ = obj.g2_prop   # ensures existence
         self.report({'INFO'}, f"Added G2 properties to {obj.name}")
@@ -513,8 +517,8 @@ class OBJECT_OT_RemoveG2Properties(bpy.types.Operator):
     def poll(cls, context):
         return context.active_object is not None
 
-    def execute(self, context):
-        obj = context.active_object
+    def execute(self, context) -> set[OperatorReturnItems]:
+        obj = optional_cast(bpy.types.Object, context.active_object)
         props = obj.g2_prop
 
         props.name = ""
