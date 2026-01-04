@@ -102,9 +102,9 @@ class AnimationCFG():
         for line in file:
             if line.startswith("//") or line.strip() == "":
                 continue
-            seqence = AnimationSequence().from_cfg_line(line)
-            if seqence:
-                self.sequences.append(seqence)
+            sequence = AnimationSequence().from_cfg_line(line)
+            if sequence:
+                self.sequences.append(sequence)
             else:
                 print("Could not parse following line in animations.cfg", line)
         self.sequences.sort(key=lambda sequence: sequence.start_frame)
