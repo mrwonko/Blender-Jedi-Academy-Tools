@@ -607,8 +607,9 @@ class MdxmSurface:
                         triangle.append(proto_found)
                     else:
                         vertex = MdxmVertex()
+                        uv_arg: List[float] = u  # pyright: ignore [reportAssignmentType]  # vector supports slices
                         success, message = vertex.loadFromBlender(
-                            mesh.vertices[v], u, n, boneIndices, object, armatureObject)  # pyright: ignore [reportArgumentType]  # vector supports slices
+                            mesh.vertices[v], uv_arg, n, boneIndices, object, armatureObject)
                         if not success:
                             return False, ErrorMessage(f"Surface has invalid vertex: {message}")
                         protoverts.append((v, u, n))
