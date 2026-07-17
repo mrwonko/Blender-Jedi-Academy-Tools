@@ -20,11 +20,62 @@ from .mod_reload import reload_modules
 reload_modules(locals(), __package__, ["JAG2Scene", "JAG2GLA", "JAFilesystem"], [".JAG2Constants"])  # nopep8
 
 import bpy
+import re
 from typing import Tuple, cast
 from . import JAG2Scene
 from . import JAG2GLA
 from . import JAFilesystem
 from .JAG2Constants import SkeletonFixes
+
+_MODEL_ROOT_RE = re.compile(r"model_root_\d+$")
+_LOD_SUFFIX_RE = re.compile(r"_(\d+)$")
+
+
+def _iter_model_root_objects():
+    for obj in bpy.data.objects:
+        if _MODEL_ROOT_RE.fullmatch(obj.name):
+            yield obj
+
+
+def _iter_descendants(root: bpy.types.Object):
+    stack = list(root.children)
+    while stack:
+        current = stack.pop()
+        yield current
+        stack.extend(list(current.children))
+
+
+def _strip_lod_suffix(name: str) -> str:
+    match = _LOD_SUFFIX_RE.search(name)
+    if match:
+        base = name[:match.start()]
+        return base if base else name
+    return name
+
+
+def _set_mesh_g2_properties(mesh: bpy.types.Object) -> None:
+    base_name = _strip_lod_suffix(mesh.name)
+    if base_name == "":
+        base_name = mesh.name
+
+    mesh.g2_prop_name = base_name
+    mesh.g2_prop_shader = ""
+    mesh.g2_prop_off = "_off" in base_name
+    mesh.g2_prop_tag = mesh.name.startswith("*")
+
+
+def _ensure_skeleton_scale() -> None:
+    skeleton = bpy.data.objects.get("skeleton_root")
+    if skeleton and skeleton.type == 'ARMATURE':
+        skeleton.g2_prop_scale = 100.0
+
+
+def ensure_g2_properties_for_export() -> None:
+    for model_root in _iter_model_root_objects():
+        for child in _iter_descendants(model_root):
+            if child.type == 'MESH':
+                _set_mesh_g2_properties(child)
+    _ensure_skeleton_scale()
 
 
 def GetPaths(basepath, filepath) -> Tuple[str, str]:
@@ -202,6 +253,7 @@ class GLMExport(bpy.types.Operator):
             return {'FINISHED'}
         # try to load from Blender's data to my intermediate format
         scene = JAG2Scene.Scene(basepath)
+        ensure_g2_properties_for_export()
         success, message = scene.loadModelFromBlender(filepath, self.gla)
         if not success:
             self.report({'ERROR'}, message)
