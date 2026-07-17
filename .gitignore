@@ -1,3 +1,4 @@
 .vs/
 __pycache__/
 build/
+.venv/

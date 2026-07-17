@@ -1,9 +1,15 @@
-from typing import List, Optional, Union, cast
+from typing import List, Literal, Optional, Union, cast
 import mathutils
 from typing import Any, TypeVar, Type
 
 T = TypeVar('T')
 U = TypeVar('U')
+
+# The Literal union bpy.types.Operator.execute/invoke/modal/poll are typed to return.
+# Defined locally (rather than imported from bpy.stub_internal.rna_enums, which doesn't
+# exist at actual Blender runtime and isn't a stable public stub path) since a `type`
+# alias is structurally transparent - this is assignment-compatible with the stub's type.
+OperatorReturnItems = Literal["RUNNING_MODAL", "CANCELLED", "FINISHED", "PASS_THROUGH", "INTERFACE"]
 
 # Aliases for type casts with stricter semantics.
 # These are unchecked, but should help identify dangerous code pieces.
@@ -17,19 +23,19 @@ def optional_cast(t: Type[T], v: Optional[T]) -> T:
     so that it is no longer needed. It's a result from mutability overuse.
     TODO: remove all optional_casts
     """
-    return cast(t, v)
+    return cast(t, v)  # pyright: ignore [reportInvalidTypeForm]
 
 
 def optional_list_cast(t: Type[List[T]], v: List[Optional[T]]) -> List[T]:
     """
     Avoid using this directly, use error_types.ensureListIsGapless instead.
     """
-    return cast(t, v)
+    return cast(t, v)  # pyright: ignore [reportInvalidTypeForm]
 
 
 def union_cast(t: Type[T], v: Union[T, U]) -> T:
     """A cast from a union to one of its elements"""
-    return cast(t, v)
+    return cast(t, v)  # pyright: ignore [reportInvalidTypeForm]
 
 # A cast used to turn A | B into A or B, for properties that accept unions in the setter but return a fixed type in the setter.
 # Blender uses this extensively to allow assigning sequences in place of vectors and matrices,

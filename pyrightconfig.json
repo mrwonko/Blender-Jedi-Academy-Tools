@@ -1,0 +1,17 @@
+{
+    "include": ["."],
+    "exclude": [
+        "build",
+        "**/__pycache__",
+        ".venv",
+        "JAAseExport.py",
+        "JAAseImport.py",
+        "JAMd3Encode.py",
+        "JAMd3Export.py",
+        "JAPatchExport.py",
+        "JARoffExport.py",
+        "JARoffImport.py"
+    ],
+    "typeCheckingMode": "standard",
+    "pythonVersion": "3.11"
+}
