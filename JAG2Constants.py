@@ -41,6 +41,12 @@ BONELENGTH = 4
 # cosine of allowed angle between bone directions for them to be considered equal
 BONE_ANGLE_ERROR_MARGIN = 0.996
 
+# max distance (game units) a bone's actual per-frame head position may drift from where a
+# rigidly-connected bone's head would be (the parent's tail, following the parent's rotation)
+# before we consider it to need independent translation - use_connect can't represent that.
+# Accounts for float/quantization noise in the chained matrix math, not a real design tolerance.
+BONE_TRANSLATION_ERROR_MARGIN = 0.05
+
 
 class SkeletonFixes(Enum):
     NONE = 'NONE'
