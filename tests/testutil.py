@@ -20,6 +20,8 @@ def import_addon() -> ModuleType:
         "jediacademy", os.path.join(repo_root, "__init__.py"),
         submodule_search_locations=[repo_root],
     )
+    assert spec is not None
+    assert spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     sys.modules["jediacademy"] = module
     spec.loader.exec_module(module)

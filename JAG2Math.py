@@ -48,12 +48,12 @@ class Matrix:
         return mat
 
     def fromBlender(self, mat: mathutils.Matrix) -> None:
-        mat = mathutils.Matrix(mat)
+        mat = mathutils.Matrix(mat)  # pyright: ignore [reportArgumentType]  # matrix supports slices
         mat.to_4x4()
         self.rows = []
         for row in mat:
             l = []
-            l.extend(row)
+            l.extend(row)  # pyright: ignore [reportArgumentType]  # vector is iterable
             self.rows.append(l)
         del self.rows[3]
 
