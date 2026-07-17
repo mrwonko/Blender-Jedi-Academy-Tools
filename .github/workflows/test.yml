@@ -1,0 +1,17 @@
+name: Test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    container:
+      image: blenderkit/headless-blender:blender-4.5-stable
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run test suite in headless Blender
+        run: /home/headless/blender/blender --background --python-exit-code 1 --python tests/run_tests.py
