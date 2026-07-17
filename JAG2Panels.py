@@ -23,6 +23,10 @@ def initG2Properties() -> None:
         name="Off", default=False, description="Whether this object should be initially off (can be overridden in skin).")
     bpy.types.Object.g2_prop_scale = bpy.props.FloatProperty(
         name="Scale", default=100, min=0, subtype='PERCENTAGE', description="Scale of this skeleton.")
+    bpy.types.Object.g2_prop_glm_name = bpy.props.StringProperty(
+        name="GLM Path", maxlen=128, default="", description="Relative GLM path that created this scene root.")
+    bpy.types.Object.g2_prop_gla_name = bpy.props.StringProperty(
+        name="GLA Path", maxlen=128, default="", description="Relative GLA path this skeleton was imported from.")
 
 
 class G2PropertiesPanel(bpy.types.Panel):

@@ -13,7 +13,7 @@ In order for GLM exporting to work the files needs to be setup correctly:
 * The skeleton must be called skeleton_root. If you supply no skeleton, a default one will be used. (e.g. for weapons)
 * The different LOD levels must be called model_root_[LOD], where [LOD] is the LOD level, starting at 0.
 * Objects in lower LOD levels will only be exported if there is an object of the same name in LOD 0.
-* There must a scene_root which should be the parent of model_root_* - it is used as the origin of the model.
+* Each imported model gets its own `scene_root` container (the exporter looks for the correct one by GLM path), and the `model_root_*` hierarchy under that root defines the origin of the model.
 
 There's a new panel in the object tab of the properties editor. You can use it to set Ghoul 2 specific properties (and exported objects must in fact have them):
 

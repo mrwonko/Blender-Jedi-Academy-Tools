@@ -26,7 +26,7 @@ from . import MrwProfiler
 from .casts import optional_cast, downcast, bpy_generic_cast, matrix_getter_cast, matrix_overload_cast, vector_getter_cast
 from .error_types import ErrorMessage, NoError, ensureListIsGapless
 
-from typing import BinaryIO, Dict, List, Optional, Tuple
+from typing import BinaryIO, Dict, List, Optional, Tuple, Union
 from enum import Enum
 import struct
 import bpy
@@ -35,6 +35,42 @@ import mathutils
 PROFILE = False
 # show progress & remaining time every 30 seconds.
 PROGRESS_UPDATE_INTERVAL = 30
+
+_skeleton_name_counter = 0
+
+
+def _next_skeleton_name() -> str:
+    global _skeleton_name_counter
+    while True:
+        suffix = "" if _skeleton_name_counter == 0 else f"_{_skeleton_name_counter}"
+        name = f"skeleton_root{suffix}"
+        _skeleton_name_counter += 1
+        if name not in bpy.data.objects and name not in bpy.data.armatures:
+            return name
+
+
+def _find_existing_skeleton_root() -> Optional[bpy.types.Object]:
+    return bpy.data.objects.get("skeleton_root")
+
+
+def _normalize_gla_path(gla_path: Union[str, bytes]) -> str:
+    if gla_path is None:
+        return ""
+    if isinstance(gla_path, bytes):
+        gla_path = JAStringhelper.decode(gla_path)
+    if gla_path.endswith(".gla"):
+        gla_path = gla_path[:-4]
+    return gla_path
+
+
+def _assign_gla_name_property(obj: bpy.types.Object, gla_name: Union[str, bytes]) -> None:
+    normalized_name = _normalize_gla_path(gla_name)
+    if normalized_name == "":
+        return
+    if "g2_prop_gla_name" in obj:
+        obj.g2_prop_gla_name = normalized_name
+    else:
+        obj["g2_prop_gla_name"] = normalized_name
 
 
 def readString(file: BinaryIO) -> str:
@@ -232,18 +268,18 @@ class MdxaSkel:
             bone.saveToFile(file)
 
     def fitsArmature(self, armature) -> Tuple[bool, ErrorMessage]:
-        for bone in self.bones:
-            if not bone.name in armature.bones:
-                return False, ErrorMessage(f"Bone {bone.name} not found in existing skeleton_root armature!")
+        missing_bones = [bone.name for bone in self.bones if bone.name not in armature.bones]
+        for bone_name in missing_bones:
+            print(f"Warning: Bone {bone_name} not found in existing skeleton_root armature!")
         return True, NoError
 
-    def saveToBlender(self, scene_root: bpy.types.Object, skeletonFixes: JAG2Constants.SkeletonFixes) -> Tuple[bool, ErrorMessage]:
+    def saveToBlender(self, scene_root: bpy.types.Object, skeletonFixes: JAG2Constants.SkeletonFixes, skeleton_name: str) -> Tuple[bool, ErrorMessage]:
         #  Creation
         # create armature
-        self.armature = bpy.data.armatures.new("skeleton_root")
+        self.armature = bpy.data.armatures.new(skeleton_name)
         # create object
         self.armature_object = bpy.data.objects.new(
-            "skeleton_root", self.armature)
+            skeleton_name, self.armature)
         # set parent
         self.armature_object.parent = scene_root
         # link object to scene
@@ -515,6 +551,7 @@ class GLA:
         # the Blender Armature / Object
         self.skeleton_armature: Optional[bpy.types.Armature] = None
         self.skeleton_object: Optional[bpy.types.Object] = None
+        self._skeleton_name: Optional[str] = None
         self.animation = MdxaAnimation()
 
     def loadFromFile(self, filepath_abs: str, loadAnimation: AnimationLoadMode, startFrame: int, numFrames: int) -> Tuple[bool, ErrorMessage]:
@@ -567,6 +604,7 @@ class GLA:
             return False, ErrorMessage("skeleton_root is no Armature!")
         self.skeleton_armature = downcast(bpy.types.Armature, optional_cast(bpy.types.Object, self.skeleton_object).data)
         self.header.scale = self.skeleton_object.g2_prop_scale / 100  # pyright: ignore [reportAttributeAccessIssue]
+        _assign_gla_name_property(self.skeleton_object, gla_filepath_rel)
 
         # make skeleton_root the active object
         bpy.context.view_layer.objects.active = self.skeleton_object
@@ -766,84 +804,24 @@ class GLA:
     def saveToBlender(self, scene_root: bpy.types.Object, useAnimation: bool, skeletonFixes: JAG2Constants.SkeletonFixes) -> Tuple[bool, ErrorMessage]:
         print("Applying skeleton/skeleton to Blender")
         profiler = MrwProfiler.SimpleProfiler(True)
-        # default skeleton = no skeleton.
         if self.isDefault:
             return True, NoError
 
-        #  try using existing skeletons
-        # first check if there's already an armature object called skeleton_root. Try using that.
-        if "skeleton_root" in bpy.data.objects:
-            print("Found a skeleton_root object, trying to use it.")
-            self.skeleton_object = bpy.data.objects["skeleton_root"]
-            if self.skeleton_object.type != 'ARMATURE':
-                return False, ErrorMessage("Existing skeleton_root object is no armature!")
-            self.skeleton_armature = self.skeleton_object.data
-            self.skeleton_object.g2_prop_scale = self.header.scale * 100
-        # If there's no skeleton, there may yet still be an armature. Use that.
-        elif "skeleton_root" in bpy.data.armatures:
-            print("Found skeleton_root armature, trying to use it.")
-            self.skeleton_armature = bpy.data.armatures["skeleton_root"]
+        if self.skeleton_object is None or self.skeleton_armature is None:
+            existing_skeleton = _find_existing_skeleton_root()
+            if existing_skeleton:
+                if existing_skeleton.type != 'ARMATURE':
+                    return False, ErrorMessage("skeleton_root is no Armature!")
+                existing_armature = downcast(
+                    bpy.types.Armature, existing_skeleton.data)
+                success, message = self.skeleton.fitsArmature(existing_armature)
+                if not success:
+                    return False, message
+                self.skeleton_object = existing_skeleton
+                self.skeleton_armature = existing_armature
 
-        # for profiling, possibly
-        global g_temp
-        # if we found an existing armature, we need to make sure it's linked to an object and valid
-        if self.skeleton_armature:
-            # see if the armature fits
-            success, message = self.skeleton.fitsArmature(
-                self.skeleton_armature)
-            if not success:
-                return False, message
-
-            # this armature would work, add it to an object if necessary
-            if not self.skeleton_object:
-                self.skeleton_object = bpy.data.objects.new(
-                    "skeleton_root", self.skeleton_armature)
-                self.skeleton_object.g2_prop_scale = self.header.scale * 100  # pyright: ignore [reportAttributeAccessIssue]
-
-            # link the object to the current scene if necessary
-            if not self.skeleton_object.name in bpy.context.scene.collection.objects:
-                bpy.context.scene.collection.objects.link(self.skeleton_object)
-
-            # set its parent to the scene_root (not strictly speaking necessary but keeps output consistent)
-            self.skeleton_object.parent = scene_root
-
-            # add animations, if any
-            if useAnimation:
-                profiler.start("applying animations")
-                # go to object mode
-                bpy.context.view_layer.objects.active = self.skeleton_object
-                bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
-                if PROFILE:
-                    import cProfile
-                    print("=== Profile start ===")
-                    cProfile.runctx(
-                        "self.animation.saveToBlender(self.skeleton, self.skeleton_object, self.header.scale)", globals(), locals())
-                    print("=== Profile stop ===")
-                else:
-                    self.animation.saveToBlender(
-                        self.skeleton, self.skeleton_object, self.header.scale)
-                profiler.stop("applying animations")
-
-            # that's all
-            return True, NoError
-
-        # no existing Armature found, create a new one.
-
-        # create armature
-        profiler.start("creating armature")
-        success, message = self.skeleton.saveToBlender(
-            scene_root, skeletonFixes)
-        if not success:
-            return False, message
-        self.skeleton_armature = self.skeleton.armature
-        self.skeleton_object = self.skeleton.armature_object
-        self.skeleton_object.g2_prop_scale = self.header.scale * 100  # pyright: ignore [reportAttributeAccessIssue]
-        profiler.stop("creating armature")
-
-        # add animations, if any
-        if useAnimation:
+        def _apply_animations() -> None:
             profiler.start("applying animations")
-            # go to object mode
             bpy.context.view_layer.objects.active = self.skeleton_object
             bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
             if PROFILE:
@@ -856,4 +834,31 @@ class GLA:
                 self.animation.saveToBlender(
                     self.skeleton, self.skeleton_object, self.header.scale)
             profiler.stop("applying animations")
+
+        if self.skeleton_armature and self.skeleton_object:
+            if not self.skeleton_object.name in bpy.context.scene.collection.objects:
+                bpy.context.scene.collection.objects.link(self.skeleton_object)
+            self.skeleton_object.parent = scene_root
+            self.skeleton_object.g2_prop_scale = self.header.scale * 100  # pyright: ignore [reportAttributeAccessIssue]
+            _assign_gla_name_property(self.skeleton_object, self.header.name)
+            if useAnimation:
+                _apply_animations()
+            return True, NoError
+
+        skeleton_name = self._skeleton_name or _next_skeleton_name()
+        self._skeleton_name = skeleton_name
+
+        profiler.start("creating armature")
+        success, message = self.skeleton.saveToBlender(
+            scene_root, skeletonFixes, skeleton_name)
+        if not success:
+            return False, message
+        self.skeleton_armature = self.skeleton.armature
+        self.skeleton_object = self.skeleton.armature_object
+        self.skeleton_object.g2_prop_scale = self.header.scale * 100  # pyright: ignore [reportAttributeAccessIssue]
+        _assign_gla_name_property(self.skeleton_object, self.header.name)
+        profiler.stop("creating armature")
+
+        if useAnimation:
+            _apply_animations()
         return True, NoError

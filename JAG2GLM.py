@@ -40,6 +40,26 @@ import mathutils
 BoneIndexMap = Dict[str, int]
 
 
+def _normalize_glm_path(glm_path: Optional[str]) -> str:
+    if not glm_path:
+        return ""
+    normalized = glm_path.replace("\\", "/")
+    if normalized.lower().endswith(".glm"):
+        normalized = normalized[:-4]
+    return normalized
+
+
+def _find_scene_root_for_glm(glm_filepath_rel: str) -> Optional[bpy.types.Object]:
+    normalized = _normalize_glm_path(glm_filepath_rel)
+    if normalized:
+        for obj in bpy.data.objects:
+            if obj.type != 'EMPTY':
+                continue
+            if "g2_prop_glm_name" in obj and obj.g2_prop_glm_name == normalized:
+                return obj
+    return bpy.data.objects.get("scene_root")
+
+
 def buildBoneIndexLookupMap(gla_filepath_abs: str) -> Tuple[Optional[BoneIndexMap], ErrorMessage]:
     print("Loading gla file for bone name -> bone index lookup")
     # open file
@@ -423,9 +443,9 @@ class MdxmVertex:
     # vertex :: Blender MeshVertex
     # uv :: [int, int] (blender style, will be y-flipped)
     # boneIndices :: { string -> int } (bone name -> index, may be changed)
-    def loadFromBlender(self, vertex: bpy.types.MeshVertex, uv: List[float], normal: mathutils.Vector, boneIndices: Dict[str, int], meshObject: bpy.types.Object, armatureObject: Optional[bpy.types.Object]) -> Tuple[bool, ErrorMessage]:
+    def loadFromBlender(self, vertex: bpy.types.MeshVertex, uv: List[float], normal: mathutils.Vector, boneIndices: Dict[str, int], meshObject: bpy.types.Object, armatureObject: Optional[bpy.types.Object], scene_root: bpy.types.Object) -> Tuple[bool, ErrorMessage]:
         # I'm taking the world matrix in case the object is not at the origin, but I really want the coordinates in scene_root-space, so I'm using that, too.
-        rootMat = matrix_getter_cast(bpy_generic_cast(bpy.types.Object, bpy.data.objects["scene_root"]).matrix_world).inverted()
+        rootMat = matrix_getter_cast(scene_root.matrix_world).inverted()
         co = vector_overload_cast(rootMat @ vector_overload_cast(matrix_getter_cast(meshObject.matrix_world) @ vector_getter_cast(vertex.co)))
         normal = vector_overload_cast(rootMat.to_quaternion() @ vector_overload_cast(matrix_getter_cast(meshObject.matrix_world).to_quaternion() @ normal))
         for i in range(3):
@@ -546,7 +566,7 @@ class MdxmSurface:
                 "Warning: Surface structure unordered (bone references not last) or read error")
             file.seek(startPos + self.ofsEnd)
 
-    def loadFromBlender(self, object: bpy.types.Object, surfaceData: MdxmSurfaceData, boneIndexMap: Optional[BoneIndexMap], armatureObject: Optional[bpy.types.Object]) -> Tuple[bool, ErrorMessage]:
+    def loadFromBlender(self, object: bpy.types.Object, surfaceData: MdxmSurfaceData, boneIndexMap: Optional[BoneIndexMap], armatureObject: Optional[bpy.types.Object], scene_root: bpy.types.Object) -> Tuple[bool, ErrorMessage]:
         if object.type != 'MESH':
             return False, ErrorMessage(f"Object {object.name} is not of type Mesh!")
         mesh: bpy.types.Mesh = downcast(bpy.types.Object, object.evaluated_get(
@@ -564,7 +584,7 @@ class MdxmSurface:
                 vi = bpy_generic_cast(bpy.types.MeshVertex, vi)
                 vert = MdxmVertex()
                 success, message = vert.loadFromBlender(
-                    vi, [0, 0], mathutils.Vector(), boneIndices, object, armatureObject)
+                    vi, [0, 0], mathutils.Vector(), boneIndices, object, armatureObject, scene_root)
                 if not success:
                     return False, ErrorMessage(f"Mesh {mesh.name} has invalid vertex: {message}")
                 self.vertices.append(vert)
@@ -605,7 +625,7 @@ class MdxmSurface:
                     else:
                         vertex = MdxmVertex()
                         success, message = vertex.loadFromBlender(
-                            mesh.vertices[v], u, n, boneIndices, object, armatureObject)
+                            mesh.vertices[v], u, n, boneIndices, object, armatureObject, scene_root)
                         if not success:
                             return False, ErrorMessage(f"Surface has invalid vertex: {message}")
                         protoverts.append((v, u, n))
@@ -824,7 +844,7 @@ class MdxmLOD:
         assert (file.tell() == startPos + self.ofsEnd)
 
     @staticmethod
-    def loadFromBlender(level: int, model_root: bpy.types.Object, surfaceIndexMap: Dict[str, int], surfaceDataCollection: MdxmSurfaceDataCollection, boneIndexMap: Optional[BoneIndexMap], armatureObject: Optional[bpy.types.Object]) -> Tuple[Optional["MdxmLOD"], ErrorMessage]:
+    def loadFromBlender(level: int, model_root: bpy.types.Object, surfaceIndexMap: Dict[str, int], surfaceDataCollection: MdxmSurfaceDataCollection, boneIndexMap: Optional[BoneIndexMap], armatureObject: Optional[bpy.types.Object], scene_root: bpy.types.Object) -> Tuple[Optional["MdxmLOD"], ErrorMessage]:
         # self.level gets set by caller
 
         # create dictionary of available objects
@@ -848,7 +868,7 @@ class MdxmLOD:
                 surfaceData = surfaceDataCollection.surfaces[index]
                 # load from blender
                 success, message = surf.loadFromBlender(
-                    available[name], surfaceData, boneIndexMap, armatureObject)
+                    available[name], surfaceData, boneIndexMap, armatureObject, scene_root)
                 if not success:
                     return None, ErrorMessage(f"could not load surface {name}: {message}")
             # not available?
@@ -914,10 +934,10 @@ class MdxmLODCollection:
                 file.seek(startPos + curLOD.ofsEnd)
             self.LODs.append(curLOD)
 
-    def loadFromBlender(self, rootObjects: List[bpy.types.Object], surfaceIndexMap: Dict[str, int], surfaceDataCollection: MdxmSurfaceDataCollection, boneIndexMap: Optional[BoneIndexMap], armatureObject: Optional[bpy.types.Object]) -> Tuple[bool, ErrorMessage]:
+    def loadFromBlender(self, rootObjects: List[bpy.types.Object], surfaceIndexMap: Dict[str, int], surfaceDataCollection: MdxmSurfaceDataCollection, boneIndexMap: Optional[BoneIndexMap], armatureObject: Optional[bpy.types.Object], scene_root: bpy.types.Object) -> Tuple[bool, ErrorMessage]:
         for lodLevel, model_root in enumerate(rootObjects):
             lod, message = MdxmLOD.loadFromBlender(
-                lodLevel, model_root, surfaceIndexMap, surfaceDataCollection, boneIndexMap, armatureObject)
+                lodLevel, model_root, surfaceIndexMap, surfaceDataCollection, boneIndexMap, armatureObject, scene_root)
             if lod is None:
                 return False, ErrorMessage(f"loading LOD {lodLevel} from Blender: {message}")
             self.LODs.append(lod)
@@ -1005,9 +1025,17 @@ class GLM:
             self.header.animName = b"*default"
         else:
             # retrieve skeleton
-            if not "skeleton_root" in bpy.data.objects:
+            normalized_name = JAG2GLA._normalize_gla_path(gla_filepath_rel)
+            obj: Optional[bpy.types.Object] = None
+            if normalized_name:
+                for candidate in bpy.data.objects:
+                    if candidate.type == 'ARMATURE' and "g2_prop_gla_name" in candidate and candidate.g2_prop_gla_name == normalized_name:
+                        obj = candidate
+                        break
+            if obj is None and "skeleton_root" in bpy.data.objects:
+                obj = bpy_generic_cast(bpy.types.Object, bpy.data.objects["skeleton_root"])
+            if obj is None:
                 return False, ErrorMessage("No skeleton_root Object found!")
-            obj = bpy_generic_cast(bpy.types.Object, bpy.data.objects["skeleton_root"])
             skeleton_object = obj
             if obj.type != 'ARMATURE':
                 return False, ErrorMessage("skeleton_root is no Armature!")
@@ -1027,15 +1055,19 @@ class GLM:
 
         #   load from Blender
 
+        scene_root_object = _find_scene_root_for_glm(glm_filepath_rel)
+        if scene_root_object is None:
+            return False, ErrorMessage("No scene_root Object found!")
+
+        child_map = {child.name: child for child in scene_root_object.children}
         # find all available LODs
         self.header.numLODs = 0
         rootObjects: List[bpy.types.Object] = []
-        while f"model_root_{self.header.numLODs}" in bpy.data.objects:
-            rootObjects.append(
-                bpy.data.objects[f"model_root_{self.header.numLODs}"])
+        while f"model_root_{self.header.numLODs}" in child_map:
+            rootObjects.append(child_map[f"model_root_{self.header.numLODs}"])
             self.header.numLODs += 1
         print(
-            f"Found {self.header.numLODs} model_root objects, i.e. LOD levels")
+            f"Found {self.header.numLODs} model_root objects, i.e. LOD levels for root {scene_root_object.name}")
 
         if self.header.numLODs == 0:
             return False, ErrorMessage("Could not find model_root_0 object")
@@ -1053,7 +1085,7 @@ class GLM:
 
         # load all LODs
         success, message = self.LODCollection.loadFromBlender(
-            rootObjects, surfaceIndexMap, self.surfaceDataCollection, boneIndexMap, skeleton_object)
+            rootObjects, surfaceIndexMap, self.surfaceDataCollection, boneIndexMap, skeleton_object, scene_root_object)
         if not success:
             return False, message
 
@@ -1100,7 +1132,7 @@ class GLM:
 
     # basepath: ../GameData/.../
     # gla: JAG2GLA.GLA object - the Skeleton (for weighting purposes)
-    # scene_root: "scene_root" object in Blender
+    # scene_root: the scene_root object that contains this model
     def saveToBlender(self, basepath: str, gla: JAG2GLA.GLA, scene_root: bpy.types.Object, skin_rel: str, guessTextures: bool) -> Tuple[bool, ErrorMessage]:
         if gla.header.numBones != self.header.numBones:
             return False, ErrorMessage(f"Bone number mismatch - gla has {gla.header.numBones} bones, model uses {self.header.numBones}. Maybe you're trying to load a jk2 model with the jk3 skeleton or vice-versa?")
