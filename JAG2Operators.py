@@ -447,5 +447,6 @@ def unregister():
 
     bpy.types.TOPBAR_MT_file_export.remove(menu_func_export_glm)
     bpy.types.TOPBAR_MT_file_export.remove(menu_func_export_gla)
+    bpy.types.TOPBAR_MT_file_export.remove(menu_func_export_gla_meta)
     bpy.types.TOPBAR_MT_file_import.remove(menu_func_import_glm)
     bpy.types.TOPBAR_MT_file_import.remove(menu_func_import_gla)
