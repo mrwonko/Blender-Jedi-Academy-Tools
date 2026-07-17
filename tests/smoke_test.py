@@ -18,7 +18,7 @@ spec.loader.exec_module(jediacademy)
 print(f"[smoke_test] Imported jediacademy OK: {jediacademy.bl_info['name']}")
 
 # Toggle to False to verify CI failure reporting, then flip back before merging.
-SHOULD_PASS = False
+SHOULD_PASS = True
 
 if SHOULD_PASS:
     print("[smoke_test] PASS: pipeline is wired up correctly.")
