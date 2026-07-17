@@ -116,21 +116,7 @@ def case_roundtrip():
     expected_glm = _load_glm(REFERENCE_BASEPATH)
     expected_gla = _load_gla(REFERENCE_BASEPATH)
 
-    gla_mismatches = testutil.compare_gla(actual_gla, expected_gla)
-
-    # KNOWN ISSUE, not yet fixed - tracked separately, not blocking CI:
-    # MdxaBone.saveToBlender auto-connects a bone to its parent whenever it's the
-    # parent's only child (regardless of skeletonFixes), which silently overrides a
-    # deliberately-disabled use_connect from the original authoring file. A connected
-    # bone can't translate independently of its parent's tail in Blender, so any
-    # animation asking it to do so (like Bone.002 here, from frame 11 on) gets dropped
-    # on reimport. Log it, but don't fail the suite on it until the heuristic is fixed.
-    known_issue = [m for m in gla_mismatches if "bone 'Bone.002'" in m]
-    other_gla_mismatches = [m for m in gla_mismatches if m not in known_issue]
-    for m in known_issue:
-        print(f"[test] KNOWN ISSUE (not failing): {m}")
-
-    testutil.check(testutil.compare_glm(actual_glm, expected_glm) + other_gla_mismatches)
+    testutil.check(testutil.compare_glm(actual_glm, expected_glm) + testutil.compare_gla(actual_gla, expected_gla))
 
 
 runner = testutil.TestRunner()

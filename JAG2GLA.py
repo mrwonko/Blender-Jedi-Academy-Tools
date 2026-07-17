@@ -23,7 +23,7 @@ from . import JAStringhelper
 from . import JAG2Constants
 from . import JAG2Math
 from . import MrwProfiler
-from .casts import optional_cast, downcast, bpy_generic_cast, matrix_getter_cast, matrix_overload_cast, vector_getter_cast
+from .casts import optional_cast, downcast, bpy_generic_cast, matrix_getter_cast, matrix_overload_cast, vector_getter_cast, vector_overload_cast
 from .error_types import ErrorMessage, NoError, ensureListIsGapless
 
 from typing import BinaryIO, Dict, List, Optional, Tuple
@@ -95,6 +95,33 @@ class MdxaBoneOffsets:
 # originally called MdxaSkel_t, but I find that name misleading
 
 
+# whether auto-connecting boneIndex to parentIndex would faithfully reproduce its animation: a
+# connected bone is rigidly attached to its parent - its head, expressed in the parent's own
+# current local frame, never moves from where it sits at rest; only its own rotation can vary.
+# So this checks whether the bone's head, re-expressed in the parent's frame each frame, ever
+# drifts from that bind-pose-relative position. If it does, the bone needs independent
+# translation that use_connect can't represent. transformsPerFrame is
+# MdxaAnimation.computeAbsoluteFrameTransforms's output; an empty list (no animation data
+# available) means there's nothing to check against, so it's fine to connect.
+def _boneCanConnect(transformsPerFrame: List[Dict[int, "mathutils.Matrix"]], allBones: List["MdxaBone"], boneIndex: int, parentIndex: int) -> bool:
+    # rest pose is just the frame where the compressed offset is identity, so put it through the
+    # same GLABoneRotToBlender conversion computeAbsoluteFrameTransforms applies to every other
+    # frame's combined (offset @ basePoseMat) - otherwise the two are in different coordinate
+    # conventions and every comparison shows a large constant offset instead of a real signal.
+    childBase = allBones[boneIndex].basePoseMat.toBlender()
+    parentBase = allBones[parentIndex].basePoseMat.toBlender()
+    JAG2Math.GLABoneRotToBlender(childBase)
+    JAG2Math.GLABoneRotToBlender(parentBase)
+    restRelativeHead = vector_overload_cast(parentBase.inverted() @ mathutils.Vector(childBase.translation))  # pyright: ignore [reportArgumentType]  # vector supports slices
+    for transforms in transformsPerFrame:
+        parentTransform = transforms[parentIndex]
+        childHead = mathutils.Vector(transforms[boneIndex].translation)  # pyright: ignore [reportArgumentType]  # vector supports slices
+        relativeHead = vector_overload_cast(parentTransform.inverted() @ childHead)
+        if (relativeHead - restRelativeHead).length > JAG2Constants.BONE_TRANSLATION_ERROR_MARGIN:
+            return False
+    return True
+
+
 class MdxaBone:
     def __init__(self):
         self.name = ""
@@ -154,7 +181,7 @@ class MdxaBone:
     # blenderBonesSoFar is a dictionary of boneIndex -> BlenderBone
     # allBones is the list of all MdxaBones
     # use it to set up hierarchy and add yourself once done.
-    def saveToBlender(self, armature: bpy.types.Armature, blenderBonesSoFar: Dict[int, bpy.types.EditBone], allBones: List["MdxaBone"], skeletonFixes: JAG2Constants.SkeletonFixes) -> None:
+    def saveToBlender(self, armature: bpy.types.Armature, blenderBonesSoFar: Dict[int, bpy.types.EditBone], allBones: List["MdxaBone"], skeletonFixes: JAG2Constants.SkeletonFixes, transformsPerFrame: List[Dict[int, "mathutils.Matrix"]]) -> None:
         # create bone
         bone = armature.edit_bones.new(self.name)
 
@@ -196,7 +223,8 @@ class MdxaBone:
 
             # if this is the only child of its parent or has priority: Connect the parent to this.
             if numParentChildren == 1 or self.name in JAG2Constants.PRIORITY_BONES[skeletonFixes]:
-                # but only if that doesn't rotate the bone (much)
+                # but only if that doesn't rotate the bone (much) - check this first since it's
+                # much cheaper than _boneCanConnect below (which loops over every frame)
                 # so calculate the directions...
                 oldDir = vector_getter_cast(blenderParent.tail) - vector_getter_cast(blenderParent.head)
                 newDir = pos - blenderParent.head
@@ -205,8 +233,12 @@ class MdxaBone:
                 dotProduct = oldDir.dot(newDir)
                 # ... and compare them using the dot product, which is the cosine of the angle between two unit vectors
                 if dotProduct > JAG2Constants.BONE_ANGLE_ERROR_MARGIN:
-                    blenderParent.tail = pos
-                    bone.use_connect = True
+                    # and only if the animation doesn't need this bone to translate independently
+                    # of its parent - use_connect rigidly locks the head to the parent's tail,
+                    # which would silently clip such translation on reimport.
+                    if _boneCanConnect(transformsPerFrame, allBones, self.index, parentIndex):
+                        blenderParent.tail = pos
+                        bone.use_connect = True
 
         # save to created bones
         blenderBonesSoFar[self.index] = bone
@@ -237,7 +269,11 @@ class MdxaSkel:
                 return False, ErrorMessage(f"Bone {bone.name} not found in existing skeleton_root armature!")
         return True, NoError
 
-    def saveToBlender(self, scene_root: bpy.types.Object, skeletonFixes: JAG2Constants.SkeletonFixes) -> Tuple[bool, ErrorMessage]:
+    def saveToBlender(self, scene_root: bpy.types.Object, skeletonFixes: JAG2Constants.SkeletonFixes, animation: Optional["MdxaAnimation"] = None) -> Tuple[bool, ErrorMessage]:
+        # computed once up front (not per-bone) since it doesn't depend on Blender bone state -
+        # see MdxaBone.saveToBlender/_boneCanConnect for why it's needed.
+        transformsPerFrame = animation.computeAbsoluteFrameTransforms(self) if animation is not None else []
+
         #  Creation
         # create armature
         self.armature = bpy.data.armatures.new("skeleton_root")
@@ -273,7 +309,7 @@ class MdxaSkel:
                     parent = bone.parent
                 if parent in createdBonesIndices:
                     bone.saveToBlender(
-                        self.armature, blenderEditBones, self.bones, skeletonFixes)
+                        self.armature, blenderEditBones, self.bones, skeletonFixes, transformsPerFrame)
                     createdBonesIndices.append(bone.index)
                     createdBone = True
                 else:
@@ -382,6 +418,53 @@ class MdxaAnimation:
                 "Info: .gla Bone Pool read but file not over yet - this likely indicates a problem.")
         return True, NoError
 
+    # bones in parent-first order - shared by saveToBlender and computeAbsoluteFrameTransforms.
+    @staticmethod
+    def _hierarchyOrder(skeleton: MdxaSkel) -> List[int]:
+        hierarchyOrder: List[int] = []
+        while len(hierarchyOrder) < len(skeleton.bones):
+            addedSomething = False
+            for bone in skeleton.bones:
+                if bone.index in hierarchyOrder:
+                    continue
+                if bone.parent != -1 and bone.parent not in hierarchyOrder:
+                    continue
+                hierarchyOrder.append(bone.index)
+                addedSomething = True
+            assert (addedSomething)
+        return hierarchyOrder
+
+    # for each frame, each bone's absolute (armature-space, Blender-convention) posed transform,
+    # via the same forward-kinematics math applied to actual Blender pose bones in saveToBlender
+    # below - but pure Python, so it can run before any Blender armature exists (used to decide
+    # auto-connect behavior ahead of bone creation, see MdxaBone.saveToBlender/_boneCanConnect).
+    # Memory: measured against real production skeletons (headless Blender, resource.getrusage
+    # RSS) - _humanoid-ja.gla (53 bones, 21376 frames) costs ~193MB for the returned structure,
+    # _humanoid-jk2.gla (72 bones, 17278 frames) ~196MB - both well under 1GB, and it's transient:
+    # the caller (MdxaSkel.saveToBlender) only keeps this in a local variable for the duration of
+    # bone creation, not for the lifetime of the import.
+    def computeAbsoluteFrameTransforms(self, skeleton: MdxaSkel) -> List[Dict[int, mathutils.Matrix]]:
+        if not self.frames:
+            return []
+        hierarchyOrder = self._hierarchyOrder(skeleton)
+        basePoses = [bone.basePoseMat.toBlender() for bone in skeleton.bones]
+        compBones = downcast(List[JAG2Math.CompBone], self.bonePool.bones)
+        result: List[Dict[int, mathutils.Matrix]] = []
+        for frame in self.frames:
+            absoluteOffsets: Dict[int, mathutils.Matrix] = {}
+            transforms: Dict[int, mathutils.Matrix] = {}
+            for index in hierarchyOrder:
+                bone = skeleton.bones[index]
+                offset = compBones[frame.boneIndices[index]].matrix
+                if bone.parent != -1:
+                    offset = matrix_overload_cast(absoluteOffsets[bone.parent] @ offset)
+                absoluteOffsets[index] = offset
+                transformation = matrix_overload_cast(offset @ basePoses[index])
+                JAG2Math.GLABoneRotToBlender(transformation)
+                transforms[index] = transformation
+            result.append(transforms)
+        return result
+
     def saveToFile(self, file: BinaryIO, header: MdxaHeader):
         assert (file.tell() == header.ofsFrames)
         for frame in self.frames:
@@ -399,20 +482,7 @@ class MdxaAnimation:
         #   Bone Position Set Order
         # bones have to be set in hierarchical order - their position depends on their parent's absolute position, after all.
         # so this is the order in which bones have to be processed.
-        hierarchyOrder: List[int] = []
-        while len(hierarchyOrder) < len(skeleton.bones):
-            # make sure we add something each frame (infinite loop otherwise)
-            addedSomething = False
-            # I could copy skeleton.bones for minor speed boost, imho not necessary.
-            for bone in skeleton.bones:
-                if bone.index in hierarchyOrder:
-                    continue  # we already have this one.
-                if bone.parent != -1 and bone.parent not in hierarchyOrder:
-                    # we don't have the parent yet, so this cannot come yet.
-                    continue
-                hierarchyOrder.append(bone.index)
-                addedSomething = True
-            assert (addedSomething)
+        hierarchyOrder = self._hierarchyOrder(skeleton)
         # for going leaf to root
 
         #   Blender PoseBones list
@@ -843,7 +913,7 @@ class GLA:
         # create armature
         profiler.start("creating armature")
         success, message = self.skeleton.saveToBlender(
-            scene_root, skeletonFixes)
+            scene_root, skeletonFixes, self.animation)
         if not success:
             return False, message
         self.skeleton_armature = self.skeleton.armature
