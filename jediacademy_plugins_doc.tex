@@ -77,13 +77,49 @@
   \item Removed the MD3 exporter, as a superior one is available at \url{https://github.com/SomaZ/Blender_BSP_Importer/}
  \end{itemize}
 
- \subsection*{nightly (preview)}
- These changes have not yet been given a new version number.
+ \subsection*{\date{2023-02-11}}
  \begin{itemize}
   \item Detect duplicate G2 names in LOD 0 on GLM export. Previously, this led to broken exports, with ModView showing
   "Model has \(N\) surfaces, but only \(M\) of them are connected up through the heirarchy, the rest will never be recursed into." (\(M>N\))
  \end{itemize}
- 
+
+ \subsection*{\date{2023-10-03}}
+ \begin{itemize}
+  \item Renamed the GLM's armature modifier from "skin" to "armature" for clarity.
+ \end{itemize}
+
+ \subsection*{\date{2024-03-24}}
+ \begin{itemize}
+  \item Fixed GLM export sometimes dropping the wrong bone weight from a vertex weighted to more bones than allowed.
+ \end{itemize}
+
+ \subsection*{\date{2024-03-28}--\date{2024-04-23}}
+ \begin{itemize}
+  \item Raised the minimum supported Blender version to 4.1.
+  \item Fixed GLM export failing with an error on Blender 4.1, caused by API functions that version removed.
+ \end{itemize}
+
+ \subsection*{\date{2024-05-08}}
+ \begin{itemize}
+  \item The GLA export's "gla reference" setting now accepts a trailing ".gla" extension instead of producing a broken file.
+  \item Fixed GLM export sometimes crashing, or falsely reporting missing UVs, instead of showing a clear error.
+ \end{itemize}
+
+ \subsection*{\date{2024-08-30}}
+ \begin{itemize}
+  \item Fixed missing or incorrect shading (custom normals) on GLM import.
+ \end{itemize}
+
+ \subsection*{\date{2025-01-27}}
+ \begin{itemize}
+  \item Fixed GLM import failing entirely on non-English Blender.
+ \end{itemize}
+
+ \subsection*{\date{2025-08-09}}
+ \begin{itemize}
+  \item Fixed the missing-UV export error incorrectly firing on meshes with no vertices.
+ \end{itemize}
+
  \section{Installation}
  
  Open the User Preferences (File/User Preferences or Ctrl+Alt+U), go to the Addons tab and press there
@@ -93,7 +129,10 @@
  Once installed, don't forget to enable the addon. It's located in the Import-Export category and called
  ``Import-Export: Jedi Academy Import/Export Tools''. Then click Save User Settings so it'll still be activated
  the next time you start Blender.
- 
+
+ This addon requires Blender 4.1 or newer, and has been tested up to Blender 4.5. Blender 5.0 is currently
+ known not to work due to breaking changes in Blender's API.
+
  \section{ASE}
  
  The ASE file format (Ascii Scene Export) is a plaintext model format that is widely used in Jedi Academy due
@@ -246,7 +285,7 @@
  math is involved to guarantee they're perpendicular. In Raven's models, the short leg is the X Axis, the
  long one the Y Axis. (Unless they screw up, as in R2D2's case.)
  
- \paragraph*{tag}
+ \paragraph*{off}
  Whether this surface should be hidden. Mostly ignored though -- ModView looks for \_off suffixes in the names
  while Jedi Academy consults the skin files.
  
