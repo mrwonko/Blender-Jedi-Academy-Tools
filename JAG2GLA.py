@@ -187,7 +187,7 @@ class MdxaBone:
 
         # set position
         mat = self.basePoseMat.toBlender()
-        pos = mathutils.Vector(mat.translation)
+        pos = mathutils.Vector(mat.translation)  # pyright: ignore [reportArgumentType]  # vector supports slices
         bone.head = pos
         # head is offset a bit.
         # X points towards next bone.
@@ -283,9 +283,11 @@ class MdxaSkel:
         # set parent
         self.armature_object.parent = scene_root
         # link object to scene
+        assert bpy.context.scene is not None
         bpy.context.scene.collection.objects.link(self.armature_object)
 
         #  Set the armature as active and go to edit mode to add bones
+        assert bpy.context.view_layer is not None
         bpy.context.view_layer.objects.active = self.armature_object
         bpy.ops.object.mode_set(mode='EDIT')
         # list of indices of already created bones - only those bones with this as parent will be added
@@ -484,6 +486,7 @@ class MdxaAnimation:
         # for going leaf to root
 
         #   Blender PoseBones list
+        assert armature.pose is not None
         bones: List[bpy.types.PoseBone] = []
         for info in skeleton.bones:  # is ordered by index
             bones.append(armature.pose.bones[info.name])
@@ -494,6 +497,7 @@ class MdxaAnimation:
 
         #   Prepare animation
         scene = bpy.context.scene
+        assert scene is not None
         scene.frame_start = 0
         numFrames = len(self.frames)
         scene.frame_end = numFrames - 1
@@ -639,6 +643,7 @@ class GLA:
         self.header.scale = self.skeleton_object.g2_prop_scale / 100  # pyright: ignore [reportAttributeAccessIssue]
 
         # make skeleton_root the active object
+        assert bpy.context.view_layer is not None
         bpy.context.view_layer.objects.active = self.skeleton_object
         self.skeleton_object.select_set(True)
         self.skeleton_object.hide_viewport = False
@@ -728,15 +733,19 @@ class GLA:
         # create a dictionary containing the indices of already added compressed bones - lookup should be faster than a linear search through the existing compressed bones (at the cost of more RAM usage - that's ok)
         compBoneIndices = {}
 
+        scene = bpy.context.scene
+        assert scene is not None
+        assert self.skeleton_object.pose is not None
+
         # for each frame:
-        for curFrame in range(bpy.context.scene.frame_start, bpy.context.scene.frame_end + 1):
+        for curFrame in range(scene.frame_start, scene.frame_end + 1):
             # progress bar-ish thing
             if curFrame % 10 == 0:
                 print("Compressing frame {}...".format(curFrame))
 
             frame = MdxaFrame()
-            bpy.context.scene.frame_set(curFrame)
-            # bpy.context.scene.frame_current = curFrame
+            scene.frame_set(curFrame)
+            # scene.frame_current = curFrame
 
             # bone offsets need to be calculated in hierarchical order, but written in index order
             # so calculate first:
@@ -808,8 +817,7 @@ class GLA:
 
             self.animation.frames.append(frame)
 
-        self.header.numFrames = bpy.context.scene.frame_end - \
-            bpy.context.scene.frame_start + 1
+        self.header.numFrames = scene.frame_end - scene.frame_start + 1
         # enforce 32 bit alignment after 3-byte-indices
         framesSize = 3 * self.header.numFrames * self.header.numBones
         if framesSize % 4 != 0:
@@ -847,8 +855,8 @@ class GLA:
             self.skeleton_object = bpy.data.objects["skeleton_root"]
             if self.skeleton_object.type != 'ARMATURE':
                 return False, ErrorMessage("Existing skeleton_root object is no armature!")
-            self.skeleton_armature = self.skeleton_object.data
-            self.skeleton_object.g2_prop_scale = self.header.scale * 100
+            self.skeleton_armature = downcast(bpy.types.Armature, self.skeleton_object.data)
+            self.skeleton_object.g2_prop_scale = self.header.scale * 100  # pyright: ignore [reportAttributeAccessIssue]
         # If there's no skeleton, there may yet still be an armature. Use that.
         elif "skeleton_root" in bpy.data.armatures:
             print("Found skeleton_root armature, trying to use it.")
@@ -871,8 +879,10 @@ class GLA:
                 self.skeleton_object.g2_prop_scale = self.header.scale * 100  # pyright: ignore [reportAttributeAccessIssue]
 
             # link the object to the current scene if necessary
-            if not self.skeleton_object.name in bpy.context.scene.collection.objects:
-                bpy.context.scene.collection.objects.link(self.skeleton_object)
+            scene = bpy.context.scene
+            assert scene is not None
+            if not self.skeleton_object.name in scene.collection.objects:
+                scene.collection.objects.link(self.skeleton_object)
 
             # set its parent to the scene_root (not strictly speaking necessary but keeps output consistent)
             self.skeleton_object.parent = scene_root
@@ -881,6 +891,7 @@ class GLA:
             if useAnimation:
                 profiler.start("applying animations")
                 # go to object mode
+                assert bpy.context.view_layer is not None
                 bpy.context.view_layer.objects.active = self.skeleton_object
                 bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
                 if PROFILE:
@@ -914,6 +925,7 @@ class GLA:
         if useAnimation:
             profiler.start("applying animations")
             # go to object mode
+            assert bpy.context.view_layer is not None
             bpy.context.view_layer.objects.active = self.skeleton_object
             bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
             if PROFILE:

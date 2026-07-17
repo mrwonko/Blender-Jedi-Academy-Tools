@@ -13,15 +13,15 @@ def hasG2ArmatureProperties(obj: bpy.types.Object) -> bool:
 
 def initG2Properties() -> None:
     """ globally initializes the ghoul 2 custom properties """
-    bpy.types.Object.g2_prop_name = bpy.props.StringProperty(
+    bpy.types.Object.g2_prop_name = bpy.props.StringProperty(  # pyright: ignore [reportAttributeAccessIssue]
         name="name", maxlen=64, default="", description="Name (in case it doesn't fit in Blender's Object Name, which is used if this is empty.)")
-    bpy.types.Object.g2_prop_shader = bpy.props.StringProperty(
+    bpy.types.Object.g2_prop_shader = bpy.props.StringProperty(  # pyright: ignore [reportAttributeAccessIssue]
         name="shader", maxlen=64, default="", description="Shader to use (the one and only way to set this)")
-    bpy.types.Object.g2_prop_tag = bpy.props.BoolProperty(
+    bpy.types.Object.g2_prop_tag = bpy.props.BoolProperty(  # pyright: ignore [reportAttributeAccessIssue]
         name="Tag", default=False, description="Whether this object represents a tag.")
-    bpy.types.Object.g2_prop_off = bpy.props.BoolProperty(
+    bpy.types.Object.g2_prop_off = bpy.props.BoolProperty(  # pyright: ignore [reportAttributeAccessIssue]
         name="Off", default=False, description="Whether this object should be initially off (can be overridden in skin).")
-    bpy.types.Object.g2_prop_scale = bpy.props.FloatProperty(
+    bpy.types.Object.g2_prop_scale = bpy.props.FloatProperty(  # pyright: ignore [reportAttributeAccessIssue]
         name="Scale", default=100, min=0, subtype='PERCENTAGE', description="Scale of this skeleton.")
 
 
@@ -33,13 +33,16 @@ class G2PropertiesPanel(bpy.types.Panel):
     bl_context = "object"  # in the objects tab
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context: bpy.types.Context) -> bool:
         return context.active_object and context.active_object.type in ['MESH', 'ARMATURE'] or False
 
-    def draw(self, context):
+    def draw(self, context: bpy.types.Context) -> None:
         layout = self.layout
+        assert layout is not None
 
+        # poll() already guarantees an object of the right type is active
         obj = context.active_object
+        assert obj is not None
 
         if obj.type == 'MESH':
             if hasG2MeshProperties(obj):

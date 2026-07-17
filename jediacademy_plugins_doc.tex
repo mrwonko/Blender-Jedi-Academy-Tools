@@ -77,13 +77,48 @@
   \item Removed the MD3 exporter, as a superior one is available at \url{https://github.com/SomaZ/Blender_BSP_Importer/}
  \end{itemize}
 
- \subsection*{nightly (preview)}
- These changes have not yet been given a new version number.
+ \subsection*{\date{2023-02-11}}
  \begin{itemize}
   \item Detect duplicate G2 names in LOD 0 on GLM export. Previously, this led to broken exports, with ModView showing
-  "Model has \(N\) surfaces, but only \(M\) of them are connected up through the heirarchy, the rest will never be recursed into." (\(M>N\))
+  ``Model has \(N\) surfaces, but only \(M\) of them are connected up through the heirarchy, the rest will never be recursed into.'' (\(M>N\))
  \end{itemize}
- 
+
+ \subsection*{\date{2023-10-03}}
+ \begin{itemize}
+  \item Renamed the GLM's armature modifier from ``skin'' to ``armature'' for clarity.
+ \end{itemize}
+
+ \subsection*{\date{2024-03-24}}
+ \begin{itemize}
+  \item Fixed GLM export sometimes dropping the wrong bone weight from a vertex weighted to more bones than allowed.
+ \end{itemize}
+
+ \subsection*{\date{2024-03-28}--\date{2024-04-23}}
+ \begin{itemize}
+  \item Added Blender 4.1 support, dropped support for earlier versions.
+ \end{itemize}
+
+ \subsection*{\date{2024-05-08}}
+ \begin{itemize}
+  \item The GLA export's ``gla reference'' setting now accepts a trailing ``.gla'' extension instead of producing a broken file.
+  \item Fixed GLM export sometimes crashing, or falsely reporting missing UVs, instead of showing a clear error.
+ \end{itemize}
+
+ \subsection*{\date{2024-08-30}}
+ \begin{itemize}
+  \item Fixed loss of custom normals on GLM import, causing shading issues.
+ \end{itemize}
+
+ \subsection*{\date{2025-01-27}}
+ \begin{itemize}
+  \item Fixed GLM import failing entirely on non-English Blender.
+ \end{itemize}
+
+ \subsection*{\date{2025-08-09}}
+ \begin{itemize}
+  \item Fixed meshes without vertices causing export errors.
+ \end{itemize}
+
  \section{Installation}
  
  Open the User Preferences (File/User Preferences or Ctrl+Alt+U), go to the Addons tab and press there
@@ -93,7 +128,10 @@
  Once installed, don't forget to enable the addon. It's located in the Import-Export category and called
  ``Import-Export: Jedi Academy Import/Export Tools''. Then click Save User Settings so it'll still be activated
  the next time you start Blender.
- 
+
+ This addon requires Blender 4.1 or newer, and has been tested up to Blender 4.5. Blender 5.0 is currently
+ known not to work due to breaking changes in Blender's API.
+
  \section{ASE}
  
  The ASE file format (Ascii Scene Export) is a plaintext model format that is widely used in Jedi Academy due
@@ -246,7 +284,7 @@
  math is involved to guarantee they're perpendicular. In Raven's models, the short leg is the X Axis, the
  long one the Y Axis. (Unless they screw up, as in R2D2's case.)
  
- \paragraph*{tag}
+ \paragraph*{off}
  Whether this surface should be hidden. Mostly ignored though -- ModView looks for \_off suffixes in the names
  while Jedi Academy consults the skin files.
  
@@ -258,52 +296,46 @@
  
  \subsubsection*{Settings}
  
- \paragraph*{Skin}
- If you'd like to load the textures from a skin file, enter its name here. If the model is called ``model.glm''
- and you'd like to use ``model\_blue.skin'', just enter ``blue''.
- 
- \paragraph*{Guess Textures}
- Since Jedi Academy uses skin files, the actual textures specified in the GLM are ignored. It's probably for
- that reason that their first character is replaced by the end-of-string symbol. Guessing the original first
- character is not so hard if the path is ``?odels/players/...'' though, so tick this box to make the importer
- try to figure it out. You're advised to just use the Skin setting instead though.
- 
- \paragraph*{Base Path}
- The importer tries to load the textures and apply them to the model, as well as the matching .gla. To be able
- to do that, it needs to know where to look. It will try to examine the path of the opened file, looking for
- ``GameData'' in it. If you're using a non-standard folder layout that may fail, so you can enter a custom path
- to be prepended to textures when searching.
- 
- \paragraph*{.gla override}
- GLM files reference the GLA they're for (for Jedi Academy's playermodels that's
- ``models/players/\_humanoid/\_humanoid.gla'') and the importer loads the skeleton as well. Here you can set
- a different GLA to use instead, using Jedi Academy's base-relative notation (e.g.\\
- ``models/players/\_humanoid\_kor1/\_humanoid\_kor1.gla''). This will only work if the number of bones matches.
- 
- \paragraph*{Scale}
- A scale to apply, since using a 1:1 conversion from Jedi Academy units (roughly an inch each) to Blender
- (typically a meter) results in huge models. This only rescales the scene\_root, and since export is done
- relative to that this setting will automatically be ignored when exporting.
- 
- \paragraph*{Skeleton changes}
- Jedi Academy uses a Skeleton/Armature that's a little strange in places. For example the lower arms are not
- children of the upper arms, making animation quite the pain. The plugin can automatically correct the
- default skeleton in that regard if you select ``Jedi Academy \_humanoid'' here. Animations will still be
- properly applied and exporting works with a changed hierarchy, too -- the plugin will do the required math.
- 
- \paragraph*{Animations}
- If you want to import animations, make sure not to set this to ``None''. Importing all frames takes forever
- though, and Blender can't handle it very well either -- that's because in GLA files every frame is a keyframe
- and there's over 20000 of them in Jedi Academy's \_humanoid.gla. For that reason there's an option to import
- only a range.
- 
- \paragraph*{Start frame}
- If you choose to only import a range of frames (and make sure to choose that in the Animations setting if
- this is your intention, this setting on its own won't do anything!), this sets at which frame to start, 
- counting from 0.
- 
- \paragraph*{Number of frames}
- If you choose to only import a range of frames, this sets how many to import.
+\paragraph*{Skin}
+Enter the suffix of the skin file whose textures the GLM should use, for example type ``blue'' to load
+``model\_blue.skin'' alongside ``model.glm''.
+
+\paragraph*{Guess Textures}
+Tick this if the GLM stored corrupted texture paths; the importer will try to reconstruct the missing first
+character (useful when you do not know or do not want to specify a skin manually).
+
+\paragraph*{Base Path}
+Point this not at ``GameData'' itself, but at the mod folder within it (e.g., ``C:/MyGame/GameData/base''). This is
+optional if the opened file's path already contains ``GameData'', since the importer can deduce it automatically;
+it's mainly needed for users who don't work directly within the game directory, or whose game directory setup
+leaves out the (technically optional) GameData parent directory. Used to resolve relative paths, like the .gla override.
+
+\paragraph*{.gla override}
+Supply another GLA path in Jedi Academy base-relative notation, for example
+``models/players/\_humanoid\_academy1/\_humanoid\_academy1.gla'' (which contains additional animations specific
+to the academy1 level), to make the GLM load a different skeleton. This will only work if the bone order also
+matches.
+
+\paragraph*{Scale}
+Use this to shrink or enlarge the imported scene\_root so the model fits Blender's unit system (e.g., enter
+``0.01'' for a model that would otherwise show up enormous); the exporter ignores the value because everything
+is saved relative to scene\_root.
+
+\paragraph*{Skeleton changes}
+Pick ``Jedi Academy \_humanoid'' to let the addon reorganize the odd default hierarchy (the lower arms are
+normally not children of the upper arms) into something easier to animate while keeping exports working, as long
+as the ``gla reference'' export setting is set correctly.
+
+\paragraph*{Animations}
+Choose whether to import no animation, the entire file, or just a range; selecting ``Range'' keeps Blender from
+loading all 20,000+ frames when you're only interested in a part of the sequence.
+
+\paragraph*{Start frame}
+When importing a range, set this to the zero-based frame where you want to begin (e.g., ``100'' to start at frame 100).
+
+\paragraph*{Number of frames}
+When importing a range, enter how many frames to pull in (for example ``250'' to import 250 frames starting at the
+start frame).
  
  
  \subsection{GLA Import}
@@ -323,13 +355,15 @@
  
  \subsubsection*{Settings}
  
- \paragraph*{Base Path}
- See GLM Import Base Path setting.
- 
- \paragraph*{.gla name}
- Which skeleton this model uses, since internall no bone names are used, just indices, so the exporter has
- to look them up. Use Jedi Academy's base-relative notation, e.g. ``models/players/\_humanoid/\_humanoid.gla''.
- Some models, like weapons, have no skeleton - leave this empty in that case.
+\paragraph*{Base Path}
+Point this not at ``GameData'' itself, but at the mod folder within it (e.g., ``C:/MyGame/GameData/base'').
+This is optional if the exported file's path already contains ``GameData''. It's only needed so the relative
+``.gla name'' below can be resolved into an actual file, which needs to be loaded during export.
+
+\paragraph*{.gla name}
+Tell the exporter which skeleton this model uses because GLM files store bone indices, not names. Enter a
+base-relative path like ``models/players/\_humanoid/\_humanoid.gla'', or leave it blank for models such as
+weapons that do not use a skeleton.
  
  
  \subsection{GLA Export}
@@ -339,18 +373,20 @@
  
  \subsubsection*{Settings}
  
- \paragraph*{Base Path}
- See GLM Import Base Path setting.
- 
- \paragraph*{gla name}
- The filename of the gla you're exporting. The exporter will probably be able to guess this based on the
- Base Path so you can leave it empty.
- 
- \paragraph*{gla reference}
- If you're not creating a completely new skeleton, but merely new animations for an existing one, you have
- to make sure the indices of the bones match. Well, you don't have to make sure yourself, the exporter can
- do that, but you'll have to tell it which skeleton to match (matching done by bone name), and that's what
- this setting is for.
+\paragraph*{Base Path}
+Point this not at ``GameData'' itself, but at the mod folder within it (e.g., ``C:/MyGame/GameData/base'').
+This is optional if the exported file's path already contains ``GameData''. Used to automatically derive
+the relative gla name, and to resolve the relative gla reference (if any).
+
+\paragraph*{gla name}
+Type the filename you are exporting (for example ``models/players/\_humanoid/\_humanoid.gla''); you can leave it
+empty if the exporter can guess it from the base path.
+
+\paragraph*{gla reference}
+When adding new animations to an existing skeleton, select the skeleton file to match so the exporter can match
+the bone order (for instance, reference ``models/players/\_humanoid/\_humanoid.gla'' if that is your rig).
+Without this, the exported skeleton will be incompatible with any existing models that reference the skeleton
+it replaces. Leave this empty only when creating a new skeleton with no existing models.
  
  
  \subsection{animation.cfg Export}

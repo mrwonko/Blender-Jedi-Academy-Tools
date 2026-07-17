@@ -2,6 +2,7 @@ name: Test
 
 on:
   push:
+    branches: [ master ]
   pull_request:
   workflow_dispatch:
 
@@ -15,3 +16,13 @@ jobs:
 
       - name: Run test suite in headless Blender
         run: /home/headless/blender/blender --background --python-exit-code 1 --python tests/run_tests.py
+
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install pyright fake-bpy-module-4.5
+      - run: pyright --pythonpath "$(command -v python3)"

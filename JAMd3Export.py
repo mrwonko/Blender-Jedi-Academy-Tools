@@ -146,6 +146,9 @@ def print_md3(log, md3, dumpall):
 
 
 def save_md3(settings):
+    # TODO: time.clock() was removed in Python 3.8 - this raises AttributeError on any
+    # Python this addon currently supports, so MD3 export is presently broken. Use
+    # time.perf_counter() instead.
     starttime = time.clock()  # start timer
     newlogpath = os.path.splitext(settings.savepath)[0] + ".log"
     if settings.logtype == "append":
@@ -302,7 +305,7 @@ def save_md3(settings):
         print_md3(log, md3, settings.dumpall)
         file.close()
         message(log, "MD3 saved to " + settings.savepath)
-        elapsedtime = round(time.clock() - starttime, 5)
+        elapsedtime = round(time.clock() - starttime, 5)  # TODO: time.clock() removed in Python 3.8, see save_md3()'s starttime
         message(log, "Elapsed {} seconds".format(elapsedtime))
     else:
         message(log, "Select an object to export!")

@@ -79,13 +79,13 @@ class GetBoneWeightException(Exception):
 
 def getBoneWeights(vertex: bpy.types.MeshVertex, meshObject: bpy.types.Object, armatureObject: bpy.types.Object, maxBones: int = -1):
     # find the armature modifier
-    modifier = None
+    modifier: Optional[bpy.types.ArmatureModifier] = None
     for mod in meshObject.modifiers:
         if mod.type == 'ARMATURE':
             if modifier != None:
                 raise GetBoneWeightException(
                     f"Multiple armature modifiers on {meshObject.name}!")
-            modifier = mod
+            modifier = downcast(bpy.types.ArmatureModifier, mod)
     if modifier == None:
         raise GetBoneWeightException(
             f"{meshObject.name} has no armature modifier!")
@@ -578,6 +578,7 @@ class MdxmSurface:
         else:
 
             uv_layer = mesh.uv_layers.active
+            uv_layer_data = None
             if (not uv_layer or not (uv_layer_data := uv_layer.data)) and len(mesh.polygons) > 0:
                 return False, ErrorMessage("No UV coordinates found!")
 
@@ -587,6 +588,8 @@ class MdxmSurface:
                 triangle = []
                 if len(face.vertices) != 3:
                     return False, ErrorMessage("Non-triangle face found!")
+                # len(mesh.polygons) > 0 here (this loop is iterating it), so the check above guarantees uv_layer_data is set
+                assert uv_layer_data is not None
                 for i in range(3):
                     loop = bpy_generic_cast(bpy.types.MeshLoop, mesh.loops[face.loop_start + i])
                     v = loop.vertex_index
@@ -604,8 +607,9 @@ class MdxmSurface:
                         triangle.append(proto_found)
                     else:
                         vertex = MdxmVertex()
+                        uv_arg: List[float] = u  # pyright: ignore [reportAssignmentType]  # vector supports slices
                         success, message = vertex.loadFromBlender(
-                            mesh.vertices[v], u, n, boneIndices, object, armatureObject)
+                            mesh.vertices[v], uv_arg, n, boneIndices, object, armatureObject)
                         if not success:
                             return False, ErrorMessage(f"Surface has invalid vertex: {message}")
                         protoverts.append((v, u, n))
@@ -747,9 +751,11 @@ class MdxmSurface:
                         [vertIndex], vert.weights[weightIndex], 'ADD')
 
         # link object to scene
+        assert bpy.context.scene is not None
         bpy.context.scene.collection.objects.link(obj)
 
         # make object active - needed for this smoothing operator and possibly for material adding later
+        assert bpy.context.view_layer is not None
         bpy.context.view_layer.objects.active = obj
 
         # set ghoul2 specific properties
@@ -937,6 +943,7 @@ class MdxmLODCollection:
         for i, LOD in enumerate(self.LODs):
             root = bpy.data.objects.new("model_root_" + str(i), None)
             root.parent = data.scene_root
+            assert bpy.context.scene is not None
             bpy.context.scene.collection.objects.link(root)
             LOD.saveToBlender(data, root)
 

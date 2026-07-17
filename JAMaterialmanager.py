@@ -87,9 +87,12 @@ class MaterialManager():
             return mat
 
         mat.use_nodes = True
+        node_tree = mat.node_tree
+        assert node_tree is not None
         # we cannot query the "Principled BSDF" node by name because that only works in English Blender
         bsdf: Optional[bpy.types.Node] = None
-        for node in mat.node_tree.nodes.values():
+        for node in node_tree.nodes.values():
+            assert node is not None
             # so we search by type instead
             if node.type == 'BSDF_PRINCIPLED':
                 bsdf = node
@@ -100,9 +103,9 @@ class MaterialManager():
             mat.use_nodes = False
             mat.diffuse_color = (1, 0, 1, 1)
             return mat
-        img = downcast(bpy.types.ShaderNodeTexImage, mat.node_tree.nodes.new('ShaderNodeTexImage'))
+        img = downcast(bpy.types.ShaderNodeTexImage, node_tree.nodes.new('ShaderNodeTexImage'))
         img.image = bpy.data.images.load(path)
-        mat.node_tree.links.new(
+        node_tree.links.new(
             bsdf.inputs['Base Color'], img.outputs['Color'])
 
         return mat

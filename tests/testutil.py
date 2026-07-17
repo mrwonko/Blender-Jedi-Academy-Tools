@@ -1,9 +1,17 @@
 import importlib.util
 import sys
 import os
+from types import ModuleType
+from typing import TYPE_CHECKING, Callable, List, Optional, Set, Tuple, cast
+
+if TYPE_CHECKING:
+    import JAG2GLA
+    import JAG2GLM
+    import JAG2Math
+    import mathutils
 
 
-def import_addon():
+def import_addon() -> ModuleType:
     """Import the repo as the 'jediacademy' package regardless of its on-disk directory name."""
     if "jediacademy" in sys.modules:
         return sys.modules["jediacademy"]
@@ -12,13 +20,15 @@ def import_addon():
         "jediacademy", os.path.join(repo_root, "__init__.py"),
         submodule_search_locations=[repo_root],
     )
+    assert spec is not None
+    assert spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     sys.modules["jediacademy"] = module
     spec.loader.exec_module(module)
     return module
 
 
-def reset_scene():
+def reset_scene() -> None:
     """Clear all Blender state between test cases so one case can't leak objects/data into the next."""
     import bpy
     bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -27,10 +37,10 @@ def reset_scene():
 class TestRunner:
     """Runs each case, logs pass/fail immediately, defers raising until every case has run."""
 
-    def __init__(self):
-        self.results = []  # list of (name, Exception | None)
+    def __init__(self) -> None:
+        self.results: List[Tuple[str, Optional[Exception]]] = []
 
-    def run(self, name, fn):
+    def run(self, name: str, fn: Callable[[], None]) -> None:
         print(f"[test] Running {name}...")
         try:
             fn()
@@ -41,7 +51,7 @@ class TestRunner:
             print(f"[test] {name}: PASS")
             self.results.append((name, None))
 
-    def report(self):
+    def report(self) -> None:
         print("[test] === Summary ===")
         failed = []
         for name, err in self.results:
@@ -52,23 +62,21 @@ class TestRunner:
             raise RuntimeError(f"{len(failed)}/{len(self.results)} test case(s) failed: {', '.join(failed)}")
 
 
-def check(mismatches):
+def check(mismatches: List[str]) -> None:
     """A case's assertion helper: turn a list of mismatch strings into an exception if non-empty."""
     if mismatches:
         raise AssertionError(f"{len(mismatches)} mismatch(es):\n" + "\n".join(f"  - {m}" for m in mismatches))
 
 
-def _decode(bs):
-    """Null-terminated fixed-size byte field -> str (mirrors JAStringhelper.decode)."""
-    end = bs.find(b"\0")
-    return bs.decode() if end == -1 else bs[:end].decode()
+def _decode(bs: bytes) -> str:
+    return import_addon().JAStringhelper.decode(bs)
 
 
-def _surface_name(surface_data_collection, index):
+def _surface_name(surface_data_collection: "JAG2GLM.MdxmSurfaceDataCollection", index: int) -> str:
     return _decode(surface_data_collection.surfaces[index].name)
 
 
-def compare_glm(actual, expected):
+def compare_glm(actual: "JAG2GLM.GLM", expected: "JAG2GLM.GLM") -> List[str]:
     """Structural comparison of two JAG2GLM.GLM objects. Returns a list of mismatch descriptions."""
     mismatches = []
 
@@ -86,7 +94,7 @@ def compare_glm(actual, expected):
             f"extra={actual_names - expected_names}"
         )
 
-    def resolve_names(coll, indices):
+    def resolve_names(coll: "JAG2GLM.MdxmSurfaceDataCollection", indices: List[int]) -> Set[str]:
         return {_surface_name(coll, i) for i in indices}
 
     for name in sorted(actual_names & expected_names):
@@ -135,11 +143,13 @@ def compare_glm(actual, expected):
     return mismatches
 
 
-def _bone_name(bones, index):
+def _bone_name(bones: List["JAG2GLA.MdxaBone"], index: int) -> Optional[str]:
     return bones[index].name if index != -1 else None
 
 
-def compare_gla(actual, expected, translation_atol=0.05, rotation_atol=1e-3):
+def compare_gla(
+    actual: "JAG2GLA.GLA", expected: "JAG2GLA.GLA", translation_atol: float = 0.05, rotation_atol: float = 1e-3
+) -> List[str]:
     """Structural bone hierarchy + numeric (tolerant) animation comparison of two JAG2GLA.GLA objects."""
     mismatches = []
 
@@ -194,7 +204,8 @@ def compare_gla(actual, expected, translation_atol=0.05, rotation_atol=1e-3):
     return mismatches
 
 
-def _bone_offset_matrix(gla, frame_index, bone_name):
+def _bone_offset_matrix(gla: "JAG2GLA.GLA", frame_index: int, bone_name: str) -> "mathutils.Matrix":
     bone_index = gla.boneIndexByName[bone_name]
     pool_index = gla.animation.frames[frame_index].boneIndices[bone_index]
-    return gla.animation.bonePool.bones[pool_index].matrix
+    bone = cast("JAG2Math.CompBone", gla.animation.bonePool.bones[pool_index])
+    return bone.matrix

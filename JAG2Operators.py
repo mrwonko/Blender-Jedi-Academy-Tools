@@ -20,11 +20,12 @@ from .mod_reload import reload_modules
 reload_modules(locals(), __package__, ["JAG2Scene", "JAG2GLA", "JAFilesystem"], [".JAG2Constants"])  # nopep8
 
 import bpy
-from typing import Tuple, cast
+from typing import Set, Tuple, cast
 from . import JAG2Scene
 from . import JAG2GLA
 from . import JAFilesystem
 from .JAG2Constants import SkeletonFixes
+from .casts import OperatorReturnItems
 
 
 def GetPaths(basepath, filepath) -> Tuple[str, str]:
@@ -72,7 +73,7 @@ class GLMImport(bpy.types.Operator):
     numFrames: bpy.props.IntProperty(
         name="number of frames", description="If only a range of frames of the animation is to be imported, this is the total number of frames to import", min=1)  # pyright: ignore [reportInvalidTypeForm]
 
-    def execute(self, context):
+    def execute(self, context: bpy.types.Context) -> Set[OperatorReturnItems]:
         print("\n== GLM Import ==\n")
         # initialize paths
         basepath, filepath = GetPaths(self.basepath, self.filepath)
@@ -108,9 +109,10 @@ class GLMImport(bpy.types.Operator):
             self.report({'ERROR'}, message)
         return {'FINISHED'}
 
-    def invoke(self, context, event):  # pyright: ignore [reportIncompatibleMethodOverride]
+    def invoke(self, context: bpy.types.Context, event: bpy.types.Event) -> Set[OperatorReturnItems]:
         # show file selection window
         wm = context.window_manager
+        assert wm is not None
         wm.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
@@ -146,7 +148,7 @@ class GLAImport(bpy.types.Operator):
     numFrames: bpy.props.IntProperty(
         name="number of frames", description="If only a range of frames of the animation is to be imported, this is the total number of frames to import", min=1)  # pyright: ignore [reportInvalidTypeForm]
 
-    def execute(self, context):
+    def execute(self, context: bpy.types.Context) -> Set[OperatorReturnItems]:
         print("\n== GLA Import ==\n")
         # de-percentagionise scale
         scale = self.scale / 100
@@ -170,8 +172,9 @@ class GLAImport(bpy.types.Operator):
             self.report({'ERROR'}, message)
         return {'FINISHED'}
 
-    def invoke(self, context, event):
+    def invoke(self, context: bpy.types.Context, event: bpy.types.Event) -> Set[OperatorReturnItems]:
         wm = context.window_manager
+        assert wm is not None
         wm.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
@@ -193,7 +196,7 @@ class GLMExport(bpy.types.Operator):
     gla: bpy.props.StringProperty(
         name=".gla name", description="Name of the skeleton this model uses (must exist!)", default="models/players/_humanoid/_humanoid")  # pyright: ignore [reportInvalidTypeForm]
 
-    def execute(self, context):
+    def execute(self, context: bpy.types.Context) -> Set[OperatorReturnItems]:
         print("\n== GLM Export ==\n")
         # initialize paths
         basepath, filepath = GetPaths(self.basepath, self.filepath)
@@ -212,8 +215,9 @@ class GLMExport(bpy.types.Operator):
             self.report({'ERROR'}, message)
         return {'FINISHED'}
 
-    def invoke(self, context, event):
+    def invoke(self, context: bpy.types.Context, event: bpy.types.Event) -> Set[OperatorReturnItems]:
         wm = context.window_manager
+        assert wm is not None
         wm.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
@@ -237,7 +241,7 @@ class GLAExport(bpy.types.Operator):
     glareference: bpy.props.StringProperty(
         name="gla reference", description="Copies the bone indices from this skeleton, if any (e.g. for new animations for existing skeleton; path relative to the Base Path)", maxlen=64, default="")  # pyright: ignore [reportInvalidTypeForm]
 
-    def execute(self, context):
+    def execute(self, context: bpy.types.Context) -> Set[OperatorReturnItems]:
         print("\n== GLA Export ==\n")
         # initialize paths
         basepath, filepath = GetPaths(self.basepath, self.filepath)
@@ -263,8 +267,9 @@ class GLAExport(bpy.types.Operator):
             self.report({'ERROR'}, message)
         return {'FINISHED'}
 
-    def invoke(self, context, event):
+    def invoke(self, context: bpy.types.Context, event: bpy.types.Event) -> Set[OperatorReturnItems]:
         wm = context.window_manager
+        assert wm is not None
         wm.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
@@ -275,11 +280,13 @@ class ObjectAddG2Properties(bpy.types.Operator):
     bl_description = "Adds Ghoul 2 properties"
 
     @classmethod
-    def poll(cls, context):
+    def poll(cls, context: bpy.types.Context) -> bool:
         return context.active_object and context.active_object.type in ['MESH', 'ARMATURE'] or False
 
-    def execute(self, context):
+    def execute(self, context: bpy.types.Context) -> Set[OperatorReturnItems]:
+        # poll() already guarantees an object of the right type is active
         obj = context.active_object
+        assert obj is not None
         if obj.type == 'MESH':
             # don't overwrite those that already exist
             if not "g2_prop_off" in obj:
@@ -303,11 +310,13 @@ class ObjectRemoveG2Properties(bpy.types.Operator):
     bl_description = "Removes Ghoul 2 properties"
 
     @classmethod
-    def poll(cls, context):
+    def poll(cls, context: bpy.types.Context) -> bool:
         return context.active_object and context.active_object.type in ['MESH', 'ARMATURE'] or False
 
-    def execute(self, context):
+    def execute(self, context: bpy.types.Context) -> Set[OperatorReturnItems]:
+        # poll() already guarantees an object of the right type is active
         obj = context.active_object
+        assert obj is not None
         if obj.type == 'MESH':
             bpy.types.Object.__delitem__(obj, "g2_prop_off")
             bpy.types.Object.__delitem__(obj, "g2_prop_tag")
@@ -334,12 +343,14 @@ class GLAMetaExport(bpy.types.Operator):
     offset: bpy.props.IntProperty(
         name="Offset", description="Frame offset for the animations, e.g. 21376 if you plan on merging with Jedi Academy's _humanoid.gla", min=0, default=0)  # pyright: ignore [reportInvalidTypeForm]
 
-    def execute(self, context):
+    def execute(self, context: bpy.types.Context) -> Set[OperatorReturnItems]:
         print("\n== GLA Metadata Export ==\n")
 
-        startFrame = context.scene.frame_start
-        endFrame = context.scene.frame_end
-        fps = context.scene.render.fps
+        scene = context.scene
+        assert scene is not None
+        startFrame = scene.frame_start
+        endFrame = scene.frame_end
+        fps = scene.render.fps
 
         class Marker:
             def __init__(self, blenderMarker):
@@ -349,7 +360,7 @@ class GLAMetaExport(bpy.types.Operator):
 
         markers = []
         maxLen = 23  # maximum name length, default minimum is 24
-        for marker in context.scene.timeline_markers:
+        for marker in scene.timeline_markers:
             if marker.frame >= startFrame and marker.frame <= endFrame:
                 maxLen = max(maxLen, len(marker.name))
                 markers.append(Marker(marker))
@@ -385,8 +396,9 @@ class GLAMetaExport(bpy.types.Operator):
 
         return {'FINISHED'}
 
-    def invoke(self, context, event):
+    def invoke(self, context: bpy.types.Context, event: bpy.types.Event) -> Set[OperatorReturnItems]:
         wm = context.window_manager
+        assert wm is not None
         wm.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
