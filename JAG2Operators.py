@@ -27,6 +27,14 @@ from . import JAFilesystem
 from .JAG2Constants import SkeletonFixes
 
 
+class _ContextProxy(dict):
+    def __getattr__(self, name):
+        try:
+            return self[name]
+        except KeyError as exc:
+            raise AttributeError(name) from exc
+
+
 def GetPaths(basepath, filepath) -> Tuple[str, str]:
     if basepath == "":
         basepath, filepath = JAFilesystem.SplitPrefix(filepath)
@@ -200,6 +208,15 @@ class GLMExport(bpy.types.Operator):
         if self.basepath != "" and JAFilesystem.RemoveExtension(self.filepath) == filepath:
             self.report({'ERROR'}, "Invalid Base Path")
             return {'FINISHED'}
+        glm_filepath_abs = JAFilesystem.AbsPath(filepath, basepath) + ".glm"
+        if getattr(self, "_awaiting_overwrite_confirmation", False):
+            self._awaiting_overwrite_confirmation = False
+        elif JAFilesystem.FileExists(glm_filepath_abs):
+            self._overwrite_prompt_message = f"\"{filepath}.glm\" already exists. Overwrite?"
+            self._awaiting_overwrite_confirmation = True
+            override_context = self._popup_context(context)
+            wm = override_context.get('window_manager') or context.window_manager
+            return wm.invoke_props_dialog(self, width=360)
         # try to load from Blender's data to my intermediate format
         scene = JAG2Scene.Scene(basepath)
         success, message = scene.loadModelFromBlender(filepath, self.gla)
@@ -213,9 +230,41 @@ class GLMExport(bpy.types.Operator):
         return {'FINISHED'}
 
     def invoke(self, context, event):
+        self._overwrite_prompt_message = ""
+        self._awaiting_overwrite_confirmation = False
         wm = context.window_manager
         wm.fileselect_add(self)
         return {'RUNNING_MODAL'}
+
+    def draw(self, context):
+        layout = self.layout
+        awaiting_confirmation = getattr(self, "_awaiting_overwrite_confirmation", False)
+        message = getattr(self, "_overwrite_prompt_message", "")
+        if awaiting_confirmation:
+            if message:
+                layout.label(text=message)
+        else:
+            layout.prop(self, "basepath")
+            layout.prop(self, "gla")
+
+    def _popup_context(self, context):
+        override = _ContextProxy(context.copy())
+        window = context.window
+        target_area = None
+        target_region = None
+        if window:
+            target_area = next((area for area in window.screen.areas if area.type == 'VIEW_3D'), context.area)
+            if target_area:
+                override['area'] = target_area
+                target_region = next((region for region in target_area.regions if region.type == 'WINDOW'), None)
+                if target_region:
+                    override['region'] = target_region
+                elif target_area.regions:
+                    override['region'] = target_area.regions[0]
+        override['window_manager'] = context.window_manager
+        if 'region' not in override and context.region:
+            override['region'] = context.region
+        return override
 
 
 class GLAExport(bpy.types.Operator):
