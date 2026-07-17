@@ -41,11 +41,20 @@ BONELENGTH = 4
 # cosine of allowed angle between bone directions for them to be considered equal
 BONE_ANGLE_ERROR_MARGIN = 0.996
 
+# CompBone's compressed frame translation is quantized to this many steps per unit (see
+# JAG2Math.CompBone.loadFromFile/compress) - the smallest movement a compressed frame can
+# represent along a single axis.
+COMPBONE_LOCATION_STEPS_PER_UNIT = 64
+COMPBONE_LOCATION_QUANTUM = 1 / COMPBONE_LOCATION_STEPS_PER_UNIT
+
 # max distance (game units) a bone's actual per-frame head position may drift from where a
 # rigidly-connected bone's head would be (the parent's tail, following the parent's rotation)
 # before we consider it to need independent translation - use_connect can't represent that.
-# Accounts for float/quantization noise in the chained matrix math, not a real design tolerance.
-BONE_TRANSLATION_ERROR_MARGIN = 0.05
+# _boneCanConnect compares positions reconstructed from compressed (quantized) frame data through
+# a chain of ancestor transforms, so quantization/floating-point noise can compound across the
+# hierarchy - a few quantization steps of wiggle room comfortably covers that without masking a
+# real, consistently-drifting translation.
+BONE_TRANSLATION_ERROR_MARGIN = 3 * COMPBONE_LOCATION_QUANTUM
 
 
 class SkeletonFixes(Enum):

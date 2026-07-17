@@ -16,6 +16,11 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
+from .mod_reload import reload_modules
+reload_modules(locals(), __package__, ["JAG2Constants"], [])  # nopep8
+
+from . import JAG2Constants
+
 import struct
 from typing import BinaryIO
 import mathutils
@@ -109,9 +114,9 @@ class CompBone:
         quat.y = (q_y / 16383) - 2
         quat.z = (q_z / 16383) - 2
         # map location from 0..65535 to -512..512 (511.984375)
-        loc.x = (l_x / 64) - 512
-        loc.y = (l_y / 64) - 512
-        loc.z = (l_z / 64) - 512
+        loc.x = (l_x / JAG2Constants.COMPBONE_LOCATION_STEPS_PER_UNIT) - 512
+        loc.y = (l_y / JAG2Constants.COMPBONE_LOCATION_STEPS_PER_UNIT) - 512
+        loc.z = (l_z / JAG2Constants.COMPBONE_LOCATION_STEPS_PER_UNIT) - 512
 
         # turn rotation into matrix
         matrix = quat.to_matrix()
@@ -136,6 +141,6 @@ class CompBone:
                            round((quat.x + 2) * 16383),
                            round((quat.y + 2) * 16383),
                            round((quat.z + 2) * 16383),
-                           round((loc.x + 512) * 64),
-                           round((loc.y + 512) * 64),
-                           round((loc.z + 512) * 64))
+                           round((loc.x + 512) * JAG2Constants.COMPBONE_LOCATION_STEPS_PER_UNIT),
+                           round((loc.y + 512) * JAG2Constants.COMPBONE_LOCATION_STEPS_PER_UNIT),
+                           round((loc.z + 512) * JAG2Constants.COMPBONE_LOCATION_STEPS_PER_UNIT))
