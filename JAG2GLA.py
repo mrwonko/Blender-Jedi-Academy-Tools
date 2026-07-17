@@ -223,19 +223,20 @@ class MdxaBone:
 
             # if this is the only child of its parent or has priority: Connect the parent to this.
             if numParentChildren == 1 or self.name in JAG2Constants.PRIORITY_BONES[skeletonFixes]:
-                # but only if the animation doesn't need this bone to translate independently of
-                # its parent - use_connect rigidly locks the head to the parent's tail, which would
-                # silently clip such translation on reimport.
-                if _boneCanConnect(transformsPerFrame, allBones, self.index, parentIndex):
-                    # but only if that doesn't rotate the bone (much)
-                    # so calculate the directions...
-                    oldDir = vector_getter_cast(blenderParent.tail) - vector_getter_cast(blenderParent.head)
-                    newDir = pos - blenderParent.head
-                    oldDir.normalize()
-                    newDir.normalize()
-                    dotProduct = oldDir.dot(newDir)
-                    # ... and compare them using the dot product, which is the cosine of the angle between two unit vectors
-                    if dotProduct > JAG2Constants.BONE_ANGLE_ERROR_MARGIN:
+                # but only if that doesn't rotate the bone (much) - check this first since it's
+                # much cheaper than _boneCanConnect below (which loops over every frame)
+                # so calculate the directions...
+                oldDir = vector_getter_cast(blenderParent.tail) - vector_getter_cast(blenderParent.head)
+                newDir = pos - blenderParent.head
+                oldDir.normalize()
+                newDir.normalize()
+                dotProduct = oldDir.dot(newDir)
+                # ... and compare them using the dot product, which is the cosine of the angle between two unit vectors
+                if dotProduct > JAG2Constants.BONE_ANGLE_ERROR_MARGIN:
+                    # and only if the animation doesn't need this bone to translate independently
+                    # of its parent - use_connect rigidly locks the head to the parent's tail,
+                    # which would silently clip such translation on reimport.
+                    if _boneCanConnect(transformsPerFrame, allBones, self.index, parentIndex):
                         blenderParent.tail = pos
                         bone.use_connect = True
 
@@ -435,6 +436,11 @@ class MdxaAnimation:
     # via the same forward-kinematics math applied to actual Blender pose bones in saveToBlender
     # below - but pure Python, so it can run before any Blender armature exists (used to decide
     # auto-connect behavior ahead of bone creation, see MdxaBone.saveToBlender/_boneCanConnect).
+    # Memory: measured against real production skeletons (headless Blender, resource.getrusage
+    # RSS) - _humanoid-ja.gla (53 bones, 21376 frames) costs ~193MB for the returned structure,
+    # _humanoid-jk2.gla (72 bones, 17278 frames) ~196MB - both well under 1GB, and it's transient:
+    # the caller (MdxaSkel.saveToBlender) only keeps this in a local variable for the duration of
+    # bone creation, not for the lifetime of the import.
     def computeAbsoluteFrameTransforms(self, skeleton: MdxaSkel) -> List[Dict[int, mathutils.Matrix]]:
         if not self.frames:
             return []
