@@ -112,10 +112,10 @@ def _boneCanConnect(transformsPerFrame: List[Dict[int, "mathutils.Matrix"]], all
     parentBase = allBones[parentIndex].basePoseMat.toBlender()
     JAG2Math.GLABoneRotToBlender(childBase)
     JAG2Math.GLABoneRotToBlender(parentBase)
-    restRelativeHead = vector_overload_cast(parentBase.inverted() @ mathutils.Vector(childBase.translation))
+    restRelativeHead = vector_overload_cast(parentBase.inverted() @ mathutils.Vector(childBase.translation))  # pyright: ignore [reportArgumentType]  # vector supports slices
     for transforms in transformsPerFrame:
         parentTransform = transforms[parentIndex]
-        childHead = mathutils.Vector(transforms[boneIndex].translation)
+        childHead = mathutils.Vector(transforms[boneIndex].translation)  # pyright: ignore [reportArgumentType]  # vector supports slices
         relativeHead = vector_overload_cast(parentTransform.inverted() @ childHead)
         if (relativeHead - restRelativeHead).length > JAG2Constants.BONE_TRANSLATION_ERROR_MARGIN:
             return False
