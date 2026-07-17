@@ -19,11 +19,12 @@
 # Main File containing the important definitions
 
 from .mod_reload import reload_modules
-reload_modules(locals(), __package__, ["JAFilesystem", "JAG2Constants", "JAG2GLM", "JAG2GLA"], [".error_types", ".casts"])  # nopep8
+reload_modules(locals(), __package__, ["JAFilesystem", "JAG2AnimationCFG", "JAG2Constants", "JAG2GLM", "JAG2GLA"], [".error_types", ".casts"])  # nopep8
 
 from typing import Optional, Tuple
 from . import JAFilesystem
 from . import JAG2Constants
+from . import JAG2AnimationCFG
 from . import JAG2GLM
 from . import JAG2GLA
 from .error_types import ErrorMessage, NoError
@@ -47,6 +48,7 @@ class Scene:
         self.scale = 1.0
         self.glm: Optional[JAG2GLM.GLM] = None
         self.gla: Optional[JAG2GLA.GLA] = None
+        self.animation_cfg: Optional[JAG2AnimationCFG.AnimationCGF] = None
 
     # Fills scene from on GLM file
     def loadFromGLM(self, glm_filepath_rel: str) -> Tuple[bool, ErrorMessage]:
@@ -61,6 +63,15 @@ class Scene:
         if not success:
             return False, message
         return True, NoError
+    
+    # Loads animations sequences from a CFG file
+    def loadFromCFG(self, cfg_filepath: str) -> Tuple[bool, ErrorMessage]:
+        self.animation_cfg = JAG2AnimationCFG.AnimationCGF()
+        success, message = self.animation_cfg.load_from_cfg(cfg_filepath)
+        if not success:
+            self.animation_cfg = None
+            return False, message
+        return True, message
 
     # Loads scene from on GLA file
     def loadFromGLA(self, gla_filepath_rel: str, loadAnimations=JAG2GLA.AnimationLoadMode.NONE, startFrame=0, numFrames=1) -> Tuple[bool, ErrorMessage]:
@@ -141,7 +152,7 @@ class Scene:
             bpy.context.scene.collection.objects.link(scene_root)
         # there's always a skeleton (even if it's *default)
         success, message = optional_cast(JAG2GLA.GLA, self.gla).saveToBlender(
-            scene_root, useAnimation, skeletonFixes)
+            scene_root, useAnimation, skeletonFixes, self.animation_cfg)
         if not success:
             return False, message
         if self.glm:

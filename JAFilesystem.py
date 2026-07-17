@@ -94,3 +94,12 @@ def FindFile(relpath, prefix, extensions):
 
 def FileExists(path: str) -> bool:
     return os.path.isfile(path)
+
+
+def PathToFile(relpath, base_path):
+    absPath = AbsPath(relpath, base_path)
+    return os.path.dirname(absPath) + os.path.sep
+
+
+def FileList(fullpath):
+    return os.listdir(fullpath)
