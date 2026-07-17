@@ -267,12 +267,16 @@ Tick this if the GLM stored corrupted texture paths; the importer will try to re
 character (useful when you do not know or do not want to specify a skin manually).
 
 \paragraph*{Base Path}
-Point this at the folder that contains your ``GameData'' tree (e.g., ``C:/MyGame/GameData/'') so the importer
-can prepend it to texture paths and the linked .gla when your working files live somewhere else.
+Point this not at ``GameData'' itself, but at the mod folder within it (e.g., ``C:/MyGame/GameData/base''). This is
+optional if the opened file's path already contains ``GameData'', since the importer can deduce it automatically;
+it's mainly needed for users who don't work directly within the game directory, or whose game directory setup
+leaves out the (technically optional) GameData parent directory.
 
 \paragraph*{.gla override}
-Supply another GLA path in Jedi Academy base-relative notation (for example ``models/players/\_humanoid/\_humanoid.gla'')
-to make the GLM load a different skeleton, as long as the bone count matches.
+Supply another GLA path in Jedi Academy base-relative notation, for example
+``models/players/\_humanoid\_academy1/\_humanoid\_academy1.gla'' (which contains additional animations specific
+to the academy1 level), to make the GLM load a different skeleton. This will only work if the bone order also
+matches.
 
 \paragraph*{Scale}
 Use this to shrink or enlarge the imported scene\_root so the model fits Blender's unit system (e.g., enter
@@ -281,7 +285,8 @@ is saved relative to scene\_root.
 
 \paragraph*{Skeleton changes}
 Pick ``Jedi Academy \_humanoid'' to let the addon reorganize the odd default hierarchy (the lower arms are
-normally not children of the upper arms) into something easier to animate while keeping exports working.
+normally not children of the upper arms) into something easier to animate while keeping exports working, as long
+as the ``gla reference'' export setting is set correctly.
 
 \paragraph*{Animations}
 Choose whether to import no animation, the entire file, or just a range; selecting ``Range'' keeps Blender from
@@ -313,8 +318,9 @@ start frame).
  \subsubsection*{Settings}
  
 \paragraph*{Base Path}
-Give the folder that contains your ``GameData'' tree (for example ``C:/MyGame/GameData/'') so the exporter
-can write the correct relative texture and skeleton paths into the GLM.
+Point this not at ``GameData'' itself, but at the mod folder within it (e.g., ``C:/MyGame/GameData/base'').
+This is optional if the exported file's path already contains ``GameData''. It's only needed so the relative
+``.gla name'' below can be resolved into an actual file, which needs to be loaded during export.
 
 \paragraph*{.gla name}
 Tell the exporter which skeleton this model uses because GLM files store bone indices, not names. Enter a
@@ -330,8 +336,8 @@ weapons that do not use a skeleton.
  \subsubsection*{Settings}
  
 \paragraph*{Base Path}
-Point to the folder holding ``GameData'' (e.g., ``C:/MyGame/GameData/'') so the exporter records the right
-relative paths when writing your GLA.
+Point this not at ``GameData'' itself, but at the mod folder within it (e.g., ``C:/MyGame/GameData/base'').
+This is optional if the exported file's path already contains ``GameData''.
 
 \paragraph*{gla name}
 Type the filename you are exporting (for example ``models/players/\_humanoid/\_humanoid.gla''); you can leave it
@@ -340,6 +346,8 @@ empty if the exporter can guess it from the base path.
 \paragraph*{gla reference}
 When adding new animations to an existing skeleton, select the skeleton file to match so the exporter remaps
 bone indices by name (for instance, reference ``models/players/\_humanoid/\_humanoid.gla'' if that is your rig).
+Without this, the exported skeleton will be incompatible with any existing models that reference the skeleton
+it replaces. Leave this empty only when creating a new skeleton with no existing models.
  
  
  \subsection{animation.cfg Export}
