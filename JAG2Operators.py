@@ -20,7 +20,7 @@ from .mod_reload import reload_modules
 reload_modules(locals(), __package__, ["JAG2Scene", "JAG2GLA", "JAFilesystem"], [".JAG2Constants"])  # nopep8
 
 import bpy
-from typing import Tuple, cast
+from typing import Optional, Tuple, cast
 from . import JAG2Scene
 from . import JAG2GLA
 from . import JAFilesystem
@@ -206,11 +206,28 @@ class GLMExport(bpy.types.Operator):
         if not success:
             self.report({'ERROR'}, message)
             return {'FINISHED'}
+        warning_message = self._vertex_limit_warning_message(scene.glm)
+        if warning_message:
+            self.report({'WARNING'}, warning_message)
+            return {'CANCELLED'}
         # try to save
         success, message = scene.saveToGLM(filepath)
         if not success:
             self.report({'ERROR'}, message)
         return {'FINISHED'}
+
+    def _vertex_limit_warning_message(self, glm) -> Optional[str]:
+        warnings = getattr(glm, "vertex_count_warnings", None)
+        if not warnings:
+            return None
+        detail_limit = 3
+        detail_parts = [f"{name} ({count} verts)" for name, count in warnings[:detail_limit]]
+        extra = len(warnings) - len(detail_parts)
+        detail = ", ".join(detail_parts)
+        if extra > 0:
+            detail = f"{detail}, +{extra} more"
+        return ("Export canceled because Ghoul 2 surfaces are capped at 1000 verts after "
+                f"UV/normal splitting; these objects exceed it: {detail}")
 
     def invoke(self, context, event):
         wm = context.window_manager

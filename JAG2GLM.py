@@ -546,7 +546,7 @@ class MdxmSurface:
                 "Warning: Surface structure unordered (bone references not last) or read error")
             file.seek(startPos + self.ofsEnd)
 
-    def loadFromBlender(self, object: bpy.types.Object, surfaceData: MdxmSurfaceData, boneIndexMap: Optional[BoneIndexMap], armatureObject: Optional[bpy.types.Object]) -> Tuple[bool, ErrorMessage]:
+    def loadFromBlender(self, object: bpy.types.Object, surfaceData: MdxmSurfaceData, boneIndexMap: Optional[BoneIndexMap], armatureObject: Optional[bpy.types.Object], vertex_count_warnings: Optional[List[Tuple[str, int]]] = None) -> Tuple[bool, ErrorMessage]:
         if object.type != 'MESH':
             return False, ErrorMessage(f"Object {object.name} is not of type Mesh!")
         mesh: bpy.types.Mesh = downcast(bpy.types.Object, object.evaluated_get(
@@ -617,6 +617,8 @@ class MdxmSurface:
             self.numTriangles = len(mesh.polygons)
 
             if self.numVerts > 1000:
+                if vertex_count_warnings is not None:
+                    vertex_count_warnings.append((getName(object), self.numVerts))
                 print(f"Warning: {object.name} has over 1000 vertices ({self.numVerts})")
 
         assert (len(self.vertices) == self.numVerts)
@@ -824,7 +826,7 @@ class MdxmLOD:
         assert (file.tell() == startPos + self.ofsEnd)
 
     @staticmethod
-    def loadFromBlender(level: int, model_root: bpy.types.Object, surfaceIndexMap: Dict[str, int], surfaceDataCollection: MdxmSurfaceDataCollection, boneIndexMap: Optional[BoneIndexMap], armatureObject: Optional[bpy.types.Object]) -> Tuple[Optional["MdxmLOD"], ErrorMessage]:
+    def loadFromBlender(level: int, model_root: bpy.types.Object, surfaceIndexMap: Dict[str, int], surfaceDataCollection: MdxmSurfaceDataCollection, boneIndexMap: Optional[BoneIndexMap], armatureObject: Optional[bpy.types.Object], vertex_count_warnings: List[Tuple[str, int]]) -> Tuple[Optional["MdxmLOD"], ErrorMessage]:
         # self.level gets set by caller
 
         # create dictionary of available objects
@@ -848,7 +850,7 @@ class MdxmLOD:
                 surfaceData = surfaceDataCollection.surfaces[index]
                 # load from blender
                 success, message = surf.loadFromBlender(
-                    available[name], surfaceData, boneIndexMap, armatureObject)
+                    available[name], surfaceData, boneIndexMap, armatureObject, vertex_count_warnings)
                 if not success:
                     return None, ErrorMessage(f"could not load surface {name}: {message}")
             # not available?
@@ -914,10 +916,10 @@ class MdxmLODCollection:
                 file.seek(startPos + curLOD.ofsEnd)
             self.LODs.append(curLOD)
 
-    def loadFromBlender(self, rootObjects: List[bpy.types.Object], surfaceIndexMap: Dict[str, int], surfaceDataCollection: MdxmSurfaceDataCollection, boneIndexMap: Optional[BoneIndexMap], armatureObject: Optional[bpy.types.Object]) -> Tuple[bool, ErrorMessage]:
+    def loadFromBlender(self, rootObjects: List[bpy.types.Object], surfaceIndexMap: Dict[str, int], surfaceDataCollection: MdxmSurfaceDataCollection, boneIndexMap: Optional[BoneIndexMap], armatureObject: Optional[bpy.types.Object], vertex_count_warnings: List[Tuple[str, int]]) -> Tuple[bool, ErrorMessage]:
         for lodLevel, model_root in enumerate(rootObjects):
             lod, message = MdxmLOD.loadFromBlender(
-                lodLevel, model_root, surfaceIndexMap, surfaceDataCollection, boneIndexMap, armatureObject)
+                lodLevel, model_root, surfaceIndexMap, surfaceDataCollection, boneIndexMap, armatureObject, vertex_count_warnings)
             if lod is None:
                 return False, ErrorMessage(f"loading LOD {lodLevel} from Blender: {message}")
             self.LODs.append(lod)
@@ -953,6 +955,7 @@ class GLM:
         self.surfaceDataOffsets = MdxmSurfaceDataOffsets()
         self.surfaceDataCollection = MdxmSurfaceDataCollection()
         self.LODCollection = MdxmLODCollection()
+        self.vertex_count_warnings: List[Tuple[str, int]] = []
 
     def loadFromFile(self, filepath_abs: str) -> Tuple[bool, ErrorMessage]:
         print(f"Loading {filepath_abs}...")
@@ -1051,9 +1054,11 @@ class GLM:
         self.header.numSurfaces = len(self.surfaceDataCollection.surfaces)
         print(f"{self.header.numSurfaces} surfaces found")
 
+        self.vertex_count_warnings = []
+
         # load all LODs
         success, message = self.LODCollection.loadFromBlender(
-            rootObjects, surfaceIndexMap, self.surfaceDataCollection, boneIndexMap, skeleton_object)
+            rootObjects, surfaceIndexMap, self.surfaceDataCollection, boneIndexMap, skeleton_object, self.vertex_count_warnings)
         if not success:
             return False, message
 
