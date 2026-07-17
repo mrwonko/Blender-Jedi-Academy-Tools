@@ -270,7 +270,7 @@ character (useful when you do not know or do not want to specify a skin manually
 Point this not at ``GameData'' itself, but at the mod folder within it (e.g., ``C:/MyGame/GameData/base''). This is
 optional if the opened file's path already contains ``GameData'', since the importer can deduce it automatically;
 it's mainly needed for users who don't work directly within the game directory, or whose game directory setup
-leaves out the (technically optional) GameData parent directory.
+leaves out the (technically optional) GameData parent directory. Used to resolve relative paths, like the .gla override.
 
 \paragraph*{.gla override}
 Supply another GLA path in Jedi Academy base-relative notation, for example
@@ -337,15 +337,16 @@ weapons that do not use a skeleton.
  
 \paragraph*{Base Path}
 Point this not at ``GameData'' itself, but at the mod folder within it (e.g., ``C:/MyGame/GameData/base'').
-This is optional if the exported file's path already contains ``GameData''.
+This is optional if the exported file's path already contains ``GameData''. Used to automatically derive
+the relative gla name, and to resolve the relative gla reference (if any).
 
 \paragraph*{gla name}
 Type the filename you are exporting (for example ``models/players/\_humanoid/\_humanoid.gla''); you can leave it
 empty if the exporter can guess it from the base path.
 
 \paragraph*{gla reference}
-When adding new animations to an existing skeleton, select the skeleton file to match so the exporter remaps
-bone indices by name (for instance, reference ``models/players/\_humanoid/\_humanoid.gla'' if that is your rig).
+When adding new animations to an existing skeleton, select the skeleton file to match so the exporter can match
+the bone order (for instance, reference ``models/players/\_humanoid/\_humanoid.gla'' if that is your rig).
 Without this, the exported skeleton will be incompatible with any existing models that reference the skeleton
 it replaces. Leave this empty only when creating a new skeleton with no existing models.
  
