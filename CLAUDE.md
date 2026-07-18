@@ -59,7 +59,12 @@ To cut a release:
 1. Open a PR that bumps `bl_info["version"]`, renames the changelog's `next version` placeholder to the
    real version number, and has a commit message written *as the release notes* — it becomes the GitHub
    Release body verbatim.
-2. After that PR merges to `master`, tag `master`'s HEAD `vX.Y.Z` and push the tag.
+2. After that PR merges to `master`, tag `vX.Y.Z` and push the tag. **This repo merges PRs as merge
+   commits, so `master`'s HEAD right after merging is a "Merge pull request #N..." commit, not the
+   version-bump commit** — `release.yml` reads the tagged commit's message verbatim as the release notes,
+   so tag the version-bump commit itself (its SHA is the PR branch's tip, e.g. from `gh pr view <N>
+   --json commits`), not `master`'s literal HEAD. It just needs to be reachable from `master`, not be its
+   tip — verified via `git log --graph` before tagging.
    `.github/workflows/release.yml` then builds the zip/manual and publishes the GitHub Release
    automatically — it only publishes for tags reachable from `master` (a merge-base check guards against
    a stray tag on some other commit).
