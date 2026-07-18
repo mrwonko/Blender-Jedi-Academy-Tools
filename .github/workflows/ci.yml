@@ -7,11 +7,51 @@ on:
     tags: [ "v*.*.*" ]
   pull_request:
   schedule:
-    - cron: "0 3 * * *"
+    # TEMPORARY, for testing the schedule-triggered path (incl. the no-op skip) after merge --
+    # revert to the daily "0 3 * * *" once a few real runs have been confirmed working.
+    - cron: "*/10 * * * *"
   workflow_dispatch:
 
 jobs:
+  check-nightly-needed:
+    # Always runs (cheap, no checkout) regardless of trigger, rather than being restricted to
+    # the schedule trigger itself -- if this job were skipped by its own `if:` on other
+    # triggers, jobs `needs`-ing it would then also get auto-skipped (GitHub Actions treats
+    # "skipped" as not-succeeded for needs purposes), which would incorrectly block PRs,
+    # tag pushes, and manual workflow_dispatch runs too.
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.check.outputs.changed }}
+    steps:
+      - name: Check whether master has new commits since the last nightly attempt
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Compares against nightly-attempted (moved unconditionally as nightly's first
+          # step), not the nightly release tag (which only moves on success) -- otherwise a
+          # failing build would get retried every night against the same unchanged,
+          # still-broken commit until either it started passing or new commits landed.
+          # Comparing against the attempted marker means a failure is tried once, then left
+          # alone until master actually moves.
+          attempted_sha="$(gh api "repos/${{ github.repository }}/git/refs/tags/nightly-attempted" --jq .object.sha 2>/dev/null || true)"
+          if [ "$attempted_sha" = "$GITHUB_SHA" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
   smoke-test:
+    # Skip entirely on a schedule tick that doesn't need a nightly build (see
+    # check-nightly-needed above) -- no point spinning up the Blender matrix for nothing.
+    # Always runs for PRs, tag pushes, and manual dispatch.
+    if: |
+      github.event_name != 'schedule' || needs.check-nightly-needed.outputs.changed == 'true'
+    needs: [ check-nightly-needed ]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -29,6 +69,10 @@ jobs:
         run: /home/headless/blender/blender --background --python-exit-code 1 --python tests/run_tests.py
 
   typecheck:
+    # See smoke-test above: skip on a schedule tick that doesn't need a nightly build.
+    if: |
+      github.event_name != 'schedule' || needs.check-nightly-needed.outputs.changed == 'true'
+    needs: [ check-nightly-needed ]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -37,38 +81,6 @@ jobs:
           python-version: "3.11"
       - run: pip install pyright fake-bpy-module-4.5
       - run: pyright --pythonpath "$(command -v python3)"
-
-  check-nightly-needed:
-    # Always runs (cheap, no checkout) regardless of trigger, rather than being restricted to
-    # the schedule trigger itself -- if this job were skipped by its own `if:` on other
-    # triggers, `nightly`'s `needs` on it would then also get auto-skipped (GitHub Actions
-    # treats "skipped" as not-succeeded for needs purposes), which would incorrectly block
-    # manual workflow_dispatch runs too.
-    runs-on: ubuntu-latest
-    outputs:
-      changed: ${{ steps.check.outputs.changed }}
-    steps:
-      - name: Check whether master has new commits since the last nightly attempt
-        id: check
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if [ "${{ github.event_name }}" != "schedule" ]; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          # Compares against nightly-attempted (moved unconditionally as nightly's first
-          # step, below), not the nightly release tag (which only moves on success) --
-          # otherwise a failing build would get retried every night against the same
-          # unchanged, still-broken commit until either it started passing or new commits
-          # landed. Comparing against the attempted marker means a failure is tried once,
-          # then left alone until master actually moves.
-          attempted_sha="$(gh api "repos/${{ github.repository }}/git/refs/tags/nightly-attempted" --jq .object.sha 2>/dev/null || true)"
-          if [ "$attempted_sha" = "$GITHUB_SHA" ]; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          fi
 
   nightly:
     # Only runs on a schedule or manual trigger -- not on every push, to avoid rebuilding

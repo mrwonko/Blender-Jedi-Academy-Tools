@@ -25,14 +25,19 @@ files, compare). If asked to add tests, see "Testing" below for the intended dir
   the readme into a zip installable via Blender's add-on preferences.
 - CI (`.github/workflows/ci.yml`) runs `smoke-test` and `typecheck` on every PR, `vX.Y.Z` tag push, and
   on its daily `schedule`/manual `workflow_dispatch` — deliberately *not* on every push to `master`,
-  since a PR already ran them before merge. Two more jobs depend on those (`needs: [smoke-test,
-  typecheck]`) and only run/publish if both passed: `nightly` (force-updates the `nightly` prerelease
-  tag/release with a freshly built manual and zip; only on the `schedule`/`workflow_dispatch` triggers,
-  and on `schedule` only if `master` has new commits since the last nightly *attempt* — checked via the
-  `check-nightly-needed` job against a `nightly-attempted` tag that `nightly` moves as its first step,
+  since a PR already ran them before merge. On a `schedule` tick specifically, they're also skipped if
+  there's nothing to do (see `check-nightly-needed` below) — a no-op nightly tick doesn't spin up the
+  Blender matrix or pyright for nothing. Two more jobs depend on `smoke-test`/`typecheck`
+  (`needs: [smoke-test, typecheck]`) and only run/publish if both passed (or were skipped as a no-op):
+  `nightly` (force-updates the `nightly` prerelease tag/release with a freshly built manual and zip;
+  only on the `schedule`/`workflow_dispatch` triggers, and on `schedule` only if `master` has new commits
+  since the last nightly *attempt* — checked via the `check-nightly-needed` job, which always runs
+  regardless of trigger, against a `nightly-attempted` tag that `nightly` moves as its first step
   regardless of whether the rest of the job succeeds, so a failure gets tried once and then left alone
-  until master moves again, rather than retried every night against the same broken commit)
-  and `release` (publishes a real GitHub Release for `vX.Y.Z` tag pushes — see "Releases" below).
+  until master moves again rather than retried every night against the same broken commit; manual
+  `workflow_dispatch` deliberately bypasses this check every time, as a way to force-retry a spurious
+  failure on demand) and `release` (publishes a real GitHub Release for `vX.Y.Z` tag pushes — see
+  "Releases" below).
 - Formatting/linting: pycodestyle via `.pep8` (only rule disabled: E501 line length, to allow long
   `# pyright: ignore` comments). VS Code is configured (`.vscode/settings.json`) to use `autopep8` as the
   Python formatter and pyright type checking at `standard` mode. There's no separate CLI lint command
