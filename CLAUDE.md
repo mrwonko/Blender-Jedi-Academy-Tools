@@ -68,7 +68,8 @@ require dropping any Blender version, but breaks forward compatibility just the 
 immediately in its own small PR at that time, rather than deferring it to the dedicated release-cutting
 PR described below. `master` feeds the rolling `nightly` prerelease continuously, so leaving the version
 number stale until the eventual release-cut PR would mean nightlies built in the interim misreport their
-own compatibility.
+own compatibility. If the breaking change and the version bump land in the same PR, fold the bump into
+that PR as one of its first commits, rather than splitting off a separate PR just for the version number.
 
 The manual's changelog (`jediacademy_plugins_doc.tex`, "Changelog" section) tracks entries by version
 rather than by date going forward. A PR with a user-facing change adds a bullet under a

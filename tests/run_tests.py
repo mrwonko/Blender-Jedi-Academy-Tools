@@ -95,7 +95,10 @@ _LEGACY_G2_KEYS = ("g2_prop_name", "g2_prop_shader", "g2_prop_tag", "g2_prop_off
 def case_migration():
     """g2model.blend predates the g2_prop PointerProperty rework -- opening it should migrate
     its legacy flat g2_prop_* keys via the load_post handler (JAG2Panels), not just leave
-    objects looking unconfigured."""
+    objects looking unconfigured. g2model.blend only has legacy data on its mesh surfaces (its
+    skeleton_root was never explicitly scaled, so it has no legacy g2_prop_scale key at all) --
+    armature-scale migration is covered separately below with a synthetic object, rather than
+    editing the checked-in fixture just to manufacture legacy armature data for it."""
     import bpy
     bpy.ops.wm.open_mainfile(filepath=os.path.join(TESTDATA, "g2model.blend"))
 
@@ -106,12 +109,32 @@ def case_migration():
                 mismatches.append(f"{obj.name} still has legacy key '{key}' after load_post migration")
 
     configured_meshes = [o for o in bpy.data.objects if o.type == "MESH" and addon.JAG2Panels.hasG2MeshProperties(o)]
-    configured_armatures = [o for o in bpy.data.objects if o.type ==
-                            "ARMATURE" and addon.JAG2Panels.hasG2ArmatureProperties(o)]
     if not configured_meshes:
         mismatches.append("no mesh objects ended up configured after migrating g2model.blend")
-    if not configured_armatures:
-        mismatches.append("no armature objects ended up configured after migrating g2model.blend")
+
+    testutil.check(mismatches)
+
+
+def case_migration_armature_scale():
+    """Synthetic counterpart to case_migration's mesh coverage: a fresh armature object with a
+    raw legacy g2_prop_scale key (as an old-scheme file would have) should get it migrated into
+    g2_prop.scale by JAG2Panels.migrateLegacyG2Props(), same as the load_post handler would do."""
+    import bpy
+    assert bpy.context.scene is not None
+
+    armature_obj = bpy.data.objects.new("legacy_armature", bpy.data.armatures.new("legacy_armature_data"))
+    bpy.context.scene.collection.objects.link(armature_obj)
+    armature_obj["g2_prop_scale"] = 42
+
+    addon.JAG2Panels.migrateLegacyG2Props()
+
+    mismatches = []
+    if "g2_prop_scale" in armature_obj:
+        mismatches.append("legacy_armature still has legacy key 'g2_prop_scale' after migrateLegacyG2Props()")
+    if not addon.JAG2Panels.hasG2ArmatureProperties(armature_obj):
+        mismatches.append("legacy_armature not configured after migrateLegacyG2Props()")
+    elif armature_obj.g2_prop.scale != 42:  # pyright: ignore [reportAttributeAccessIssue]
+        mismatches.append(f"legacy_armature.g2_prop.scale is {armature_obj.g2_prop.scale} after migration, expected 42")  # pyright: ignore [reportAttributeAccessIssue]
 
     testutil.check(mismatches)
 
@@ -225,6 +248,8 @@ testutil.reset_scene()
 runner.run("export", case_export)
 testutil.reset_scene()
 runner.run("migration", case_migration)
+testutil.reset_scene()
+runner.run("migration_armature_scale", case_migration_armature_scale)
 testutil.reset_scene()
 runner.run("already_converted", case_already_converted)
 testutil.reset_scene()
