@@ -7,7 +7,9 @@ on:
     tags: [ "v*.*.*" ]
   pull_request:
   schedule:
-    - cron: "0 3 * * *"
+    # TEMPORARY, for testing the schedule-triggered path (incl. the no-op skip) after merge --
+    # revert to the daily "0 3 * * *" once a few real runs have been confirmed working.
+    - cron: "*/10 * * * *"
   workflow_dispatch:
 
 jobs:
