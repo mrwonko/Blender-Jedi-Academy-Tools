@@ -148,13 +148,13 @@ jobs:
           body: |
             Automatic pre-release build.
 
-            The jediacademy.zip file can be installed using the button in Blender's add-on preferences.
-
-            Please consult jediacademy_plugins_doc.pdf for instructions on how to use the plugin.
-
             Latest change:
 
             ${{ steps.notes.outputs.body }}
+
+            The jediacademy.zip file can be installed using the button in Blender's add-on preferences.
+
+            Please consult jediacademy_plugins_doc.pdf for instructions on how to use the plugin.
           files: |
             build/jediacademy_plugins_doc.pdf
             build/jediacademy.zip
@@ -201,11 +201,11 @@ jobs:
         with:
           name: ${{ github.ref_name }}
           body: |
+            ${{ steps.notes.outputs.body }}
+
             The jediacademy.zip file can be installed using the button in Blender's add-on preferences.
 
             Please consult jediacademy_plugins_doc.pdf for instructions on how to use the plugin.
-
-            ${{ steps.notes.outputs.body }}
           files: |
             build/jediacademy_plugins_doc.pdf
             build/jediacademy.zip
