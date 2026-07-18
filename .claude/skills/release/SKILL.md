@@ -57,12 +57,19 @@ poll/auto-wait; this mirrors how every PR in this project actually gets merged (
 ## Step 5 — Tag the correct commit
 
 ```
-.claude/skills/release/tag_release.sh <version> <#pr-number|sha>
+.claude/skills/release/tag_release.sh [-y|--yes] <version> <#pr-number|sha>
 # e.g.
 .claude/skills/release/tag_release.sh 2.0.0 '#106'
 .claude/skills/release/tag_release.sh 2.0.0 a1b2c3d
+.claude/skills/release/tag_release.sh -y 2.0.0 '#106'
 ```
 (Quote the `#pr-number` form — unquoted `#` starts a shell comment.)
+
+Running this via an agent's shell tool has no TTY, so the script's final confirmation prompt
+(see below) can't be answered and the script exits with an error telling you to re-run with
+`-y`/`--yes`. Pass `-y` to skip straight to tagging/pushing once all checks pass — get the
+user's explicit go-ahead first, since this remains a real, hard-to-reverse publish action even
+with the prompt skipped.
 
 Resolves a `#`-prefixed PR number to that PR's branch tip via `gh` (a bare digit string is
 *not* treated as a PR number, since a real commit SHA could in principle be all-decimal-digits —

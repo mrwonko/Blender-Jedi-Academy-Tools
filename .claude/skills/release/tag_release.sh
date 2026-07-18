@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
 # Validates a release commit and, only if every check passes, tags and pushes it.
 #
-# Usage: tag_release.sh <version> <#pr-number|sha>
+# Usage: tag_release.sh [-y|--yes] <version> <#pr-number|sha>
+#   -y, --yes      skip the interactive confirmation prompt and push immediately once all
+#                   checks pass -- needed when running non-interactively (e.g. via an agent's
+#                   shell tool, which has no TTY for `read` to prompt on). All the same checks
+#                   still run first; this only removes the final human confirmation step, so
+#                   only pass it once you've reviewed the printed commit/message yourself, or
+#                   asked whoever you're acting on behalf of to confirm first.
 #   version        e.g. 2.0.0 (no leading "v")
 #   #pr-number     a leading "#" resolves to that PR's branch tip via `gh` (e.g. "#106")
 #   sha             anything else is treated as a literal commit SHA -- a raw all-digit string
@@ -12,13 +18,22 @@
 # as the check-syntax/blender-tests skills' scripts.
 set -euo pipefail
 
-if [ "$#" -ne 2 ]; then
-  echo "Usage: $(basename "$0") <version> <#pr-number|sha>   e.g. $(basename "$0") 2.0.0 '#106'" >&2
+ASSUME_YES=0
+ARGS=()
+for arg in "$@"; do
+  case "$arg" in
+    -y|--yes) ASSUME_YES=1 ;;
+    *) ARGS+=("$arg") ;;
+  esac
+done
+
+if [ "${#ARGS[@]}" -ne 2 ]; then
+  echo "Usage: $(basename "$0") [-y|--yes] <version> <#pr-number|sha>   e.g. $(basename "$0") 2.0.0 '#106'" >&2
   exit 2
 fi
 
-VERSION="$1"
-REF="$2"
+VERSION="${ARGS[0]}"
+REF="${ARGS[1]}"
 
 if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   echo "ERROR: version must look like X.Y.Z (no leading 'v'), got: $VERSION" >&2
@@ -120,17 +135,22 @@ echo "READY: $SHA passes all checks for v${VERSION}."
 echo
 git log -1 --format='commit %H%nauthor %an%n%n%B' "$SHA"
 echo
-# `read` fails (nonzero) on EOF -- e.g. no interactive terminal attached, which is the normal
-# case when this script is run via an agent's non-interactive shell tool rather than directly in
-# a terminal. Guarded explicitly so that case gets its own clear message instead of silently
-# exiting with no output at all (indistinguishable from a real check failing above).
-if ! read -r -p "Create and push tag v${VERSION} at this commit? [y/N] " confirm; then
-  echo "ERROR: couldn't read a confirmation answer (no interactive terminal attached?). Re-run this script directly in an interactive shell to confirm and push the tag." >&2
-  exit 1
-fi
-if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
-  echo "Aborted, no tag created."
-  exit 1
+if [ "$ASSUME_YES" -eq 1 ]; then
+  echo "-y/--yes given, skipping confirmation prompt."
+else
+  # `read` fails (nonzero) on EOF -- e.g. no interactive terminal attached, which is the normal
+  # case when this script is run via an agent's non-interactive shell tool rather than directly
+  # in a terminal. Guarded explicitly so that case gets its own clear message (pointing at -y)
+  # instead of silently exiting with no output at all (indistinguishable from a real check
+  # failing above).
+  if ! read -r -p "Create and push tag v${VERSION} at this commit? [y/N] " confirm; then
+    echo "ERROR: couldn't read a confirmation answer (no interactive terminal attached?). Re-run with -y/--yes to skip the prompt, or run this script directly in an interactive shell to confirm manually." >&2
+    exit 1
+  fi
+  if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+    echo "Aborted, no tag created."
+    exit 1
+  fi
 fi
 
 git tag -a "v${VERSION}" "$SHA" -m "v${VERSION}"
