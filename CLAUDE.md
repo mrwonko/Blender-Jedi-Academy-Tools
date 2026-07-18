@@ -56,7 +56,16 @@ Versioned releases use plain SemVer (`bl_info["version"]` in `__init__.py`), dec
 compatibility: `bl_info["blender"]` separately tracks the minimum supported Blender version, and which
 version(s) a release was tested against is stated in the release notes / CI matrix, not encoded into the
 version number itself. **Dropping support for a Blender version (raising the stated minimum) is a breaking
-change and bumps the major version.**
+change and bumps the major version.** So is changing the on-disk custom-property storage format in a way
+that makes files saved by a newer plugin version unreadable by older plugin versions — this doesn't
+require dropping any Blender version, but breaks forward compatibility just the same.
+
+**When a merged (or about-to-merge) change is known to require a version bump at the next release**
+(most commonly a major bump from a breaking change like the above), bump `bl_info["version"]`
+immediately in its own small PR at that time, rather than deferring it to the dedicated release-cutting
+PR described below. `master` feeds the rolling `nightly` prerelease continuously, so leaving the version
+number stale until the eventual release-cut PR would mean nightlies built in the interim misreport their
+own compatibility.
 
 The manual's changelog (`jediacademy_plugins_doc.tex`, "Changelog" section) tracks entries by version
 rather than by date going forward. A PR with a user-facing change adds a bullet under a
