@@ -2,9 +2,7 @@ name: CI
 
 on:
   # Deliberately no `branches: [ master ]` push trigger: PRs already run smoke-test/typecheck
-  # before merge, and re-running them again on the resulting push to master would just be
-  # duplicate work. nightly (schedule/workflow_dispatch) and release (tag push) each still
-  # get a fresh smoke-test/typecheck run within their own triggered workflow run.
+  # before merge, and potential race conditions between parallel PRs will be caught on nightly/release.
   push:
     tags: [ "v*.*.*" ]
   pull_request:
