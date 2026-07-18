@@ -56,10 +56,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 4.1 is the minimum version declared in __init__.py's bl_info; 4.5 is the
-        # latest confirmed-working version (see CLAUDE.md's "Known Blender version
-        # support"). Blender 5.0 is known-broken and deliberately not tested here.
-        blender-version: ["4.1", "4.5"]
+        # 4.1 is the minimum version declared in __init__.py's bl_info; 5.2 is the latest
+        # confirmed-working version (see CLAUDE.md's "Known Blender version support").
+        # Testing just these two boundaries is deliberate, not an oversight: the fix that
+        # extended support from 4.5 to 5.2 is uniform across the whole range (confirmed via
+        # local podman runs against 4.5/5.0/5.1 too, not just CI), so exercising every
+        # intermediate version on every CI run isn't worth the ongoing cost.
+        blender-version: ["4.1", "5.2"]
     container:
       image: blenderkit/headless-blender:blender-${{ matrix.blender-version }}-stable
     steps:

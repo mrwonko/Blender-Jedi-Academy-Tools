@@ -127,6 +127,17 @@
   \item Fixed import of translating bones (e.g. Howler's tongue) failing due to connected bones.
  \end{itemize}
 
+ \subsection*{next version}
+ \begin{itemize}
+  \item Fixed Ghoul 2 properties (surface name/shader/tag/off, skeleton scale) silently failing to be
+  read or written on Blender 5.0 and newer.
+  \item \textbf{Files saved with this version will not be read correctly by older plugin versions}: how
+  Ghoul 2 properties are stored on disk changed to make the above fix possible. Opening an existing
+  file saved by an older plugin version still works correctly and upgrades it automatically.
+  \item Fixed selecting an unrelated mesh or armature object (with no Ghoul 2 data of its own) silently
+  adding Ghoul 2 properties to it merely from being displayed in the Properties panel.
+ \end{itemize}
+
  \section{Installation}
  
  Open the User Preferences (File/User Preferences or Ctrl+Alt+U), go to the Addons tab and press there
@@ -137,8 +148,7 @@
  ``Import-Export: Jedi Academy Import/Export Tools''. Then click Save User Settings so it'll still be activated
  the next time you start Blender.
 
- This addon requires Blender 4.1 or newer, and has been tested up to Blender 4.5. Blender 5.0 is currently
- known not to work due to breaking changes in Blender's API.
+ This addon requires Blender 4.1 or newer, and has been tested up to Blender 5.2.
 
  \section{ASE}
  

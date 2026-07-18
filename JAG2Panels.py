@@ -92,7 +92,7 @@ def _migrateLegacyG2Props(obj: bpy.types.Object) -> None:
     if obj.type == "MESH":
         if not any(key in obj for key in _LEGACY_MESH_KEYS):
             return
-        props = obj.g2_prop
+        props = obj.g2_prop  # pyright: ignore[reportAttributeAccessIssue]
         props.name = obj.get("g2_prop_name", "")
         props.shader = obj.get("g2_prop_shader", "")
         props.tag = bool(obj.get("g2_prop_tag", False))
@@ -104,7 +104,7 @@ def _migrateLegacyG2Props(obj: bpy.types.Object) -> None:
     elif obj.type == "ARMATURE":
         if _LEGACY_ARMATURE_KEY not in obj:
             return
-        obj.g2_prop.scale = obj.get(_LEGACY_ARMATURE_KEY, 100)
+        obj.g2_prop.scale = obj.get(_LEGACY_ARMATURE_KEY, 100)  # pyright: ignore[reportAttributeAccessIssue]
         del obj[_LEGACY_ARMATURE_KEY]
         markG2Configured(obj)
 

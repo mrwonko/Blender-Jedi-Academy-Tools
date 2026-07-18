@@ -45,10 +45,13 @@ files, compare). If asked to add tests, see "Testing" below for the intended dir
 
 ### Known Blender version support
 
-The add-on targets Blender as declared in `bl_info["blender"]` in `__init__.py`. Blender 4.5 is the latest
-confirmed-working version; Blender 5.0 is known to break the plugin (breaking API changes). When
-diagnosing failures reported against a specific Blender version, check that version against this before
-assuming a code bug.
+The add-on targets Blender as declared in `bl_info["blender"]` in `__init__.py`. Blender 5.2 is the latest
+confirmed-working version (CI tests the 4.1/5.2 boundaries; 4.5/5.0/5.1 were spot-checked locally too).
+Blender 5.0 introduced a breaking change to custom-property storage (`bpy.props`-registered properties
+are no longer visible via dict-style `"key" in obj`/`obj.keys()` access) — this required reworking how
+Ghoul 2 properties (`obj.g2_prop`) are stored and checked for existence; see the `PointerProperty`/
+sentinel-custom-property pattern in `JAG2Panels.py` if touching that code. When diagnosing failures
+reported against a specific Blender version, check that version against this before assuming a code bug.
 
 ### Releases
 
