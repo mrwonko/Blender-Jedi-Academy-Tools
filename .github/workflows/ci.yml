@@ -1,9 +1,15 @@
 name: CI
 
 on:
+  # Deliberately no `branches: [ master ]` push trigger: PRs already run smoke-test/typecheck
+  # before merge, and re-running them again on the resulting push to master would just be
+  # duplicate work. nightly (schedule/workflow_dispatch) and release (tag push) each still
+  # get a fresh smoke-test/typecheck run within their own triggered workflow run.
   push:
-    branches: [ master ]
+    tags: [ "v*.*.*" ]
   pull_request:
+  schedule:
+    - cron: "0 3 * * *"
   workflow_dispatch:
 
 jobs:
@@ -34,15 +40,60 @@ jobs:
       - run: pip install pyright fake-bpy-module-4.5
       - run: pyright --pythonpath "$(command -v python3)"
 
+  check-nightly-needed:
+    # Always runs (cheap, no checkout) regardless of trigger, rather than being restricted to
+    # the schedule trigger itself -- if this job were skipped by its own `if:` on other
+    # triggers, `nightly`'s `needs` on it would then also get auto-skipped (GitHub Actions
+    # treats "skipped" as not-succeeded for needs purposes), which would incorrectly block
+    # manual workflow_dispatch runs too.
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.check.outputs.changed }}
+    steps:
+      - name: Check whether master has new commits since the last nightly attempt
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Compares against nightly-attempted (moved unconditionally as nightly's first
+          # step, below), not the nightly release tag (which only moves on success) --
+          # otherwise a failing build would get retried every night against the same
+          # unchanged, still-broken commit until either it started passing or new commits
+          # landed. Comparing against the attempted marker means a failure is tried once,
+          # then left alone until master actually moves.
+          attempted_sha="$(gh api "repos/${{ github.repository }}/git/refs/tags/nightly-attempted" --jq .object.sha 2>/dev/null || true)"
+          if [ "$attempted_sha" = "$GITHUB_SHA" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
   nightly:
-    # Only publish a nightly build from pushes to master, and only once smoke-test
-    # and typecheck have passed -- pull requests still run those jobs, but skip this one.
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-    needs: [ smoke-test, typecheck ]
+    # Only runs on a schedule or manual trigger -- not on every push, to avoid rebuilding
+    # and republishing a nightly prerelease for every single commit -- only once smoke-test
+    # and typecheck have passed, and (for the schedule trigger specifically) only if master
+    # has moved since the last nightly build, so an unchanged repo doesn't get a no-op
+    # rebuild+republish every day. Manual workflow_dispatch runs always rebuild, on the
+    # assumption that a human explicitly asking for it wants a fresh build regardless.
+    if: |
+      (github.event_name == 'schedule' && needs.check-nightly-needed.outputs.changed == 'true') ||
+      github.event_name == 'workflow_dispatch'
+    needs: [ smoke-test, typecheck, check-nightly-needed ]
     runs-on: ubuntu-latest
     steps:
       - name: Set up Git repository
         uses: actions/checkout@v4
+      - name: Mark this commit as attempted
+        # Deliberately the first step, before anything that could fail: this must move
+        # regardless of whether the rest of the job succeeds, so a failure isn't retried
+        # every night against the same unchanged commit (see check-nightly-needed above).
+        run: |
+          git tag -f nightly-attempted
+          git push --force origin nightly-attempted
       - name: Create build dir
         run: mkdir build
       - name: Compile Manual
@@ -54,6 +105,14 @@ jobs:
           root_file: ../jediacademy_plugins_doc.tex
       - name: Package plugin
         run: make build/jediacademy.zip
+      - name: Extract latest commit message
+        id: notes
+        run: |
+          {
+            echo "body<<NIGHTLY_NOTES_EOF"
+            git log -1 --format=%B
+            echo "NIGHTLY_NOTES_EOF"
+          } >> "$GITHUB_OUTPUT"
         # we must move the nightly tag so the right source code gets attached to the release
         # (in case users accidentally download that instead of the packaged add-on)
       - name: Update nightly tag
@@ -82,7 +141,56 @@ jobs:
 
             Latest change:
 
-            ${{github.event.commits[0].message}}
+            ${{ steps.notes.outputs.body }}
+          files: |
+            build/jediacademy_plugins_doc.pdf
+            build/jediacademy.zip
+
+  release:
+    # Only runs for vX.Y.Z tag pushes, and only once smoke-test and typecheck have passed.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [ smoke-test, typecheck ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Git repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify tag is on master
+        run: git merge-base --is-ancestor "$GITHUB_SHA" origin/master
+
+      - name: Create build dir
+        run: mkdir build
+
+      - name: Compile Manual
+        uses: dante-ev/latex-action@latest
+        with:
+          working_directory: build
+          root_file: ../jediacademy_plugins_doc.tex
+
+      - name: Package plugin
+        run: make build/jediacademy.zip
+
+      - name: Extract release notes from tagged commit
+        id: notes
+        run: |
+          {
+            echo "body<<RELEASE_NOTES_EOF"
+            git log -1 --format=%B "$GITHUB_SHA"
+            echo "RELEASE_NOTES_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: ${{ github.ref_name }}
+          body: |
+            The jediacademy.zip file can be installed using the button in Blender's add-on preferences.
+
+            Please consult jediacademy_plugins_doc.pdf for instructions on how to use the plugin.
+
+            ${{ steps.notes.outputs.body }}
           files: |
             build/jediacademy_plugins_doc.pdf
             build/jediacademy.zip

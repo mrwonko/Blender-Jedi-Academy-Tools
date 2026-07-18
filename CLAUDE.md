@@ -23,10 +23,16 @@ files, compare). If asked to add tests, see "Testing" below for the intended dir
   `build/jediacademy_plugins_doc.pdf` (compiled from `jediacademy_plugins_doc.tex` via `pdflatex`).
 - `make build/jediacademy.zip` — package just the add-on `.py` files (see `PY_FILES` in `Makefile`) plus
   the readme into a zip installable via Blender's add-on preferences.
-- CI (`.github/workflows/ci.yml`) runs `smoke-test` and `typecheck` on every push and PR; on pushes to
-  `master`, a third `nightly` job runs afterward (`needs: [smoke-test, typecheck]`) that force-updates a
-  `nightly` prerelease tag/release with a freshly built manual and zip — it does not run, and does not
-  publish, if either of the other jobs failed.
+- CI (`.github/workflows/ci.yml`) runs `smoke-test` and `typecheck` on every PR, `vX.Y.Z` tag push, and
+  on its daily `schedule`/manual `workflow_dispatch` — deliberately *not* on every push to `master`,
+  since a PR already ran them before merge. Two more jobs depend on those (`needs: [smoke-test,
+  typecheck]`) and only run/publish if both passed: `nightly` (force-updates the `nightly` prerelease
+  tag/release with a freshly built manual and zip; only on the `schedule`/`workflow_dispatch` triggers,
+  and on `schedule` only if `master` has new commits since the last nightly *attempt* — checked via the
+  `check-nightly-needed` job against a `nightly-attempted` tag that `nightly` moves as its first step,
+  regardless of whether the rest of the job succeeds, so a failure gets tried once and then left alone
+  until master moves again, rather than retried every night against the same broken commit)
+  and `release` (publishes a real GitHub Release for `vX.Y.Z` tag pushes — see "Releases" below).
 - Formatting/linting: pycodestyle via `.pep8` (only rule disabled: E501 line length, to allow long
   `# pyright: ignore` comments). VS Code is configured (`.vscode/settings.json`) to use `autopep8` as the
   Python formatter and pyright type checking at `standard` mode. There's no separate CLI lint command
@@ -61,15 +67,16 @@ To cut a release:
    Release body verbatim.
 2. After that PR merges to `master`, tag `vX.Y.Z` and push the tag. **This repo merges PRs as merge
    commits, so `master`'s HEAD right after merging is a "Merge pull request #N..." commit, not the
-   version-bump commit** — `release.yml` reads the tagged commit's message verbatim as the release notes,
-   so tag the version-bump commit itself (its SHA is the PR branch's tip, e.g. from `gh pr view <N>
-   --json commits`), not `master`'s literal HEAD. It just needs to be reachable from `master`, not be its
-   tip — verified via `git log --graph` before tagging.
-   `.github/workflows/release.yml` then builds the zip/manual and publishes the GitHub Release
-   automatically — it only publishes for tags reachable from `master` (a merge-base check guards against
-   a stray tag on some other commit).
+   version-bump commit** — the `release` job (in `.github/workflows/ci.yml`) reads the tagged commit's
+   message verbatim as the release notes, so tag the version-bump commit itself (its SHA is the PR
+   branch's tip, e.g. from `gh pr view <N> --json commits`), not `master`'s literal HEAD. It just needs
+   to be reachable from `master`, not be its tip — verified via `git log --graph` before tagging.
+   That `release` job then builds the zip/manual and publishes the GitHub Release automatically, but only
+   once `smoke-test`/`typecheck` pass for that tagged commit (`needs: [smoke-test, typecheck]`), and only
+   for tags reachable from `master` (a merge-base check guards against a stray tag on some other commit).
 3. The rolling `nightly` prerelease (the `nightly` job in `.github/workflows/ci.yml`) is unaffected and
-   keeps building on every push to `master` alongside versioned releases.
+   keeps publishing daily (`schedule`) or on manual `workflow_dispatch`, gated the same way, alongside
+   versioned releases.
 
 ### Testing (planned direction)
 
