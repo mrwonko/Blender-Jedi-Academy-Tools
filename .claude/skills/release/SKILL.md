@@ -70,12 +70,22 @@ Resolves a `#`-prefixed PR number to that PR's branch tip via `gh` (a bare digit
 fail:
 1. The commit is reachable from `origin/master` (the same check the `release` CI job itself
    performs).
-2. `bl_info["version"]` *at that commit* (not the working tree) equals the target version.
-3. `jediacademy_plugins_doc.tex` *at that commit* has the real-version heading from Step 2, not
+2. The commit is **not** a merge commit (has exactly one parent). A clean, non-conflicting
+   "Merge pull request #N" merge has the exact same tree as its non-`master` parent, so checks
+   3/4 below (which only inspect tree content) can't otherwise distinguish a merge commit from
+   the real release commit sitting right under it — this is the actual PR #99 mistake tagging
+   used to hit.
+3. `bl_info["version"]` *at that commit* (not the working tree) equals the target version.
+4. `jediacademy_plugins_doc.tex` *at that commit* has the real-version heading from Step 2, not
    just the `next version` placeholder.
-4. The tag doesn't already exist, locally or on `origin`.
+5. The tag doesn't already exist, locally or on `origin`.
 
-Only if all four pass does it print the commit and prompt for confirmation before actually
+Deliberately **not** checked: whether `smoke-test`/`typecheck` will pass for the tagged commit.
+If the `release` job's `needs` gate fails after tagging, GitHub's normal failure-notification
+email is enough signal — pushing a small follow-up patch release to fix it is an acceptable
+response, so this isn't worth pre-checking here.
+
+Only if all five pass does it print the commit and prompt for confirmation before actually
 tagging and pushing. **This script is deliberately not in the permission auto-allow list** —
 unlike other project skills' scripts, creating and pushing a release tag is a real, hard-to-reverse
 publish action (triggers the `release` job, publishes a public GitHub Release), so it should keep
