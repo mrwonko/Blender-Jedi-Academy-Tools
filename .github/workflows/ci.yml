@@ -1,18 +1,48 @@
-name: Nightly
+name: CI
 
 on:
   push:
     branches: [ master ]
-
-  # Allows you to run this workflow manually from the Actions tab
+  pull_request:
   workflow_dispatch:
 
 jobs:
-  build:
+  smoke-test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 4.1 is the minimum version declared in __init__.py's bl_info; 4.5 is the
+        # latest confirmed-working version (see CLAUDE.md's "Known Blender version
+        # support"). Blender 5.0 is known-broken and deliberately not tested here.
+        blender-version: ["4.1", "4.5"]
+    container:
+      image: blenderkit/headless-blender:blender-${{ matrix.blender-version }}-stable
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run test suite in headless Blender
+        run: /home/headless/blender/blender --background --python-exit-code 1 --python tests/run_tests.py
+
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install pyright fake-bpy-module-4.5
+      - run: pyright --pythonpath "$(command -v python3)"
+
+  nightly:
+    # Only publish a nightly build from pushes to master, and only once smoke-test
+    # and typecheck have passed -- pull requests still run those jobs, but skip this one.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    needs: [ smoke-test, typecheck ]
     runs-on: ubuntu-latest
     steps:
       - name: Set up Git repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Create build dir
         run: mkdir build
       - name: Compile Manual
@@ -45,13 +75,13 @@ jobs:
           prerelease: true
           body: |
             Automatic pre-release build.
-            
+
             The jediacademy.zip file can be installed using the button in Blender's add-on preferences.
-            
+
             Please consult jediacademy_plugins_doc.pdf for instructions on how to use the plugin.
-            
+
             Latest change:
-            
+
             ${{github.event.commits[0].message}}
           files: |
             build/jediacademy_plugins_doc.pdf
