@@ -17,12 +17,13 @@
 # ##### END GPL LICENSE BLOCK #####
 
 from .mod_reload import reload_modules
-reload_modules(locals(), __package__, ["JAStringhelper", "JAG2Constants", "JAG2Math", "MrwProfiler"], [".casts", ".error_types"])  # nopep8
+reload_modules(locals(), __package__, ["JAStringhelper", "JAG2Constants", "JAG2Math", "MrwProfiler", "JAG2Panels"], [".casts", ".error_types"])  # nopep8
 
 from . import JAStringhelper
 from . import JAG2Constants
 from . import JAG2Math
 from . import MrwProfiler
+from . import JAG2Panels
 from .casts import optional_cast, downcast, bpy_generic_cast, matrix_getter_cast, matrix_overload_cast, vector_getter_cast, vector_overload_cast
 from .error_types import ErrorMessage, NoError, ensureListIsGapless
 
@@ -640,7 +641,7 @@ class GLA:
         if self.skeleton_object.type != 'ARMATURE':
             return False, ErrorMessage("skeleton_root is no Armature!")
         self.skeleton_armature = downcast(bpy.types.Armature, optional_cast(bpy.types.Object, self.skeleton_object).data)
-        self.header.scale = self.skeleton_object.g2_prop_scale / 100  # pyright: ignore [reportAttributeAccessIssue]
+        self.header.scale = self.skeleton_object.g2_prop.scale / 100  # pyright: ignore [reportAttributeAccessIssue]
 
         # make skeleton_root the active object
         assert bpy.context.view_layer is not None
@@ -856,7 +857,8 @@ class GLA:
             if self.skeleton_object.type != 'ARMATURE':
                 return False, ErrorMessage("Existing skeleton_root object is no armature!")
             self.skeleton_armature = downcast(bpy.types.Armature, self.skeleton_object.data)
-            self.skeleton_object.g2_prop_scale = self.header.scale * 100  # pyright: ignore [reportAttributeAccessIssue]
+            self.skeleton_object.g2_prop.scale = self.header.scale * 100  # pyright: ignore[reportAttributeAccessIssue]
+            JAG2Panels.markG2Configured(self.skeleton_object)
         # If there's no skeleton, there may yet still be an armature. Use that.
         elif "skeleton_root" in bpy.data.armatures:
             print("Found skeleton_root armature, trying to use it.")
@@ -876,7 +878,8 @@ class GLA:
             if not self.skeleton_object:
                 self.skeleton_object = bpy.data.objects.new(
                     "skeleton_root", self.skeleton_armature)
-                self.skeleton_object.g2_prop_scale = self.header.scale * 100  # pyright: ignore [reportAttributeAccessIssue]
+                self.skeleton_object.g2_prop.scale = self.header.scale * 100  # pyright: ignore [reportAttributeAccessIssue]
+                JAG2Panels.markG2Configured(self.skeleton_object)
 
             # link the object to the current scene if necessary
             scene = bpy.context.scene
@@ -918,7 +921,8 @@ class GLA:
             return False, message
         self.skeleton_armature = self.skeleton.armature
         self.skeleton_object = self.skeleton.armature_object
-        self.skeleton_object.g2_prop_scale = self.header.scale * 100  # pyright: ignore [reportAttributeAccessIssue]
+        self.skeleton_object.g2_prop.scale = self.header.scale * 100  # pyright: ignore [reportAttributeAccessIssue]
+        JAG2Panels.markG2Configured(self.skeleton_object)
         profiler.stop("creating armature")
 
         # add animations, if any

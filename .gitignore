@@ -3,3 +3,4 @@ __pycache__/
 build/
 .proprietary/
 .venv/
+*.blend1

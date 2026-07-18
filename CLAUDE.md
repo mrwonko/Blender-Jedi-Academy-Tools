@@ -45,10 +45,13 @@ files, compare). If asked to add tests, see "Testing" below for the intended dir
 
 ### Known Blender version support
 
-The add-on targets Blender as declared in `bl_info["blender"]` in `__init__.py`. Blender 4.5 is the latest
-confirmed-working version; Blender 5.0 is known to break the plugin (breaking API changes). When
-diagnosing failures reported against a specific Blender version, check that version against this before
-assuming a code bug.
+The add-on targets Blender as declared in `bl_info["blender"]` in `__init__.py`. Blender 5.2 is the latest
+confirmed-working version (CI tests the 4.1/5.2 boundaries; 4.5/5.0/5.1 were spot-checked locally too).
+Blender 5.0 introduced a breaking change to custom-property storage (`bpy.props`-registered properties
+are no longer visible via dict-style `"key" in obj`/`obj.keys()` access) — this required reworking how
+Ghoul 2 properties (`obj.g2_prop`) are stored and checked for existence; see the `PointerProperty`/
+sentinel-custom-property pattern in `JAG2Panels.py` if touching that code. When diagnosing failures
+reported against a specific Blender version, check that version against this before assuming a code bug.
 
 ### Releases
 
@@ -56,7 +59,16 @@ Versioned releases use plain SemVer (`bl_info["version"]` in `__init__.py`), dec
 compatibility: `bl_info["blender"]` separately tracks the minimum supported Blender version, and which
 version(s) a release was tested against is stated in the release notes / CI matrix, not encoded into the
 version number itself. **Dropping support for a Blender version (raising the stated minimum) is a breaking
-change and bumps the major version.**
+change and bumps the major version.** So is changing the on-disk custom-property storage format in a way
+that makes files saved by a newer plugin version unreadable by older plugin versions — this doesn't
+require dropping any Blender version, but breaks forward compatibility just the same.
+
+**When a merged (or about-to-merge) change is known to require a version bump at the next release**
+(most commonly a major bump from a breaking change like the above), bump `bl_info["version"]`
+immediately as the first commit of the PR that necessitates it, rather than deferring it to the
+dedicated release-cutting PR described below. `master` feeds the rolling `nightly` prerelease
+continuously, so leaving the version number stale until the eventual release-cut PR would mean
+nightlies built in the interim misreport their own compatibility.
 
 The manual's changelog (`jediacademy_plugins_doc.tex`, "Changelog" section) tracks entries by version
 rather than by date going forward. A PR with a user-facing change adds a bullet under a

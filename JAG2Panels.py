@@ -1,74 +1,190 @@
 import bpy
+from bpy.props import StringProperty, BoolProperty, FloatProperty, PointerProperty
+
+
+# -------------------------------------------------------------
+#   PROPERTY GROUP
+# -------------------------------------------------------------
+class G2Props(bpy.types.PropertyGroup):
+    name: StringProperty(
+        name="Name",
+        maxlen=64,
+        default="",
+        description="Ghoul2 surface or tag name"
+    )  # type: ignore
+
+    shader: StringProperty(
+        name="Shader",
+        maxlen=64,
+        default="",
+        description="Shader assigned to this surface"
+    )  # type: ignore
+
+    tag: BoolProperty(
+        name="Tag",
+        default=False,
+        description="Marks object as a Ghoul2 tag"
+    )  # type: ignore
+
+    off: BoolProperty(
+        name="Off",
+        default=False,
+        description="Surface initially disabled"
+    )  # type: ignore
+
+    scale: FloatProperty(
+        name="Scale",
+        default=100.0,
+        min=0.0,
+        subtype='PERCENTAGE',
+        description="Skeleton scale (armature only)"
+    )  # type: ignore
+
+
+# -------------------------------------------------------------
+#   PROPERTY CHECK HELPERS
+# -------------------------------------------------------------
+# Stored as a genuine ad-hoc custom property (never registered through bpy.props), so its
+# presence stays visible via plain dict access ("in"/.keys()) on every Blender version.
+# hasG2MeshProperties/hasG2ArmatureProperties must check *this*, never `hasattr(obj, "g2_prop")`
+# or `obj.g2_prop is not None`: reading `.g2_prop` at all -- even just to check it's not None --
+# permanently materializes real backing data for the PointerProperty on the object, on every
+# Blender version. That turned simply selecting an unrelated mesh/armature (with this panel
+# visible) into something that silently wrote persistent data to it.
+G2_CONFIGURED_KEY = "g2_configured"
+
+
+def markG2Configured(obj: bpy.types.Object) -> None:
+    obj[G2_CONFIGURED_KEY] = 1
+
+
+def clearG2Configured(obj: bpy.types.Object) -> None:
+    if G2_CONFIGURED_KEY in obj:
+        del obj[G2_CONFIGURED_KEY]
 
 
 def hasG2MeshProperties(obj: bpy.types.Object) -> bool:
-    """ Whether a given object has the ghoul 2 mesh-object properties """
-    return ("g2_prop_off" in obj) and ("g2_prop_tag" in obj) and ("g2_prop_name" in obj) and ("g2_prop_shader" in obj)
+    return G2_CONFIGURED_KEY in obj
 
 
 def hasG2ArmatureProperties(obj: bpy.types.Object) -> bool:
-    """ Whether a given object has the ghoul 2 armature properties """
-    return "g2_prop_scale" in obj
+    return G2_CONFIGURED_KEY in obj
 
 
-def initG2Properties() -> None:
-    """ globally initializes the ghoul 2 custom properties """
-    bpy.types.Object.g2_prop_name = bpy.props.StringProperty(  # pyright: ignore [reportAttributeAccessIssue]
-        name="name", maxlen=64, default="", description="Name (in case it doesn't fit in Blender's Object Name, which is used if this is empty.)")
-    bpy.types.Object.g2_prop_shader = bpy.props.StringProperty(  # pyright: ignore [reportAttributeAccessIssue]
-        name="shader", maxlen=64, default="", description="Shader to use (the one and only way to set this)")
-    bpy.types.Object.g2_prop_tag = bpy.props.BoolProperty(  # pyright: ignore [reportAttributeAccessIssue]
-        name="Tag", default=False, description="Whether this object represents a tag.")
-    bpy.types.Object.g2_prop_off = bpy.props.BoolProperty(  # pyright: ignore [reportAttributeAccessIssue]
-        name="Off", default=False, description="Whether this object should be initially off (can be overridden in skin).")
-    bpy.types.Object.g2_prop_scale = bpy.props.FloatProperty(  # pyright: ignore [reportAttributeAccessIssue]
-        name="Scale", default=100, min=0, subtype='PERCENTAGE', description="Scale of this skeleton.")
+# -------------------------------------------------------------
+#   LEGACY PROPERTY MIGRATION
+# -------------------------------------------------------------
+# Versions before 2.0 stored these as flat custom properties directly on the object
+# (bpy.types.Object.g2_prop_name = bpy.props.StringProperty(...) etc.) instead of nested under
+# a single g2_prop PointerProperty. Blender 5.0 broke that scheme (bpy.props-registered
+# properties are no longer visible via dict-style "in"/.keys() access), hence the PointerProperty
+# above -- but already-existing .blend files saved under the old scheme need their data migrated,
+# or it would silently look empty on next export. The legacy values themselves remain safely
+# readable via plain dict access even under 5.0+ (Blender's own file-versioning duplicates
+# pre-5.0 custom-property data into new storage on load), so this only ever reads them that way,
+# never via `.g2_prop_name` attribute access, so objects without any legacy keys are never
+# touched (and thus never materialized) by this scan.
+_LEGACY_MESH_KEYS = ("g2_prop_name", "g2_prop_shader", "g2_prop_tag", "g2_prop_off")
+_LEGACY_ARMATURE_KEY = "g2_prop_scale"
 
 
+def _migrateLegacyG2Props(obj: bpy.types.Object) -> None:
+    if obj.type == "MESH":
+        if not any(key in obj for key in _LEGACY_MESH_KEYS):
+            return
+        props = obj.g2_prop  # pyright: ignore[reportAttributeAccessIssue]
+        props.name = obj.get("g2_prop_name", "")
+        props.shader = obj.get("g2_prop_shader", "")
+        props.tag = bool(obj.get("g2_prop_tag", False))
+        props.off = bool(obj.get("g2_prop_off", False))
+        for key in _LEGACY_MESH_KEYS:
+            if key in obj:
+                del obj[key]
+        markG2Configured(obj)
+    elif obj.type == "ARMATURE":
+        if _LEGACY_ARMATURE_KEY not in obj:
+            return
+        obj.g2_prop.scale = obj.get(_LEGACY_ARMATURE_KEY, 100)  # pyright: ignore[reportAttributeAccessIssue]
+        del obj[_LEGACY_ARMATURE_KEY]
+        markG2Configured(obj)
+
+
+def migrateLegacyG2Props() -> None:
+    for obj in bpy.data.objects:
+        _migrateLegacyG2Props(obj)
+
+
+@bpy.app.handlers.persistent
+def _onLoadPost(_dummy) -> None:
+    migrateLegacyG2Props()
+
+
+# -------------------------------------------------------------
+#   UI PANEL
+# -------------------------------------------------------------
 class G2PropertiesPanel(bpy.types.Panel):
     bl_label = "Ghoul 2 Properties"
-    bl_idname = "OBJECT_PT_g2_props"
-    bl_space_type = 'PROPERTIES'  # goes in the properties editor
+    bl_idname = "OBJECT_PT_g2_prop"
+    bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
-    bl_context = "object"  # in the objects tab
+    bl_context = "object"
 
     @classmethod
     def poll(cls, context: bpy.types.Context) -> bool:
-        return context.active_object and context.active_object.type in ['MESH', 'ARMATURE'] or False
+        obj = context.active_object
+        return obj is not None and obj.type in {"MESH", "ARMATURE"}
 
     def draw(self, context: bpy.types.Context) -> None:
-        layout = self.layout
-        assert layout is not None
-
+        if (layout := self.layout) is None:
+            return
         # poll() already guarantees an object of the right type is active
         obj = context.active_object
         assert obj is not None
 
-        if obj.type == 'MESH':
-            if hasG2MeshProperties(obj):
-                row = layout.row()
-                row.operator("object.remove_g2_properties")
+        configured = hasG2MeshProperties(obj) if obj.type == "MESH" else hasG2ArmatureProperties(obj)
+        if not configured:
+            layout.operator("object.add_g2_properties")
+            return
 
-                row = layout.row()
-                row.prop(obj, "g2_prop_name")
+        props = obj.g2_prop  # pyright: ignore[reportAttributeAccessIssue]
 
-                row = layout.row()
-                row.prop(obj, "g2_prop_shader")
+        if obj.type == "MESH":
+            layout.operator("object.remove_g2_properties")
+            layout.prop(props, "name")
+            layout.prop(props, "shader")
 
-                row = layout.row()
-                row.prop(obj, "g2_prop_tag")
-                row.prop(obj, "g2_prop_off")
-            else:
-                row = layout.row()
-                row.operator("object.add_g2_properties")
-        else:
-            assert (obj.type == 'ARMATURE')
-            if hasG2ArmatureProperties(obj):
-                row = layout.row()
-                row.operator("object.remove_g2_properties")
+            row = layout.row()
+            row.prop(props, "tag")
+            row.prop(props, "off")
 
-                row = layout.row()
-                row.prop(obj, "g2_prop_scale")
-            else:
-                row = layout.row()
-                row.operator("object.add_g2_properties")
+        elif obj.type == "ARMATURE":
+            layout.operator("object.remove_g2_properties")
+            layout.prop(props, "scale")
+
+
+# -------------------------------------------------------------
+#   REGISTRATION
+# -------------------------------------------------------------
+classes = (
+    G2Props,
+    G2PropertiesPanel,
+)
+
+
+def register():
+    for cls in classes:
+        bpy.utils.register_class(cls)
+
+    bpy.types.Object.g2_prop = PointerProperty(type=G2Props)  # pyright: ignore[reportAttributeAccessIssue]
+
+    if _onLoadPost not in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.append(_onLoadPost)
+
+
+def unregister():
+    if _onLoadPost in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.remove(_onLoadPost)
+
+    del bpy.types.Object.g2_prop  # pyright: ignore[reportAttributeAccessIssue]
+    for cls in reversed(classes):
+        bpy.utils.unregister_class(cls)

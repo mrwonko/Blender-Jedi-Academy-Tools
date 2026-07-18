@@ -41,7 +41,7 @@ bl_info = {
     "name": "Jedi Academy Import/Export Tools",
     "author": "mrwonko, Cagelight et al",
     "description": "Various Jedi Knight: Jedi Academy related tools: Importers for ASE, GLA, GLM, ROFF and Exporters for ASE, GLA, GLM, animation.cfg, ROFF",
-    "version": (1, 0, 0),
+    "version": (2, 0, 0),
     "blender": (4, 1, 0),
     "location": "File > Import-Export",
     "category": "Import-Export"
@@ -57,9 +57,8 @@ def register():
     bpy.utils.register_class(JARoffExport.Operator)
     bpy.utils.register_class(JAAseImport.Operator)
     bpy.utils.register_class(JARoffImport.Operator)
-    bpy.utils.register_class(JAG2Panels.G2PropertiesPanel)
 
-    JAG2Panels.initG2Properties()
+    JAG2Panels.register()
     JAG2Operators.register()
 
     bpy.types.TOPBAR_MT_file_export.append(JAAseExport.menu_func)
@@ -76,8 +75,8 @@ def unregister():
     bpy.utils.unregister_class(JARoffExport.Operator)
     bpy.utils.unregister_class(JAAseImport.Operator)
     bpy.utils.unregister_class(JARoffImport.Operator)
-    bpy.utils.unregister_class(JAG2Panels.G2PropertiesPanel)
 
+    JAG2Panels.unregister()
     JAG2Operators.unregister()
 
     bpy.types.TOPBAR_MT_file_export.remove(JAAseExport.menu_func)
