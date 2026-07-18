@@ -171,6 +171,8 @@ jobs:
           fetch-depth: 0
 
       - name: Verify tag is on master
+        # .claude/skills/release/tag_release.sh's check 1 runs this same command before ever
+        # creating the tag -- if this line changes, check that script's equivalent check too.
         run: git merge-base --is-ancestor "$GITHUB_SHA" origin/master
 
       - name: Create build dir
