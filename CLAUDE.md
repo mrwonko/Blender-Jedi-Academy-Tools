@@ -23,9 +23,9 @@ files, compare). If asked to add tests, see "Testing" below for the intended dir
   `build/jediacademy_plugins_doc.pdf` (compiled from `jediacademy_plugins_doc.tex` via `pdflatex`).
 - `make build/jediacademy.zip` — package just the add-on `.py` files (see `PY_FILES` in `Makefile`) plus
   the readme into a zip installable via Blender's add-on preferences.
-- CI (`.github/workflows/main.yml`) runs on every push to `master`: builds the manual and zip, then
-  force-updates a `nightly` prerelease tag/release with the new build. There is no lint or test step in CI
-  today.
+- `.github/workflows/nightly.yml` runs on every push to `master`: builds the manual and zip, then
+  force-updates a `nightly` prerelease tag/release with the new build. Testing and typechecking run
+  separately in `.github/workflows/test.yml` (see "Testing" below).
 - Formatting/linting: pycodestyle via `.pep8` (only rule disabled: E501 line length, to allow long
   `# pyright: ignore` comments). VS Code is configured (`.vscode/settings.json`) to use `autopep8` as the
   Python formatter and pyright type checking at `standard` mode. There's no separate CLI lint command
@@ -37,6 +37,33 @@ The add-on targets Blender as declared in `bl_info["blender"]` in `__init__.py`.
 confirmed-working version; Blender 5.0 is known to break the plugin (breaking API changes). When
 diagnosing failures reported against a specific Blender version, check that version against this before
 assuming a code bug.
+
+### Releases
+
+Versioned releases use plain SemVer (`bl_info["version"]` in `__init__.py`), decoupled from Blender
+compatibility: `bl_info["blender"]` separately tracks the minimum supported Blender version, and which
+version(s) a release was tested against is stated in the release notes / CI matrix, not encoded into the
+version number itself. **Dropping support for a Blender version (raising the stated minimum) is a breaking
+change and bumps the major version.**
+
+The manual's changelog (`jediacademy_plugins_doc.tex`, "Changelog" section) tracks entries by version
+rather than by date going forward. A PR with a user-facing change adds a bullet under a
+`\subsection*{next version}` placeholder heading (create it if it doesn't exist yet) — internal-only
+changes (CI, test infra, refactors, type annotations) are excluded, per the convention established in
+PR #93. Cutting a release renames that placeholder heading to the real version, e.g.
+`\subsection*{1.0.0}`; existing dated entries from before this convention are left as historical record,
+not retroactively renamed.
+
+To cut a release:
+1. Open a PR that bumps `bl_info["version"]`, renames the changelog's `next version` placeholder to the
+   real version number, and has a commit message written *as the release notes* — it becomes the GitHub
+   Release body verbatim.
+2. After that PR merges to `master`, tag `master`'s HEAD `vX.Y.Z` and push the tag.
+   `.github/workflows/release.yml` then builds the zip/manual and publishes the GitHub Release
+   automatically — it only publishes for tags reachable from `master` (a merge-base check guards against
+   a stray tag on some other commit).
+3. The rolling `nightly` prerelease (`.github/workflows/nightly.yml`) is unaffected and keeps building on
+   every push to `master` alongside versioned releases.
 
 ### Testing (planned direction)
 
@@ -53,9 +80,7 @@ When implementing test infrastructure for this repo, the intended approach is:
 - Comparisons must be logical, not byte-for-byte: see "Roundtripping" below for why, and for the one exception
   (bone order) that does need to be pinned down explicitly in test fixtures via the reference-skeleton export
   option.
-- Releases should move from the current single rolling `nightly` prerelease to versioned releases that state
-  which Blender version(s) they were tested against, so users on newer/older Blender know whether a release is
-  expected to work for them.
+- Releases are now versioned — see "Releases" above rather than treating this as still-planned.
 
 ### Roundtripping
 
