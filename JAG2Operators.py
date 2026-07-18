@@ -17,13 +17,14 @@
 # ##### END GPL LICENSE BLOCK #####
 
 from .mod_reload import reload_modules
-reload_modules(locals(), __package__, ["JAG2Scene", "JAG2GLA", "JAFilesystem"], [".JAG2Constants"])  # nopep8
+reload_modules(locals(), __package__, ["JAG2Scene", "JAG2GLA", "JAFilesystem", "JAG2Panels"], [".JAG2Constants"])  # nopep8
 
 import bpy
 from typing import Set, Tuple, cast
 from . import JAG2Scene
 from . import JAG2GLA
 from . import JAFilesystem
+from . import JAG2Panels
 from .JAG2Constants import SkeletonFixes
 from .casts import OperatorReturnItems
 
@@ -274,60 +275,6 @@ class GLAExport(bpy.types.Operator):
         return {'RUNNING_MODAL'}
 
 
-class ObjectAddG2Properties(bpy.types.Operator):
-    bl_idname = "object.add_g2_properties"
-    bl_label = "Add G2 properties"
-    bl_description = "Adds Ghoul 2 properties"
-
-    @classmethod
-    def poll(cls, context: bpy.types.Context) -> bool:
-        return context.active_object and context.active_object.type in ['MESH', 'ARMATURE'] or False
-
-    def execute(self, context: bpy.types.Context) -> Set[OperatorReturnItems]:
-        # poll() already guarantees an object of the right type is active
-        obj = context.active_object
-        assert obj is not None
-        if obj.type == 'MESH':
-            # don't overwrite those that already exist
-            if not "g2_prop_off" in obj:
-                obj.g2_prop_off = False  # pyright: ignore [reportAttributeAccessIssue]
-            if not "g2_prop_tag" in obj:
-                obj.g2_prop_tag = False  # pyright: ignore [reportAttributeAccessIssue]
-            if not "g2_prop_name" in obj:
-                obj.g2_prop_name = ""  # pyright: ignore [reportAttributeAccessIssue]
-            if not "g2_prop_shader" in obj:
-                obj.g2_prop_shader = ""  # pyright: ignore [reportAttributeAccessIssue]
-        else:
-            assert (obj.type == 'ARMATURE')
-            if not "g2_prop_scale" in obj:
-                obj.g2_prop_scale = 100  # pyright: ignore [reportAttributeAccessIssue]
-        return {'FINISHED'}
-
-
-class ObjectRemoveG2Properties(bpy.types.Operator):
-    bl_idname = "object.remove_g2_properties"
-    bl_label = "Remove G2 properties"
-    bl_description = "Removes Ghoul 2 properties"
-
-    @classmethod
-    def poll(cls, context: bpy.types.Context) -> bool:
-        return context.active_object and context.active_object.type in ['MESH', 'ARMATURE'] or False
-
-    def execute(self, context: bpy.types.Context) -> Set[OperatorReturnItems]:
-        # poll() already guarantees an object of the right type is active
-        obj = context.active_object
-        assert obj is not None
-        if obj.type == 'MESH':
-            bpy.types.Object.__delitem__(obj, "g2_prop_off")
-            bpy.types.Object.__delitem__(obj, "g2_prop_tag")
-            bpy.types.Object.__delitem__(obj, "g2_prop_name")
-            bpy.types.Object.__delitem__(obj, "g2_prop_shader")
-        else:
-            assert (obj.type == 'ARMATURE')
-            bpy.types.Object.__delitem__(obj, "g2_prop_scale")
-        return {'FINISHED'}
-
-
 class GLAMetaExport(bpy.types.Operator):
     '''Export GLA Metadata Operator.'''
     bl_idname = "export_scene.gla_meta"
@@ -402,6 +349,54 @@ class GLAMetaExport(bpy.types.Operator):
         wm.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
+class OBJECT_OT_AddG2Properties(bpy.types.Operator):
+    bl_idname = "object.add_g2_properties"
+    bl_label = "Add Ghoul 2 Properties"
+    bl_description = "Adds Ghoul 2 properties"
+
+    @classmethod
+    def poll(cls, context: bpy.types.Context) -> bool:
+        obj = context.active_object
+        return obj is not None and obj.type in {"MESH", "ARMATURE"}
+
+    def execute(self, context: bpy.types.Context) -> Set[OperatorReturnItems]:
+        # poll() already guarantees an object of the right type is active
+        obj = context.active_object
+        assert obj is not None
+        _ = obj.g2_prop  # pyright: ignore[reportAttributeAccessIssue]  # deliberate: user opted in, so materializing storage here is correct
+        JAG2Panels.markG2Configured(obj)
+        self.report({'INFO'}, f"Added G2 properties to {obj.name}")
+        return {'FINISHED'}
+
+
+class OBJECT_OT_RemoveG2Properties(bpy.types.Operator):
+    bl_idname = "object.remove_g2_properties"
+    bl_label = "Remove Ghoul 2 Properties"
+    bl_description = "Removes Ghoul 2 properties"
+
+    @classmethod
+    def poll(cls, context: bpy.types.Context) -> bool:
+        obj = context.active_object
+        if obj is None or obj.type not in {"MESH", "ARMATURE"}:
+            return False
+        return JAG2Panels.hasG2MeshProperties(obj) if obj.type == "MESH" else JAG2Panels.hasG2ArmatureProperties(obj)
+
+    def execute(self, context: bpy.types.Context) -> Set[OperatorReturnItems]:
+        # poll() already guarantees an object of the right type is active and configured
+        obj = context.active_object
+        assert obj is not None
+        props = obj.g2_prop  # pyright: ignore[reportAttributeAccessIssue]
+
+        props.name = ""
+        props.shader = ""
+        props.tag = False
+        props.off = False
+        props.scale = 100
+        JAG2Panels.clearG2Configured(obj)
+
+        self.report({'INFO'}, f"Reset G2 properties for {obj.name}")
+        return {'FINISHED'}
+
 # menu button callback functions
 
 
@@ -437,8 +432,8 @@ def register():
     bpy.utils.register_class(GLMImport)
     bpy.utils.register_class(GLAImport)
 
-    bpy.utils.register_class(ObjectAddG2Properties)
-    bpy.utils.register_class(ObjectRemoveG2Properties)
+    bpy.utils.register_class(OBJECT_OT_AddG2Properties)
+    bpy.utils.register_class(OBJECT_OT_RemoveG2Properties)
 
     bpy.types.TOPBAR_MT_file_export.append(menu_func_export_glm)
     bpy.types.TOPBAR_MT_file_export.append(menu_func_export_gla)
@@ -454,8 +449,8 @@ def unregister():
     bpy.utils.unregister_class(GLMImport)
     bpy.utils.unregister_class(GLAImport)
 
-    bpy.utils.unregister_class(ObjectAddG2Properties)
-    bpy.utils.unregister_class(ObjectRemoveG2Properties)
+    bpy.utils.unregister_class(OBJECT_OT_AddG2Properties)
+    bpy.utils.unregister_class(OBJECT_OT_RemoveG2Properties)
 
     bpy.types.TOPBAR_MT_file_export.remove(menu_func_export_glm)
     bpy.types.TOPBAR_MT_file_export.remove(menu_func_export_gla)
