@@ -7,9 +7,9 @@ on:
     tags: [ "v*.*.*" ]
   pull_request:
   schedule:
-    # TEMPORARY, for testing the schedule-triggered path (incl. the no-op skip) after merge --
-    # revert to the daily "0 3 * * *" once a few real runs have been confirmed working.
-    - cron: "*/10 * * * *"
+    # Daily, off-peak minute rather than top-of-hour: GitHub Actions schedules cluster at round
+    # minutes/top-of-hour across all repos, causing extra queueing delay.
+    - cron: "17 3 * * *"
   workflow_dispatch:
 
 jobs:
