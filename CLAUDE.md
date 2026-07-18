@@ -23,9 +23,9 @@ files, compare). If asked to add tests, see "Testing" below for the intended dir
   `build/jediacademy_plugins_doc.pdf` (compiled from `jediacademy_plugins_doc.tex` via `pdflatex`).
 - `make build/jediacademy.zip` — package just the add-on `.py` files (see `PY_FILES` in `Makefile`) plus
   the readme into a zip installable via Blender's add-on preferences.
-- CI (`.github/workflows/main.yml`) runs on every push to `master`: builds the manual and zip, then
-  force-updates a `nightly` prerelease tag/release with the new build. There is no lint or test step in CI
-  today.
+- `.github/workflows/nightly.yml` runs on every push to `master`: builds the manual and zip, then
+  force-updates a `nightly` prerelease tag/release with the new build. Testing and typechecking run
+  separately in `.github/workflows/test.yml` (see "Testing" below).
 - Formatting/linting: pycodestyle via `.pep8` (only rule disabled: E501 line length, to allow long
   `# pyright: ignore` comments). VS Code is configured (`.vscode/settings.json`) to use `autopep8` as the
   Python formatter and pyright type checking at `standard` mode. There's no separate CLI lint command
@@ -62,7 +62,7 @@ To cut a release:
    `.github/workflows/release.yml` then builds the zip/manual and publishes the GitHub Release
    automatically — it only publishes for tags reachable from `master` (a merge-base check guards against
    a stray tag on some other commit).
-3. The rolling `nightly` prerelease (`.github/workflows/main.yml`) is unaffected and keeps building on
+3. The rolling `nightly` prerelease (`.github/workflows/nightly.yml`) is unaffected and keeps building on
    every push to `master` alongside versioned releases.
 
 ### Testing (planned direction)
