@@ -9,8 +9,15 @@ on:
 jobs:
   smoke-test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 4.1 is the minimum version declared in __init__.py's bl_info; 4.5 is the
+        # latest confirmed-working version (see CLAUDE.md's "Known Blender version
+        # support"). Blender 5.0 is known-broken and deliberately not tested here.
+        blender-version: ["4.1", "4.5"]
     container:
-      image: blenderkit/headless-blender:blender-4.5-stable
+      image: blenderkit/headless-blender:blender-${{ matrix.blender-version }}-stable
     steps:
       - uses: actions/checkout@v4
 
