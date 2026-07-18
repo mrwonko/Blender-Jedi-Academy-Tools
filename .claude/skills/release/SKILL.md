@@ -20,6 +20,12 @@ Gather these facts directly (no script — cheap one-off reads):
 - Bullets currently accumulated under the `\subsection*{next version}` placeholder heading.
 - Commits/PRs merged since the last release tag (`git log <last-tag>..origin/master --oneline`).
 
+While reading those bullets, check each one actually describes something that reached a real
+user: a bug introduced and fixed before it ever merged to `master` (e.g. caught during the same
+PR's development, or in review) was never in anything a user could have gotten, not even a
+nightly build — remove that bullet rather than list it as a "fix". See `CLAUDE.md`'s changelog
+convention.
+
 **Important nuance**: per `CLAUDE.md`'s "bump immediately in the PR that necessitates it"
 convention, `bl_info["version"]` may *already* have been bumped in some earlier PR, well before
 this release-cutting PR — don't assume every release-cut PR bumps it itself.
@@ -47,6 +53,10 @@ Two non-obvious rules:
   not a normal dev-facing commit message.
 - **Do not** append the usual `Claude-Session`/`Co-Authored-By` trailer to this commit — it would
   end up in the public release notes.
+
+Same never-reached-a-user check from Step 1 applies here too — don't carry a bullet for an
+unshipped bug into the release-notes commit message just because it's still in the `.tex` file at
+this point; catching it in Step 1 should have already removed it.
 
 ## Step 4 — Open the PR, wait for merge
 

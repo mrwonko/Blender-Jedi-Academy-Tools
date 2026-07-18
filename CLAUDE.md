@@ -74,7 +74,11 @@ The manual's changelog (`jediacademy_plugins_doc.tex`, "Changelog" section) trac
 rather than by date going forward. A PR with a user-facing change adds a bullet under a
 `\subsection*{next version}` placeholder heading (create it if it doesn't exist yet) — internal-only
 changes (CI, test infra, refactors, type annotations) are excluded, per the convention established in
-PR #93. Cutting a release renames that placeholder heading to the real version, e.g.
+PR #93. **Also excluded: a bug introduced and fixed before it ever reached `master`** (e.g. caught
+during the same PR's development, or in review, before merging) — `master` feeds the rolling
+`nightly` prerelease continuously, so a bug that never merged there was never available to any real
+user, not even a nightly-build one. Listing it as a "fix" would misleadingly imply a past release
+had that regression. Cutting a release renames that placeholder heading to the real version, e.g.
 `\subsection*{1.0.0}`; existing dated entries from before this convention are left as historical record,
 not retroactively renamed.
 
