@@ -60,7 +60,7 @@ def case_smoke():
 
 def case_export():
     import bpy
-    bpy.ops.wm.open_mainfile(filepath=os.path.join(TESTDATA, "testmodel.blend"))
+    bpy.ops.wm.open_mainfile(filepath=os.path.join(TESTDATA, "g2model.blend"))
 
     tmp = tempfile.mkdtemp(prefix="jediacademy-test-export-")
     basepath = os.path.join(tmp, "GameData", "base")
