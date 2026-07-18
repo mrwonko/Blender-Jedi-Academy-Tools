@@ -242,6 +242,76 @@ def case_roundtrip():
     testutil.check(testutil.compare_glm(actual_glm, expected_glm) + testutil.compare_gla(actual_gla, expected_gla))
 
 
+COLINEAR_SKELETON_REL = "models/testcases/colinear_bone_movement/colinear_bone_movement"
+
+
+def _export_colinear_skeleton(scene, basepath):
+    """Skeleton-only counterpart to _export, for the colinear_bone_movement fixture (no mesh model)."""
+    os.makedirs(os.path.join(basepath, "models", "testcases", "colinear_bone_movement"), exist_ok=True)
+    success, message = scene.loadSkeletonFromBlender(COLINEAR_SKELETON_REL, gla_reference_rel="")
+    if not success:
+        raise AssertionError(f"loadSkeletonFromBlender failed: {message}")
+    success, message = scene.saveToGLA(COLINEAR_SKELETON_REL)
+    if not success:
+        raise AssertionError(f"saveToGLA failed: {message}")
+
+
+def _load_colinear_gla(basepath):
+    gla = addon.JAG2GLA.GLA()
+    success, message = gla.loadFromFile(
+        os.path.join(basepath, COLINEAR_SKELETON_REL + ".gla"),
+        addon.JAG2GLA.AnimationLoadMode.ALL, 0, -1,
+    )
+    if not success:
+        raise AssertionError(f"failed to load {COLINEAR_SKELETON_REL}.gla: {message}")
+    return gla
+
+
+def case_bone_connect_colinear_roundtrip():
+    """Mirrors case_roundtrip: reimport the golden reference .gla into Blender, re-export it,
+    and diff again against the reference -- plus the actual point of this fixture, an explicit
+    use_connect check on the reimported child bone right where the reimport happens. A wrongly
+    auto-connected bone would likely also surface as a compare_gla mismatch (Blender clamps a
+    connected bone's pose-time translation, so the re-export would drift from the reference), but
+    this check names the actual mechanism directly instead of leaving it to be inferred from a
+    matrix diff. Regression test for _boneCanConnect (JAG2GLA.py): the reference .gla's child
+    bone is aligned with its parent closely enough in rest pose to pass the cheap pre-check, but
+    translates independently of its parent across the animated sequence, so it must not end up
+    auto-connected. There's deliberately no .blend fixture for this one (only the reference .gla,
+    exported once from a hand-authored Blender file and checked in as the baseline) -- the
+    original .blend was saved by Blender 5.2 using its newer large-file header format, which
+    Blender 4.1 (this addon's stated minimum) can't open at all, compressed or not; since this
+    test never needs to open a .blend in the first place, dropping it sidesteps that
+    incompatibility entirely rather than trying to work around it."""
+    scene = addon.JAG2Scene.Scene(REFERENCE_BASEPATH)
+    success, message = scene.loadFromGLA(COLINEAR_SKELETON_REL, loadAnimations=addon.JAG2GLA.AnimationLoadMode.ALL)
+    if not success:
+        raise AssertionError(f"loadFromGLA failed: {message}")
+    success, message = scene.saveToBlender(
+        scale=1.0, skin_rel="", guessTextures=False, useAnimation=True,
+        skeletonFixes=addon.JAG2Constants.SkeletonFixes.NONE,
+    )
+    if not success:
+        raise AssertionError(f"saveToBlender failed: {message}")
+
+    import bpy
+    armature = bpy.data.objects["skeleton_root"].data
+    child = armature.bones["colinear_disconnected_child"]
+    use_connect_mismatches = [] if not child.use_connect else [
+        "colinear_disconnected_child was auto-connected to its parent despite translating "
+        "independently across the animated sequence (use_connect silently clips that motion)"
+    ]
+
+    tmp = tempfile.mkdtemp(prefix="jediacademy-test-colinear-roundtrip-")
+    basepath = os.path.join(tmp, "GameData", "base")
+    reexport_scene = addon.JAG2Scene.Scene(basepath)
+    _export_colinear_skeleton(reexport_scene, basepath)
+
+    actual_gla = _load_colinear_gla(basepath)
+    expected_gla = _load_colinear_gla(REFERENCE_BASEPATH)
+    testutil.check(use_connect_mismatches + testutil.compare_gla(actual_gla, expected_gla))
+
+
 runner = testutil.TestRunner()
 runner.run("smoke", case_smoke)
 testutil.reset_scene()
@@ -254,6 +324,8 @@ testutil.reset_scene()
 runner.run("already_converted", case_already_converted)
 testutil.reset_scene()
 runner.run("roundtrip", case_roundtrip)
+testutil.reset_scene()
+runner.run("bone_connect_colinear_roundtrip", case_bone_connect_colinear_roundtrip)
 testutil.reset_scene()
 runner.run("no_passive_materialization", case_no_passive_materialization)
 runner.report()
