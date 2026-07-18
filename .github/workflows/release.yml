@@ -1,0 +1,54 @@
+name: Release
+
+on:
+  push:
+    tags: [ "v*.*.*" ]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Git repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify tag is on master
+        run: git merge-base --is-ancestor "$GITHUB_SHA" origin/master
+
+      - name: Create build dir
+        run: mkdir build
+
+      - name: Compile Manual
+        # TODO: run `make build/jediacademy_plugins_doc.pdf` instead,
+        # but that requires pdflatex to be installed
+        uses: dante-ev/latex-action@latest
+        with:
+          working_directory: build
+          root_file: ../jediacademy_plugins_doc.tex
+
+      - name: Package plugin
+        run: make build/jediacademy.zip
+
+      - name: Extract release notes from tagged commit
+        id: notes
+        run: |
+          {
+            echo "body<<RELEASE_NOTES_EOF"
+            git log -1 --format=%B "$GITHUB_SHA"
+            echo "RELEASE_NOTES_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: ${{ github.ref_name }}
+          body: |
+            The jediacademy.zip file can be installed using the button in Blender's add-on preferences.
+
+            Please consult jediacademy_plugins_doc.pdf for instructions on how to use the plugin.
+
+            ${{ steps.notes.outputs.body }}
+          files: |
+            build/jediacademy_plugins_doc.pdf
+            build/jediacademy.zip
