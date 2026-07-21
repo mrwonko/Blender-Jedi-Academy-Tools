@@ -210,6 +210,8 @@ class GLMExport(bpy.types.Operator):
         if not success:
             self.report({'ERROR'}, message)
             return {'FINISHED'}
+        for warning in scene.warnings:
+            self.report({'WARNING'}, warning)
         # try to save
         success, message = scene.saveToGLM(filepath)
         if not success:

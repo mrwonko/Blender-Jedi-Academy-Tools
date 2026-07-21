@@ -21,7 +21,7 @@
 from .mod_reload import reload_modules
 reload_modules(locals(), __package__, ["JAFilesystem", "JAG2Constants", "JAG2GLM", "JAG2GLA"], [".error_types", ".casts"])  # nopep8
 
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 from . import JAFilesystem
 from . import JAG2Constants
 from . import JAG2GLM
@@ -47,6 +47,7 @@ class Scene:
         self.scale = 1.0
         self.glm: Optional[JAG2GLM.GLM] = None
         self.gla: Optional[JAG2GLA.GLA] = None
+        self.warnings: List[str] = []
 
     # Fills scene from on GLM file
     def loadFromGLM(self, glm_filepath_rel: str) -> Tuple[bool, ErrorMessage]:
@@ -86,10 +87,12 @@ class Scene:
     # "Loads" model from Blender data
     def loadModelFromBlender(self, glm_filepath_rel, gla_filepath_rel):
         self.glm = JAG2GLM.GLM()
+        self.warnings = []
         success, message = self.glm.loadFromBlender(
             glm_filepath_rel, gla_filepath_rel, self.basepath)
         if not success:
             return False, message
+        self.warnings = list(self.glm.warnings)
         return True, ""
 
     # "Loads" skeleton & animation from Blender data

@@ -964,6 +964,7 @@ class GLM:
         self.surfaceDataOffsets = MdxmSurfaceDataOffsets()
         self.surfaceDataCollection = MdxmSurfaceDataCollection()
         self.LODCollection = MdxmLODCollection()
+        self.warnings: List[str] = []
 
     def loadFromFile(self, filepath_abs: str) -> Tuple[bool, ErrorMessage]:
         print(f"Loading {filepath_abs}...")
@@ -1002,6 +1003,7 @@ class GLM:
         return True, NoError
 
     def loadFromBlender(self, glm_filepath_rel: str, gla_filepath_rel: str, basepath: str) -> Tuple[bool, ErrorMessage]:
+        self.warnings = []
         self.header.name = glm_filepath_rel.replace("\\", "/").encode()
         # the .gla extension must be omitted
         self.header.animName = gla_filepath_rel.removesuffix(".gla").encode()
@@ -1057,6 +1059,14 @@ class GLM:
             rootObjects[0], surfaceIndexMap)
         if not success:
             return False, message
+        missing_hands = [
+            hand for hand in ("l_hand", "r_hand") if hand not in surfaceIndexMap
+        ]
+        if missing_hands:
+            warning = f"Lightsabers need surfaces named {', '.join(missing_hands)}; singleplayer lightsabers won't work without them."
+            print(f"Warning: {warning}")
+            self.warnings.append(warning)
+            return False, ErrorMessage(warning)
         self.surfaceDataOffsets.calculateOffsets(self.surfaceDataCollection)
 
         self.header.numSurfaces = len(self.surfaceDataCollection.surfaces)
