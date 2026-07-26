@@ -295,7 +295,7 @@ def case_bone_connect_colinear_roundtrip():
         raise AssertionError(f"saveToBlender failed: {message}")
 
     import bpy
-    armature = bpy.data.objects["skeleton_root"].data
+    armature = addon.casts.downcast(bpy.types.Armature, bpy.data.objects["skeleton_root"].data)
     child = armature.bones["colinear_disconnected_child"]
     use_connect_mismatches = [] if not child.use_connect else [
         "colinear_disconnected_child was auto-connected to its parent despite translating "
