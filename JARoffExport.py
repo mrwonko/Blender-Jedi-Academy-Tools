@@ -9,7 +9,7 @@ import os
 class Operator(bpy.types.Operator):
     # everything is scaled down by this factor
     scale: bpy.props.FloatProperty(
-        name="Scale", description="Movements are scaled by this factor", default=100)  # type: ignore
+        name="Scale", description="Movements are scaled by this factor", default=1)  # type: ignore
     bl_idname = "export_scene.ja_roff"
     bl_label = "Export JA ROFF (.rof)"
 

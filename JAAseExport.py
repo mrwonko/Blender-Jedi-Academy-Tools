@@ -51,15 +51,9 @@ class ModelExporter:
         self.materialIndices = {}
 
     def export(self, filename):
-        # We work on layer 0
-        prevLayer0State = bpy.context.scene.layers[0]
-
         # read objects
         if not self.readObjects():
-            bpy.context.scene.layers[0] = prevLayer0State
             return
-
-        bpy.context.scene.layers[0] = prevLayer0State
 
         # save to file
         with open(filename, "w") as file:
@@ -89,14 +83,15 @@ class ModelExporter:
         bpy.ops.object.select_all(action='DESELECT')
 
         success = True
-        mesh = obj.to_mesh(bpy.context.scene, True, 'PREVIEW')
+        mesh = obj.evaluated_get(
+            bpy.context.evaluated_depsgraph_get()).to_mesh()
+        mesh.calc_loop_triangles()
         # only export meshes with faces
-        if len(mesh.polygons) > 0:
+        if len(mesh.loop_triangles) > 0:
             # let's just use the first material, it's the user's job to separate by material.
             material = obj.material_slots[0]
             if not self.readMesh(obj, mesh, material):
                 success = False
-        bpy.data.meshes.remove(mesh)
 
         print("Done.")
 
@@ -129,7 +124,7 @@ class ModelExporter:
                 exportIndexLookup[vertexIndex] = indices = {}
             index = indices.get(uv)
             if not index:
-                verts.append(Vertex(obj.matrix_world *
+                verts.append(Vertex(obj.matrix_world @
                              mesh.vertices[vertexIndex].co, uv))
                 index = len(verts) - 1
                 indices[uv] = index
@@ -137,7 +132,7 @@ class ModelExporter:
 
         # the polys may get new vertex indices due to vertex splitting due to different UVs - this is all done by this beautiful list comprehension.
         tris = [[getExportIndex(vertIndex, loopIndex) for vertIndex, loopIndex in zip(
-            poly.vertices, poly.loop_indices)] for poly in mesh.polygons]
+            poly.vertices, poly.loops)] for poly in mesh.loop_triangles]
 
         materialIndex = None
         if material in self.materialIndices:

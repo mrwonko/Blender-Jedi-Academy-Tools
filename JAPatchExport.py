@@ -213,29 +213,24 @@ class Operator(bpy.types.Operator):
         if not self.beautiful:
             patchDefFunc = coordinatesToPatchDefAlt
 
-        mesh = obj.to_mesh(bpy.context.scene, True, 'PREVIEW')
+        mesh = obj.evaluated_get(
+            bpy.context.evaluated_depsgraph_get()).to_mesh()
+
         try:
-            try:
-                file = open(filename, "w")
-
-                file.write("{\n\"classname\" \"worldspawn\"\n")
-
-                for face in mesh.tessfaces:
-                    if len(face.vertices) in (3, 4):
-                        coordinates = [scaleMat * obj.matrix_world *
-                                       mesh.vertices[x].co for x in face.vertices]
-                        file.write(patchDefFunc(self.shader, *coordinates))
-                    else:
-                        ngons = True
-
-                file.write("}\n")
-
-                file.close()
-            except IOError:
-                self.report({"ERROR"}, "Couldn't create file!")
-                return
-        finally:
-            bpy.data.meshes.remove(mesh)
+            file = open(filename, "w")
+            file.write("{\n\"classname\" \"worldspawn\"\n")
+            for face in mesh.polygons:
+                if len(face.vertices) in (3, 4):
+                    coordinates = [scaleMat @ obj.matrix_world @
+                                   mesh.vertices[x].co for x in face.vertices]
+                    file.write(patchDefFunc(self.shader, *coordinates))
+                else:
+                    ngons = True
+            file.write("}\n")
+            file.close()
+        except IOError:
+            self.report({"ERROR"}, "Couldn't create file!")
+            return
 
         if ngons:
             self.report({'WARNING'}, "Some N-Gons could not be exported!")
